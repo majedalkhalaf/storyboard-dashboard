@@ -348,7 +348,7 @@ function PartSection({ part, partIndex, storyboardId, onEditShot }: {
     addShot(storyboardId, part.id, {
       number: part.shots.length + 1,
       title: `لقطة ${part.shots.length + 1}`,
-      description: '', duration: 5, equipment: [], status: 'draft'
+      description: '', duration: 5, equipment: [], status: 'draft', isCompleted: false
     });
   };
 
