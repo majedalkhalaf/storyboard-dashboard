@@ -8,7 +8,7 @@ interface DashboardProps {
   onNavigate: (section: ActiveSection, projectId?: string, storyboardId?: string) => void;
 }
 
-function getProjectProgress(projectId: string, storyboards: ReturnType<typeof useAppStore>['storyboards'], manualProgress?: number) {
+function getProjectProgress(projectId: string, storyboards: any[], manualProgress?: number) {
   if (manualProgress !== undefined && manualProgress >= 0) return { pct: manualProgress, total: 0, done: 0, manual: true };
   const sbs = storyboards.filter(sb => sb.projectId === projectId);
   let total = 0, done = 0;

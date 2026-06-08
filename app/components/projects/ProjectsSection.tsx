@@ -18,7 +18,7 @@ const STATUS_COLORS: Record<string, string> = {
   archived: '#6b7280', 'on-hold': '#f43f5e'
 };
 
-function getProgress(projectId: string, storyboards: ReturnType<typeof useAppStore>['storyboards'], manualProgress?: number) {
+function getProgress(projectId: string, storyboards: any[], manualProgress?: number) {
   if (manualProgress !== undefined && manualProgress >= 0) return { pct: manualProgress, total: 0, done: 0, manual: true };
   const sbs = storyboards.filter(sb => sb.projectId === projectId);
   let total = 0, done = 0;
