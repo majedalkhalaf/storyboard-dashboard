@@ -8,8 +8,24 @@ interface DashboardProps {
   onNavigate: (section: ActiveSection, projectId?: string, storyboardId?: string) => void;
 }
 
+function getProjectProgress(projectId: string, storyboards: ReturnType<typeof useAppStore>['storyboards'], manualProgress?: number) {
+  if (manualProgress !== undefined && manualProgress >= 0) return { pct: manualProgress, total: 0, done: 0, manual: true };
+  const sbs = storyboards.filter(sb => sb.projectId === projectId);
+  let total = 0, done = 0;
+  for (const sb of sbs) {
+    for (const part of sb.parts) {
+      for (const shot of part.shots) {
+        total++;
+        if (shot.isCompleted) done++;
+      }
+    }
+  }
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return { pct, total, done, manual: false };
+}
+
 export default function DashboardHome({ onNavigate }: DashboardProps) {
-  const { projects, storyboards, equipment, templates } = useAppStore();
+  const { projects, storyboards, equipment, templates, updateProject } = useAppStore();
 
   const stats = {
     totalProjects: projects.length,
@@ -19,12 +35,13 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
     completedProjects: projects.filter(p => p.status === 'completed').length,
     upcomingProductions: projects.filter(p => p.status === 'ready').length,
     totalShots: storyboards.reduce((acc, sb) => acc + sb.parts.reduce((a, p) => a + p.shots.length, 0), 0),
+    completedShots: storyboards.reduce((acc, sb) => acc + sb.parts.reduce((a, p) => a + p.shots.filter(s => s.isCompleted).length, 0), 0),
     totalEquipment: equipment.length,
   };
 
-  const recentProjects = [...projects].sort((a, b) =>
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  ).slice(0, 5);
+  const recentProjects = [...projects]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5);
 
   const getStatusLabel = (status: string) => {
     const s = PROJECT_STATUSES.find(s => s.value === status);
@@ -34,7 +51,8 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       idea: '#a855f7', planning: '#3b82f6', ready: '#eab308',
-      production: '#f97316', editing: '#06b6d4', completed: '#22c55e', archived: '#6b7280'
+      production: '#f97316', editing: '#06b6d4', completed: '#22c55e',
+      archived: '#6b7280', 'on-hold': '#f43f5e'
     };
     return colors[status] || '#6b7280';
   };
@@ -44,13 +62,24 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
       'real-estate': 'عقارات', 'product-commercial': 'إعلان منتج',
       'corporate': 'شركات', 'social-media': 'سوشيال ميديا',
       'youtube': 'يوتيوب', 'interview': 'مقابلة', 'drone': 'درون',
-      'documentary': 'وثائقي', 'event': 'فعالية'
+      'documentary': 'وثائقي', 'event': 'فعالية', 'custom': 'مخصص'
     };
     return types[type] || type;
   };
 
+  // Status groups for the kanban-style overview
+  const statusGroups = [
+    { value: 'ready', label: '🎬 جاهز للتصوير', color: '#eab308' },
+    { value: 'production', label: '📹 قيد التصوير', color: '#f97316' },
+    { value: 'planning', label: '📋 تخطيط', color: '#3b82f6' },
+    { value: 'editing', label: '🎞️ مونتاج', color: '#06b6d4' },
+    { value: 'completed', label: '✅ مكتمل', color: '#22c55e' },
+    { value: 'on-hold', label: '⏸️ مؤجل', color: '#f43f5e' },
+  ];
+
   return (
-    <div style={{ padding: '32px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: "clamp(16px, 4vw, 32px)", maxWidth: '1400px', margin: '0 auto' }}>
+
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -68,7 +97,7 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
       </div>
 
       {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px', marginBottom: '32px' }}>
         {[
           { label: 'إجمالي المشاريع', value: stats.totalProjects, icon: '◈', color: '#C9A84C', sub: 'مشروع' },
           { label: 'الستوري بورد', value: stats.totalStoryboards, icon: '▦', color: '#3b82f6', sub: 'ستوري' },
@@ -76,7 +105,11 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
           { label: 'مكتملة', value: stats.completedProjects, icon: '✓', color: '#22c55e', sub: 'منجزة' },
           { label: 'القوالب', value: stats.totalTemplates, icon: '⊞', color: '#a855f7', sub: 'قالب' },
           { label: 'جاهزة للتصوير', value: stats.upcomingProductions, icon: '🎬', color: '#eab308', sub: 'مشروع' },
-          { label: 'إجمالي اللقطات', value: stats.totalShots, icon: '▣', color: '#06b6d4', sub: 'لقطة' },
+          {
+            label: 'اللقطات المنجزة',
+            value: `${stats.completedShots}/${stats.totalShots}`,
+            icon: '✅', color: '#06b6d4', sub: 'لقطة'
+          },
           { label: 'المعدات', value: stats.totalEquipment, icon: '◉', color: '#ec4899', sub: 'قطعة' },
         ].map((stat, i) => (
           <div key={i} className="stat-card" style={{ animationDelay: `${i * 0.05}s` }}>
@@ -91,7 +124,7 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
               </div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>{stat.sub}</span>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: '900', color: stat.color, lineHeight: '1' }}>
+            <div style={{ fontSize: '28px', fontWeight: '900', color: stat.color, lineHeight: '1' }}>
               {stat.value}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600' }}>
@@ -100,6 +133,36 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
           </div>
         ))}
       </div>
+
+      {/* Overall shots progress bar */}
+      {stats.totalShots > 0 && (
+        <div style={{
+          marginBottom: '28px', padding: '16px 20px', borderRadius: '12px',
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              📊 إجمالي إنجاز اللقطات
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: '900', color: '#22c55e' }}>
+              {Math.round((stats.completedShots / stats.totalShots) * 100)}%
+            </span>
+          </div>
+          <div style={{ height: '10px', background: 'var(--bg-hover)', borderRadius: '5px', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: '5px',
+              background: 'linear-gradient(90deg, #22c55e88, #22c55e)',
+              width: `${Math.round((stats.completedShots / stats.totalShots) * 100)}%`,
+              transition: 'width 0.6s ease'
+            }} />
+          </div>
+          <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+            <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: '600' }}>✅ منجز: {stats.completedShots}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>⏳ متبقي: {stats.totalShots - stats.completedShots}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>📌 الكل: {stats.totalShots}</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div style={{ marginBottom: '32px' }}>
@@ -114,16 +177,12 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
             { label: 'مكتبة المعدات', section: 'equipment' as ActiveSection, color: '#22c55e', desc: 'إدارة المعدات والمخزون' },
             { label: 'مركز التصدير', section: 'export' as ActiveSection, color: '#f97316', desc: 'تصدير PDF وملفات الإنتاج' },
           ].map((action, i) => (
-            <button
-              key={i}
-              onClick={() => onNavigate(action.section)}
-              style={{
-                padding: '14px 20px', borderRadius: '10px',
-                border: `1px solid ${action.color}40`,
-                background: `${action.color}10`,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textAlign: 'right'
-              }}
+            <button key={i} onClick={() => onNavigate(action.section)} style={{
+              padding: '14px 20px', borderRadius: '10px',
+              border: `1px solid ${action.color}40`,
+              background: `${action.color}10`,
+              cursor: 'pointer', transition: 'all 0.2s', textAlign: 'right'
+            }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.background = `${action.color}20`;
                 (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
@@ -140,9 +199,10 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* Recent Projects + Status Overview */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Recent Projects */}
+      {/* Main Grid: Recent Projects + Status groups */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+
+        {/* Recent Projects with progress bars */}
         <div className="card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
@@ -154,41 +214,87 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
               عرض الكل ←
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {recentProjects.length === 0 ? (
               <div className="empty-state">
                 <span style={{ fontSize: '32px' }}>◈</span>
                 <p style={{ marginTop: '8px' }}>لا توجد مشاريع بعد</p>
               </div>
-            ) : recentProjects.map(project => (
-              <div
-                key={project.id}
-                onClick={() => onNavigate('projects', project.id)}
-                style={{
-                  padding: '14px', borderRadius: '8px', border: '1px solid var(--border)',
-                  background: 'var(--bg-secondary)', cursor: 'pointer', transition: 'all 0.2s'
-                }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold-dark)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>{project.name}</div>
-                  <span style={{
-                    fontSize: '11px', fontWeight: '600', padding: '2px 10px', borderRadius: '20px',
-                    background: `${getStatusColor(project.status)}20`,
-                    color: getStatusColor(project.status),
-                    border: `1px solid ${getStatusColor(project.status)}40`
-                  }}>
-                    {getStatusLabel(project.status)}
-                  </span>
+            ) : recentProjects.map(project => {
+              const prog = getProjectProgress(project.id, storyboards, project.manualProgress);
+              const statusColor = getStatusColor(project.status);
+              return (
+                <div key={project.id}
+                  onClick={() => onNavigate('projects', project.id)}
+                  style={{
+                    padding: '14px', borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)', cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold-dark)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>{project.name}</div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {/* Quick status change */}
+                      <select
+                        value={project.status}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => {
+                          e.stopPropagation();
+                          updateProject(project.id, { status: e.target.value as any });
+                        }}
+                        style={{
+                          fontSize: '10px', padding: '2px 8px', borderRadius: '12px',
+                          background: `${statusColor}20`,
+                          color: statusColor,
+                          border: `1px solid ${statusColor}40`,
+                          cursor: 'pointer', fontWeight: '600',
+                          outline: 'none',
+                        }}
+                      >
+                        {PROJECT_STATUSES.map(s => (
+                          <option key={s.value} value={s.value}>{s.labelAr}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{project.clientName}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>•</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{getTypeLabel(project.type)}</span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        {prog.manual ? 'تقدم يدوي' : `${prog.done} / ${prog.total} لقطة`}
+                      </span>
+                      <span style={{
+                        fontSize: '11px', fontWeight: '800',
+                        color: prog.pct === 100 ? '#22c55e' : prog.pct > 50 ? '#eab308' : 'var(--text-secondary)'
+                      }}>
+                        {prog.pct}%
+                      </span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: '3px',
+                        background: prog.pct === 100
+                          ? 'linear-gradient(90deg, #22c55e88, #22c55e)'
+                          : prog.pct > 50
+                          ? 'linear-gradient(90deg, #eab30888, #eab308)'
+                          : 'linear-gradient(90deg, #C9A84C88, #C9A84C)',
+                        width: `${prog.pct}%`,
+                        transition: 'width 0.5s ease'
+                      }} />
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{project.clientName}</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>•</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{getTypeLabel(project.type)}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -233,6 +339,92 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Projects by status — mini kanban */}
+      <div className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
+            📋 نظرة عامة على المشاريع
+          </h2>
+          <button onClick={() => onNavigate('projects')} style={{
+            fontSize: '12px', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600'
+          }}>
+            إدارة المشاريع ←
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+          {statusGroups.map(group => {
+            const groupProjects = projects.filter(p => p.status === group.value);
+            return (
+              <div key={group.value} style={{
+                padding: '14px', borderRadius: '10px',
+                background: `${group.color}08`,
+                border: `1px solid ${group.color}25`,
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'center', marginBottom: '10px'
+                }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: group.color }}>{group.label}</span>
+                  <span style={{
+                    fontSize: '11px', fontWeight: '900', color: group.color,
+                    background: `${group.color}20`, padding: '2px 8px', borderRadius: '10px'
+                  }}>
+                    {groupProjects.length}
+                  </span>
+                </div>
+                {groupProjects.length === 0 ? (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
+                    لا توجد مشاريع
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {groupProjects.slice(0, 3).map(p => {
+                      const prog = getProjectProgress(p.id, storyboards, p.manualProgress);
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => onNavigate('projects', p.id)}
+                          style={{
+                            padding: '8px 10px', borderRadius: '6px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border)',
+                            cursor: 'pointer', transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = group.color}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
+                        >
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                            {p.name}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ height: '3px', flex: 1, background: 'var(--bg-hover)', borderRadius: '2px', overflow: 'hidden', marginLeft: '8px' }}>
+                              <div style={{
+                                height: '100%', borderRadius: '2px',
+                                background: group.color,
+                                width: `${prog.pct}%`,
+                              }} />
+                            </div>
+                            <span style={{ fontSize: '10px', color: group.color, fontWeight: '700', flexShrink: 0 }}>
+                              {prog.pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {groupProjects.length > 3 && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', paddingTop: '4px' }}>
+                        +{groupProjects.length - 3} مشروع آخر
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
     </div>
   );
 }

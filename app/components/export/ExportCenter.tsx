@@ -50,7 +50,7 @@ export default function ExportCenter({ storyboardId }: { storyboardId: string | 
   };
 
   return (
-    <div style={{ padding: '32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 32px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
         <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: 'linear-gradient(180deg, #A07830, #C9A84C)' }} />
         <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>مركز التصدير</h1>
@@ -79,7 +79,7 @@ export default function ExportCenter({ storyboardId }: { storyboardId: string | 
             <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '16px' }}>
               معلومات الستوري بورد
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
               {[
                 { label: 'العنوان', value: selectedSb.title },
                 { label: 'المشروع', value: project?.name || '-' },
@@ -151,7 +151,7 @@ export default function ExportCenter({ storyboardId }: { storyboardId: string | 
             <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--text-primary)' }}>
               معاينة الستوري بورد
             </h3>
-            <div className="card" style={{ padding: '32px' }} id="printable-storyboard">
+            <div className="card" style={{ padding: 'clamp(16px, 4vw, 32px)' }} id="printable-storyboard">
               {/* Print Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--gold)', paddingBottom: '16px', marginBottom: '24px' }}>
                 <div>
@@ -178,7 +178,7 @@ export default function ExportCenter({ storyboardId }: { storyboardId: string | 
                   <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
                     الجزء {pi + 1}: {part.title}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
                     {part.shots.map(shot => (
                       <div key={shot.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
                         <div style={{ height: '70px', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>

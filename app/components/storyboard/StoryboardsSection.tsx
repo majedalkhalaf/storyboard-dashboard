@@ -415,6 +415,8 @@ function PartSection({ part, partIndex, storyboardId, onEditShot }: {
                   key={shot.id}
                   shot={shot}
                   index={idx}
+                  storyboardId={storyboardId}
+                  partId={part.id}
                   onEdit={() => onEditShot(shot)}
                   onDelete={() => { if (confirm('حذف اللقطة؟')) deleteShot(storyboardId, part.id, shot.id); }}
                 />

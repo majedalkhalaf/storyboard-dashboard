@@ -1,15 +1,21 @@
 export type ProjectType =
   | 'real-estate' | 'product-commercial' | 'corporate' | 'social-media'
-  | 'youtube' | 'interview' | 'drone' | 'documentary' | 'event';
+  | 'youtube' | 'interview' | 'drone' | 'documentary' | 'event' | 'custom';
 
 export type ProjectStatus =
-  | 'idea' | 'planning' | 'ready' | 'production' | 'editing' | 'completed' | 'archived';
+  | 'idea' | 'planning' | 'ready' | 'production' | 'editing' | 'completed' | 'archived' | 'on-hold';
 
 export type ShotStatus = 'draft' | 'ready' | 'filmed' | 'completed';
 
 export type TimeOfDay = 'sunrise' | 'morning' | 'noon' | 'afternoon' | 'golden-hour' | 'sunset' | 'blue-hour' | 'night';
 
 export type Mood = 'luxury' | 'cinematic' | 'elegant' | 'modern' | 'minimal' | 'commercial' | 'dramatic' | 'warm' | 'clean' | 'documentary' | 'premium-real-estate' | 'social-media';
+
+export interface VoiceNote {
+  dataUrl: string;       // base64 audio data
+  duration: number;      // seconds
+  createdAt: string;
+}
 
 export interface Equipment {
   id: string;
@@ -24,22 +30,25 @@ export interface Shot {
   id: string;
   number: number;
   title: string;
-  referenceImage?: string;
+  referenceImage?: string;   // URL or base64
   description: string;
   voiceOver?: string;
-  duration: number; // seconds
+  voiceNote?: VoiceNote;     // NEW: audio recording
+  duration: number;          // seconds
   camera?: string;
   lens?: string;
   cameraAngle?: string;
   cameraMovement?: string;
   shotType?: string;
   lighting?: string;
+  audioType?: string;        // NEW
   equipment: string[];
   location?: string;
   timeOfDay?: TimeOfDay;
   mood?: Mood;
   directorNotes?: string;
   status: ShotStatus;
+  isCompleted: boolean;      // NEW: filming checkbox
 }
 
 export interface Part {
@@ -76,6 +85,7 @@ export interface Project {
   location?: string;
   budget?: number;
   notes?: string;
+  manualProgress?: number;   // NEW: 0-100 override
   storyboardIds: string[];
   equipmentIds: string[];
   createdAt: string;
@@ -87,6 +97,7 @@ export interface Template {
   name: string;
   description?: string;
   type: ProjectType;
+  isActive?: boolean;        // NEW: enable/disable
   parts: Omit<Part, 'id'>[];
   createdAt: string;
 }
