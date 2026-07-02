@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Storyboard Production Dashboard",
-  description: "نظام إدارة الإنتاج الاحترافي للستوري بورد",
+  title: "نظام إدارة الإنتاج",
+  description: "منصة احترافية لإدارة مشاريع الإنتاج الإعلامي وبوابة متابعة العملاء",
 };
 
 export const viewport: Viewport = {

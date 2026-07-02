@@ -1,112 +1,354 @@
-export type ProjectType =
-  | 'real-estate' | 'product-commercial' | 'corporate' | 'social-media'
-  | 'youtube' | 'interview' | 'drone' | 'documentary' | 'event' | 'custom';
+// أنواع بيانات النظام — تطابق مخطط supabase/migrations/0001_init_multi_tenant.sql
+
+export type UserRole = "super_admin" | "company_owner" | "admin" | "team_member" | "client";
 
 export type ProjectStatus =
-  | 'idea' | 'planning' | 'ready' | 'production' | 'editing' | 'completed' | 'archived' | 'on-hold';
+  | "planning"
+  | "in_progress"
+  | "review"
+  | "completed"
+  | "delivered"
+  | "archived"
+  | "cancelled";
 
-export type ShotStatus = 'draft' | 'ready' | 'filmed' | 'completed';
+export type EpisodeStatus =
+  | "not_started"
+  | "in_progress"
+  | "in_review"
+  | "ready_for_approval"
+  | "approved"
+  | "delivered";
 
-export type TimeOfDay = 'sunrise' | 'morning' | 'noon' | 'afternoon' | 'golden-hour' | 'sunset' | 'blue-hour' | 'night';
+export type StageStatus = "pending" | "in_progress" | "completed" | "skipped";
 
-export type Mood = 'luxury' | 'cinematic' | 'elegant' | 'modern' | 'minimal' | 'commercial' | 'dramatic' | 'warm' | 'clean' | 'documentary' | 'premium-real-estate' | 'social-media';
+export type NoteStatus = "new" | "in_review" | "in_progress" | "done" | "closed" | "rejected";
 
-export interface VoiceNote {
-  dataUrl: string;       // base64 audio data
-  duration: number;      // seconds
-  createdAt: string;
-}
+export type NoteTargetType =
+  | "project"
+  | "episode"
+  | "video"
+  | "image"
+  | "file"
+  | "script"
+  | "scenario"
+  | "storyboard";
 
-export interface Equipment {
+export type FileCategory = "image" | "video" | "document" | "audio" | "archive" | "link" | "other";
+
+export type InvoiceStatus = "draft" | "unpaid" | "paid" | "overdue" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "overdue" | "cancelled";
+export type ContractStatus = "draft" | "sent" | "pending_signature" | "signed" | "cancelled";
+export type ProposalStatus = "draft" | "sent" | "accepted" | "rejected";
+export type ProposalType = "technical" | "financial" | "final" | "pricing" | "investor" | "general";
+
+export interface Company {
   id: string;
   name: string;
-  category: 'cameras' | 'lenses' | 'gimbals' | 'drones' | 'monitors' | 'tripods' | 'sliders' | 'audio' | 'lighting' | 'batteries' | 'memory-cards' | 'filters' | 'accessories';
-  quantity: number;
-  status: 'available' | 'in-use' | 'maintenance';
-  notes?: string;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  font_ar: string | null;
+  font_en: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  commercial_register: string | null;
+  tax_number: string | null;
+  social_links: Record<string, string>;
+  stamp_url: string | null;
+  signature_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface Shot {
+export interface Profile {
   id: string;
-  number: number;
-  title: string;
-  referenceImage?: string;   // URL or base64
-  description: string;
-  voiceOver?: string;
-  voiceNote?: VoiceNote;     // NEW: audio recording
-  duration: number;          // seconds
-  camera?: string;
-  lens?: string;
-  cameraAngle?: string;
-  cameraMovement?: string;
-  shotType?: string;
-  lighting?: string;
-  audioType?: string;        // NEW
-  equipment: string[];
-  location?: string;
-  timeOfDay?: TimeOfDay;
-  mood?: Mood;
-  directorNotes?: string;
-  status: ShotStatus;
-  isCompleted: boolean;      // NEW: filming checkbox
+  company_id: string | null;
+  role: UserRole;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  must_change_password: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface Part {
+export interface ClientRecord {
   id: string;
-  number: number;
-  title: string;
-  description?: string;
-  shots: Shot[];
-}
-
-export interface Storyboard {
-  id: string;
-  title: string;
-  projectId: string;
-  videoNumber: string;
-  videoDuration: number; // minutes
-  objective: string;
-  targetAudience?: string;
-  script?: string;
-  voiceOver?: string;
-  directorNotes?: string;
-  parts: Part[];
-  createdAt: string;
-  updatedAt: string;
+  company_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Project {
   id: string;
+  company_id: string;
+  client_id: string | null;
+  created_by: string | null;
   name: string;
-  clientName: string;
-  type: ProjectType;
+  type: string | null;
+  custom_type: string | null;
   status: ProjectStatus;
-  shootingDate?: string;
-  location?: string;
-  budget?: number;
-  notes?: string;
-  manualProgress?: number;   // NEW: 0-100 override
-  storyboardIds: string[];
-  equipmentIds: string[];
-  createdAt: string;
-  updatedAt: string;
+  cover_image_url: string | null;
+  shooting_date: string | null;
+  delivery_date: string | null;
+  budget: number | null;
+  location: string | null;
+  storage_link: string | null;
+  notes: string | null;
+  progress: number;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface Template {
+export interface ProjectServiceItem {
   id: string;
-  name: string;
-  description?: string;
-  type: ProjectType;
-  isActive?: boolean;        // NEW: enable/disable
-  parts: Omit<Part, 'id'>[];
-  createdAt: string;
+  project_id: string;
+  company_id: string;
+  category: string;
+  service_key: string;
+  label: string;
+  is_custom: boolean;
+  created_at: string;
 }
 
-export interface AppState {
-  projects: Project[];
-  storyboards: Storyboard[];
-  equipment: Equipment[];
-  templates: Template[];
-  theme: 'dark' | 'light';
-  language: 'ar' | 'en';
+export interface Episode {
+  id: string;
+  project_id: string;
+  company_id: string;
+  number: number | null;
+  title: string;
+  cover_image_url: string | null;
+  description: string | null;
+  type: string | null;
+  status: EpisodeStatus;
+  progress: number;
+  script: string | null;
+  scenario: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EpisodeStage {
+  id: string;
+  episode_id: string;
+  company_id: string;
+  key: string;
+  label: string;
+  status: StageStatus;
+  progress: number;
+  started_at: string | null;
+  completed_at: string | null;
+  updated_by: string | null;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectFile {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  uploaded_by: string | null;
+  name: string;
+  storage_path: string | null;
+  external_url: string | null;
+  file_type: string | null;
+  category: FileCategory;
+  size_bytes: number | null;
+  client_visible: boolean;
+  created_at: string;
+}
+
+export interface Note {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  target_type: NoteTargetType;
+  target_id: string | null;
+  parent_note_id: string | null;
+  author_id: string;
+  author_role: string | null;
+  body: string;
+  status: NoteStatus;
+  mentions: string[];
+  attachments: { name: string; url: string }[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Approval {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string;
+  client_id: string | null;
+  note: string | null;
+  device_info: string | null;
+  approved_at: string;
+  revoked_at: string | null;
+  revoked_by: string | null;
+}
+
+export interface Invoice {
+  id: string;
+  company_id: string;
+  project_id: string;
+  client_id: string | null;
+  number: string;
+  issue_date: string;
+  due_date: string | null;
+  amount: number;
+  tax: number;
+  status: InvoiceStatus;
+  pdf_url: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Payment {
+  id: string;
+  company_id: string;
+  invoice_id: string | null;
+  project_id: string;
+  amount: number;
+  due_date: string | null;
+  paid_date: string | null;
+  status: PaymentStatus;
+  method: string | null;
+  receipt_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Contract {
+  id: string;
+  company_id: string;
+  project_id: string;
+  client_id: string | null;
+  title: string;
+  content: Record<string, unknown>;
+  status: ContractStatus;
+  version: number;
+  pdf_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Proposal {
+  id: string;
+  company_id: string;
+  project_id: string | null;
+  client_id: string | null;
+  type: ProposalType;
+  title: string;
+  content: Record<string, unknown>;
+  status: ProposalStatus;
+  pdf_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Expense {
+  id: string;
+  company_id: string;
+  project_id: string | null;
+  title: string;
+  amount: number;
+  category: string | null;
+  expense_date: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  company_id: string | null;
+  user_id: string;
+  project_id: string | null;
+  episode_id: string | null;
+  type: string;
+  title: string | null;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  company_id: string;
+  project_id: string | null;
+  episode_id: string | null;
+  actor_id: string | null;
+  actor_role: string | null;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ClientPermissions {
+  view_project: boolean;
+  episodes: boolean;
+  files: boolean;
+  download_files: boolean;
+  download_project: boolean;
+  add_notes: boolean;
+  reply_notes: boolean;
+  approve_episodes: boolean;
+  finance: boolean;
+  payments: boolean;
+  invoices: boolean;
+  contracts: boolean;
+  proposals: boolean;
+  request_service: boolean;
+  request_meeting: boolean;
+  upload_attachments: boolean;
+  execution_phases: boolean;
+  script: boolean;
+  scenario: boolean;
+  storyboard: boolean;
+}
+
+export type ProjectClientStatus = "invited" | "active" | "disabled" | "revoked";
+
+export interface ProjectClient {
+  id: string;
+  company_id: string;
+  project_id: string;
+  client_id: string | null;
+  client_user_id: string | null;
+  invited_email: string;
+  invite_token: string | null;
+  status: ProjectClientStatus;
+  permissions: ClientPermissions;
+  invited_by: string | null;
+  invited_at: string;
+  activated_at: string | null;
+}
+
+export interface UserSettings {
+  user_id: string;
+  theme: "dark" | "light";
+  language: "ar" | "en";
+  notifications_enabled: boolean;
+  extra: Record<string, unknown>;
+  updated_at: string;
 }

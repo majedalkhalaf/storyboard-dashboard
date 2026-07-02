@@ -1,69 +1,57 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useAppStore } from '../store/useAppStore';
-import Sidebar from './Sidebar';
-import DashboardHome from './dashboard/DashboardHome';
-import ProjectsSection from './projects/ProjectsSection';
-import StoryboardsSection from './storyboard/StoryboardsSection';
-import EquipmentSection from './equipment/EquipmentSection';
-import TemplatesSection from './TemplatesSection';
-import ExportCenter from './export/ExportCenter';
-import SettingsSection from './settings/SettingsSection';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import Sidebar, { useNavItems } from "./Sidebar";
+import BrandingProvider from "./BrandingProvider";
+import AccountMenu from "./AccountMenu";
+import NotificationsBell from "./NotificationsBell";
+import { useSession } from "@/app/providers/SessionProvider";
 
-export type ActiveSection = 'dashboard' | 'projects' | 'storyboards' | 'equipment' | 'templates' | 'export' | 'settings';
-
-const BOTTOM_NAV: { id: ActiveSection; icon: string; label: string }[] = [
-  { id: 'dashboard',   icon: '⬡', label: 'الرئيسية' },
-  { id: 'projects',    icon: '◈', label: 'المشاريع' },
-  { id: 'storyboards', icon: '▦', label: 'الستوري' },
-  { id: 'templates',   icon: '⊞', label: 'القوالب' },
-  { id: 'settings',    icon: '⚙️', label: 'إعدادات' },
-];
-
-export default function AppShell() {
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeStoryboardId, setActiveStoryboardId] = useState<string | null>(null);
-  const { theme } = useAppStore();
-
-  const handleNavigate = (section: ActiveSection, projectId?: string, storyboardId?: string) => {
-    setActiveSection(section);
-    if (projectId) setActiveProjectId(projectId);
-    if (storyboardId) setActiveStoryboardId(storyboardId);
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const { theme } = useSession();
+  const pathname = usePathname();
+  const bottomItems = useNavItems().slice(0, 5);
 
   return (
-    <div className={`flex h-screen overflow-hidden ${theme === 'light' ? 'light' : ''}`}
-      style={{ background: 'var(--bg-primary)' }}>
+    <div
+      className={`flex h-screen overflow-hidden ${theme === "light" ? "light" : ""}`}
+      style={{ background: "var(--bg-primary)" }}
+    >
+      <BrandingProvider />
+      <Sidebar />
 
-      {/* Desktop sidebar — hidden on mobile via CSS */}
-      <Sidebar activeSection={activeSection} onNavigate={handleNavigate} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header
+          className="no-print"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: "12px 20px",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--bg-secondary)",
+          }}
+        >
+          <NotificationsBell />
+          <AccountMenu />
+        </header>
 
-      {/* Main content */}
-      <main className="main-content flex-1 overflow-y-auto" style={{ background: 'var(--bg-primary)' }}>
-        {activeSection === 'dashboard'   && <DashboardHome onNavigate={handleNavigate} />}
-        {activeSection === 'projects'    && <ProjectsSection activeProjectId={activeProjectId} setActiveProjectId={setActiveProjectId} onNavigate={handleNavigate} />}
-        {activeSection === 'storyboards' && <StoryboardsSection activeStoryboardId={activeStoryboardId} setActiveStoryboardId={setActiveStoryboardId} projectId={activeProjectId} />}
-        {activeSection === 'equipment'   && <EquipmentSection />}
-        {activeSection === 'templates'   && <TemplatesSection />}
-        {activeSection === 'export'      && <ExportCenter storyboardId={activeStoryboardId} />}
-        {activeSection === 'settings'    && <SettingsSection />}
-      </main>
+        <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)" }}>
+          {children}
+        </main>
+      </div>
 
-      {/* Mobile bottom navigation */}
       <nav className="bottom-nav no-print">
-        {BOTTOM_NAV.map(item => (
-          <button
-            key={item.id}
-            className={`bottom-nav-item ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => handleNavigate(item.id)}
-          >
-            <span className="nav-icon-large">{item.icon}</span>
-            <span className="nav-label-small">{item.label}</span>
-          </button>
-        ))}
+        {bottomItems.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link key={item.href} href={item.href} className={`bottom-nav-item ${active ? "active" : ""}`}>
+              <span className="nav-label-small">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

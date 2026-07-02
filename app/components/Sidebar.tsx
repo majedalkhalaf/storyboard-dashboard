@@ -1,150 +1,97 @@
-'use client';
+"use client";
 
-import { useAppStore } from '../store/useAppStore';
-import { ActiveSection } from './AppShell';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import Icon, { type IconName } from "@/app/components/ui/Icon";
+import { useSession } from "@/app/providers/SessionProvider";
+import { isInternalAdmin } from "@/app/lib/permissions";
 
-interface SidebarProps {
-  activeSection: ActiveSection;
-  onNavigate: (section: ActiveSection) => void;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+  adminOnly?: boolean;
 }
 
-const NAV_ITEMS = [
-  { id: 'dashboard',   icon: '⬡',  label: 'لوحة التحكم',  labelEn: 'Dashboard' },
-  { id: 'projects',    icon: '◈',  label: 'المشاريع',      labelEn: 'Projects' },
-  { id: 'storyboards', icon: '▦',  label: 'الستوري بورد',  labelEn: 'Storyboards' },
-  { id: 'equipment',   icon: '◉',  label: 'المعدات',       labelEn: 'Equipment' },
-  { id: 'templates',   icon: '⊞',  label: 'القوالب',       labelEn: 'Templates' },
-  { id: 'export',      icon: '⤴',  label: 'التصدير',       labelEn: 'Export' },
-];
-const BOTTOM_ITEMS = [
-  { id: 'settings', icon: '⚙️', label: 'الإعدادات', labelEn: 'Settings' },
+const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "الرئيسية", icon: "dashboard" },
+  { href: "/projects", label: "المشاريع", icon: "projects" },
+  { href: "/clients", label: "العملاء", icon: "clients" },
+  { href: "/finance", label: "المالية", icon: "finance", adminOnly: true },
+  { href: "/invoices", label: "الفواتير", icon: "invoices", adminOnly: true },
+  { href: "/contracts", label: "العقود", icon: "contracts", adminOnly: true },
+  { href: "/proposals", label: "العروض", icon: "proposals", adminOnly: true },
+  { href: "/export", label: "التصدير", icon: "export" },
+  { href: "/equipment", label: "المعدات", icon: "equipment" },
+  { href: "/templates", label: "القوالب", icon: "templates" },
+  { href: "/team", label: "الفريق", icon: "team", adminOnly: true },
+  { href: "/settings", label: "الإعدادات", icon: "settings" },
 ];
 
-export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
-  const { theme, setTheme, language, setLanguage, projects, storyboards } = useAppStore();
+export function useNavItems() {
+  const { profile } = useSession();
+  return NAV_ITEMS.filter((item) => !item.adminOnly || isInternalAdmin(profile.role));
+}
 
-  const activeProjects = projects.filter(p => p.status === 'production').length;
-  const totalShots = storyboards.reduce((acc, sb) => acc + sb.parts.reduce((a, p) => a + p.shots.length, 0), 0);
-  const completedShots = storyboards.reduce((acc, sb) => acc + sb.parts.reduce((a, p) => a + p.shots.filter(s => s.isCompleted).length, 0), 0);
-  const overallPct = totalShots > 0 ? Math.round((completedShots / totalShots) * 100) : 0;
+export default function Sidebar() {
+  const pathname = usePathname();
+  const { company } = useSession();
+  const items = useNavItems();
 
   return (
     <aside
       className="desktop-sidebar"
       style={{
-        width: '240px', minWidth: '240px',
-        background: 'var(--bg-secondary)',
-        borderLeft: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column', height: '100vh',
-        transition: 'width 0.2s',
+        width: "var(--sidebar-width)",
+        minWidth: "var(--sidebar-width)",
+        height: "100vh",
+        position: "sticky",
+        top: 0,
+        background: "var(--bg-secondary)",
+        borderLeft: "1px solid var(--border)",
+        display: "flex",
+        flexDirection: "column",
+        padding: "18px 12px",
       }}
     >
-      {/* Logo */}
-      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div className="logo-wrap" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-            background: 'linear-gradient(135deg, #A07830, #C9A84C)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', fontWeight: '900', color: '#0A0A0B'
-          }}>S</div>
-          <div className="sidebar-text">
-            <div className="logo-title" style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: '1.2' }}>Storyboard</div>
-            <div className="logo-sub" style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: '600', letterSpacing: '0.1em' }}>PRODUCTION</div>
+      <div className="logo-wrap" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 8px 20px" }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 900,
+            color: "#0A0A0B",
+            flexShrink: 0,
+          }}
+        >
+          {(company?.name || "ن").charAt(0)}
+        </div>
+        <div>
+          <div className="logo-title" style={{ fontWeight: 800, fontSize: 14 }}>
+            {company?.name || "نظام إدارة الإنتاج"}
+          </div>
+          <div className="logo-sub" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            لوحة التحكم
           </div>
         </div>
-
-        {/* Quick stats */}
-        <div className="sidebar-stats" style={{ display: 'flex', gap: '6px', marginTop: '12px' }}>
-          <div style={{ flex: 1, background: 'var(--bg-card)', borderRadius: '6px', padding: '6px 8px', border: '1px solid var(--border)', textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gold)' }}>{projects.length}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>مشروع</div>
-          </div>
-          <div style={{ flex: 1, background: 'var(--bg-card)', borderRadius: '6px', padding: '6px 8px', border: '1px solid var(--border)', textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gold)' }}>{storyboards.length}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ستوري</div>
-          </div>
-          <div style={{ flex: 1, background: 'var(--bg-card)', borderRadius: '6px', padding: '6px 8px', border: '1px solid rgba(34,197,94,0.3)', textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#22c55e' }}>{activeProjects}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>نشط</div>
-          </div>
-        </div>
-
-        {/* Overall progress */}
-        {totalShots > 0 && (
-          <div className="sidebar-progress" style={{ marginTop: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>إجمالي الإنجاز</span>
-              <span style={{ fontSize: '10px', fontWeight: '800', color: overallPct === 100 ? '#22c55e' : 'var(--gold)' }}>{overallPct}%</span>
-            </div>
-            <div style={{ height: '4px', background: 'var(--bg-hover)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: '2px', width: `${overallPct}%`,
-                background: overallPct === 100 ? '#22c55e' : 'var(--gold)',
-                transition: 'width 0.5s ease'
-              }} />
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
-        <div className="sidebar-text" style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.1em', padding: '4px 8px 8px', textTransform: 'uppercase' }}>
-          القائمة الرئيسية
-        </div>
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.id}
-            className={`sidebar-link ${activeSection === item.id ? 'active' : ''}`}
-            style={{ width: '100%', background: 'none', border: 'none', textAlign: 'right' }}
-            onClick={() => onNavigate(item.id as ActiveSection)}
-          >
-            <span className="nav-icon" style={{ fontSize: '18px', width: '22px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-            <span className="sidebar-text" style={{ fontSize: '14px', fontWeight: activeSection === item.id ? '700' : '500' }}>
-              {language === 'ar' ? item.label : item.labelEn}
-            </span>
-          </button>
-        ))}
-
-        <div className="sidebar-text" style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.1em', padding: '16px 8px 8px', textTransform: 'uppercase' }}>
-          الإعدادات
-        </div>
-        {BOTTOM_ITEMS.map(item => (
-          <button
-            key={item.id}
-            className={`sidebar-link ${activeSection === item.id ? 'active' : ''}`}
-            style={{ width: '100%', background: 'none', border: 'none', textAlign: 'right' }}
-            onClick={() => onNavigate(item.id as ActiveSection)}
-          >
-            <span className="nav-icon" style={{ fontSize: '18px', width: '22px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-            <span className="sidebar-text" style={{ fontSize: '14px', fontWeight: activeSection === item.id ? '700' : '500' }}>
-              {language === 'ar' ? item.label : item.labelEn}
-            </span>
-          </button>
-        ))}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, overflowY: "auto" }}>
+        {items.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link key={item.href} href={item.href} className={`sidebar-link${active ? " active" : ""}`}>
+              <Icon name={item.icon} size={18} className="nav-icon" />
+              <span className="sidebar-text">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
-
-      {/* Bottom controls */}
-      <div className="sidebar-text" style={{ padding: '14px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', fontFamily: 'inherit' }}
-          >
-            {theme === 'dark' ? '☀️ فاتح' : '🌙 داكن'}
-          </button>
-          <button
-            onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', fontFamily: 'inherit' }}
-          >
-            {language === 'ar' ? 'EN' : 'عربي'}
-          </button>
-        </div>
-        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>
-          Storyboard Dashboard v5.0
-        </div>
-      </div>
     </aside>
   );
 }
