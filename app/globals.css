@@ -357,6 +357,11 @@ body {
 
   /* Settings: stack */
   .settings-layout { grid-template-columns: 1fr !important; }
+
+  /* Dashboard: charts/finance rows stack, widgets row 2 cols */
+  .dashboard-charts-row,
+  .dashboard-mid-row { grid-template-columns: 1fr !important; }
+  .dashboard-widgets-row { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 /* ════════════════════════════════════
@@ -446,6 +451,16 @@ body {
 
   /* Export options: 1 col */
   .export-options-grid { grid-template-columns: 1fr !important; }
+
+  /* Dashboard: all rows single column on mobile */
+  .dashboard-charts-row,
+  .dashboard-mid-row,
+  .dashboard-widgets-row { grid-template-columns: 1fr !important; }
+
+  /* Header: hide date + account name/role text, icon-only new-project button */
+  .header-date,
+  .header-account-label,
+  .header-new-project-label { display: none !important; }
 }
 
 /* ════════════════════════════════════

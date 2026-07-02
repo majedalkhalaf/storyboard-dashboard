@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { PROJECT_STATUSES, PROJECT_TYPES } from "@/app/lib/constants";
 import type { ClientRecord } from "@/app/lib/types";
@@ -14,10 +15,16 @@ export default function ProjectsView({
   projects: ProjectListItem[];
   clients: Pick<ClientRecord, "id" | "name" | "email" | "phone">[];
 }) {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opens create modal from a deep link query param
+    if (searchParams.get("new") === "1") setShowModal(true);
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

@@ -26,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/templates", label: "القوالب", icon: "templates" },
   { href: "/team", label: "الفريق", icon: "team", adminOnly: true },
   { href: "/settings", label: "الإعدادات", icon: "settings" },
+  { href: "/account", label: "حسابي", icon: "user" },
 ];
 
 export function useNavItems() {

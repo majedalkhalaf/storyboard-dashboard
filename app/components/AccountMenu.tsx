@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { useSession } from "@/app/providers/SessionProvider";
@@ -34,11 +35,21 @@ export default function AccountMenu() {
             fontWeight: 800,
             color: "#0A0A0B",
             fontSize: 13,
+            overflow: "hidden",
+            flexShrink: 0,
           }}
         >
-          {(profile.full_name || profile.email || "?").charAt(0)}
+          {profile.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            (profile.full_name || profile.email || "?").charAt(0)
+          )}
         </div>
-        <span style={{ fontSize: 13 }}>{profile.full_name || profile.email}</span>
+        <span className="header-account-label" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{profile.full_name || profile.email}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.2 }}>{USER_ROLE_LABELS[profile.role]}</span>
+        </span>
         <Icon name="chevronDown" size={14} />
       </button>
 
@@ -53,6 +64,10 @@ export default function AccountMenu() {
               <div style={{ fontWeight: 700, fontSize: 13 }}>{profile.full_name || "بدون اسم"}</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{USER_ROLE_LABELS[profile.role]}</div>
             </div>
+            <Link href="/account" className="sidebar-link" onClick={() => setOpen(false)} style={{ textAlign: "right" }}>
+              <Icon name="user" size={16} />
+              <span>حسابي</span>
+            </Link>
             <button className="sidebar-link" onClick={toggleTheme} style={{ textAlign: "right" }}>
               <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
               <span>{theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}</span>

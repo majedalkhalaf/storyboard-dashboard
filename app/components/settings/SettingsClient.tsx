@@ -1,14 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/client";
-import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
-import { USER_ROLE_LABELS } from "@/app/lib/constants";
 import Icon from "@/app/components/ui/Icon";
 import type { Company, Profile } from "@/app/lib/types";
-
-type TabKey = "identity" | "profile" | "appearance";
 
 async function uploadPublicAsset(companyId: string, folder: string, file: File): Promise<string | null> {
   const supabase = createClient();
@@ -19,50 +16,26 @@ async function uploadPublicAsset(companyId: string, folder: string, file: File):
   return data.publicUrl;
 }
 
-export default function SettingsClient({
-  company,
-  profile,
-  userSettings,
-}: {
-  company: Company;
-  profile: Profile;
-  userSettings: { theme: string; language: string; notifications_enabled: boolean };
-}) {
-  const [tab, setTab] = useState<TabKey>("identity");
+export default function SettingsClient({ company, profile }: { company: Company; profile: Profile }) {
   const admin = isInternalAdmin(profile.role);
-
-  const tabs: { key: TabKey; label: string; icon: "company" | "userPlus" | "sun" }[] = [
-    { key: "identity", label: "هوية الشركة", icon: "company" },
-    { key: "profile", label: "الملف الشخصي", icon: "userPlus" },
-    { key: "appearance", label: "المظهر", icon: "sun" },
-  ];
 
   return (
     <div>
-      <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>
-        الإعدادات
-      </h1>
-
-      <div className="settings-layout" style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
-        <nav className="settings-nav-mobile" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              className={`sidebar-link settings-nav-item-mobile${tab === t.key ? " active" : ""}`}
-              onClick={() => setTab(t.key)}
-            >
-              <Icon name={t.icon} size={16} />
-              <span>{t.label}</span>
-            </button>
-          ))}
-        </nav>
-
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          {tab === "identity" && <IdentityTab company={company} admin={admin} />}
-          {tab === "profile" && <ProfileTab profile={profile} companyId={company.id} />}
-          {tab === "appearance" && <AppearanceTab userId={profile.id} userSettings={userSettings} />}
+          <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>
+            إعدادات الشركة
+          </h1>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+            الهوية البصرية وبيانات الشركة الرسمية
+          </p>
         </div>
+        <Link href="/account" className="btn btn-outline">
+          <Icon name="user" size={16} /> إعدادات حسابي الشخصي
+        </Link>
       </div>
+
+      <IdentityTab company={company} admin={admin} />
     </div>
   );
 }
@@ -185,108 +158,6 @@ function IdentityTab({ company, admin }: { company: Company; admin: boolean }) {
           {saving ? "جارٍ الحفظ..." : "حفظ التغييرات"}
         </button>
         {savedAt && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>تم الحفظ {savedAt}</span>}
-      </div>
-    </div>
-  );
-}
-
-function ProfileTab({ profile, companyId }: { profile: Profile; companyId: string }) {
-  const [fullName, setFullName] = useState(profile.full_name ?? "");
-  const [phone, setPhone] = useState(profile.phone ?? "");
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-
-  async function handleUpload(file?: File) {
-    if (!file) return;
-    const url = await uploadPublicAsset(companyId, `avatars/${profile.id}`, file);
-    if (url) setAvatarUrl(url);
-  }
-
-  async function save() {
-    setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("profiles")
-      .update({ full_name: fullName, phone, avatar_url: avatarUrl })
-      .eq("id", profile.id);
-    setSaving(false);
-    if (!error) setSavedAt(new Date().toLocaleTimeString("ar"));
-  }
-
-  return (
-    <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 }}>
-      <AssetUploader label="الصورة الشخصية" url={avatarUrl} onFile={handleUpload} round />
-      <Field label="الاسم الكامل" value={fullName} onChange={setFullName} />
-      <Field label="رقم الهاتف" value={phone} onChange={setPhone} />
-      <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-        الدور: {USER_ROLE_LABELS[profile.role] ?? profile.role} · البريد: {profile.email}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button className="btn btn-gold" onClick={save} disabled={saving}>
-          {saving ? "جارٍ الحفظ..." : "حفظ"}
-        </button>
-        {savedAt && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>تم الحفظ {savedAt}</span>}
-      </div>
-    </div>
-  );
-}
-
-function AppearanceTab({
-  userId,
-  userSettings,
-}: {
-  userId: string;
-  userSettings: { theme: string; language: string; notifications_enabled: boolean };
-}) {
-  const { theme, toggleTheme } = useSession();
-  const [language, setLanguage] = useState(userSettings.language);
-  const [notifications, setNotifications] = useState(userSettings.notifications_enabled);
-
-  async function updateSettings(patch: Record<string, unknown>) {
-    const supabase = createClient();
-    await supabase.from("user_settings").upsert({ user_id: userId, ...patch }, { onConflict: "user_id" });
-  }
-
-  return (
-    <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 18, maxWidth: 480 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontWeight: 700 }}>الوضع الداكن / الفاتح</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>الحالي: {theme === "dark" ? "داكن" : "فاتح"}</div>
-        </div>
-        <button className="btn btn-outline" onClick={toggleTheme}>
-          <Icon name={theme === "dark" ? "sun" : "moon"} size={16} /> تبديل
-        </button>
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>اللغة</div>
-        <select
-          className="input-field"
-          value={language}
-          onChange={(e) => {
-            setLanguage(e.target.value);
-            updateSettings({ language: e.target.value });
-          }}
-        >
-          <option value="ar">العربية</option>
-          <option value="en">English (قريباً)</option>
-        </select>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontWeight: 700 }}>الإشعارات</div>
-        <button
-          className="btn btn-outline"
-          onClick={() => {
-            const next = !notifications;
-            setNotifications(next);
-            updateSettings({ notifications_enabled: next });
-          }}
-        >
-          {notifications ? "مفعّلة" : "مغلقة"}
-        </button>
       </div>
     </div>
   );

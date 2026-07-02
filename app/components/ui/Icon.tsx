@@ -58,6 +58,7 @@ import {
   UserPlus,
   ArrowRight,
   ArrowLeft,
+  User,
   type LucideIcon,
 } from "lucide-react";
 
@@ -119,6 +120,7 @@ export const ICONS = {
   userPlus: UserPlus,
   arrowRight: ArrowRight,
   arrowLeft: ArrowLeft,
+  user: User,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

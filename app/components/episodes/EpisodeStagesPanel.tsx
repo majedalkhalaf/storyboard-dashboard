@@ -98,7 +98,7 @@ export default function EpisodeStagesPanel({
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "180px 140px 1fr", gap: 12, alignItems: "center" }}>
               <select
                 className="input-field"
                 value={stage.status}
@@ -111,6 +111,15 @@ export default function EpisodeStagesPanel({
                   </option>
                 ))}
               </select>
+
+              <input
+                type="date"
+                className="input-field"
+                value={stage.due_date ?? ""}
+                onChange={(e) => persist(stage, { due_date: e.target.value || null })}
+                style={{ padding: "6px 10px", fontSize: 13 }}
+                title="تاريخ الاستحقاق"
+              />
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <input

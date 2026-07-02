@@ -153,6 +153,7 @@ export interface EpisodeStage {
   updated_by: string | null;
   notes: string | null;
   sort_order: number;
+  due_date: string | null;
   created_at: string;
   updated_at: string;
 }
