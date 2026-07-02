@@ -1,4 +1,15 @@
-import type { ProjectStatus, EpisodeStatus, StageStatus, NoteStatus, ClientPermissions } from "./types";
+import type {
+  ProjectStatus,
+  EpisodeStatus,
+  StageStatus,
+  NoteStatus,
+  ClientPermissions,
+  InvoiceStatus,
+  PaymentStatus,
+  ContractStatus,
+  ProposalStatus,
+  ProposalType,
+} from "./types";
 
 export const PROJECT_TYPES: { value: string; label: string }[] = [
   { value: "podcast", label: "بودكاست" },
@@ -178,3 +189,61 @@ export const USER_ROLE_LABELS: Record<string, string> = {
   team_member: "عضو فريق",
   client: "عميل",
 };
+
+// ── الحالات المالية والمستندات (أُضيفت لقسم المالية/الفواتير/العقود/العروض) ──
+
+export const INVOICE_STATUSES: { value: InvoiceStatus; label: string; color: string }[] = [
+  { value: "draft", label: "مسودة", color: "#6B7280" },
+  { value: "unpaid", label: "غير مدفوعة", color: "#F59E0B" },
+  { value: "paid", label: "مدفوعة", color: "#22C55E" },
+  { value: "overdue", label: "متأخرة", color: "#EF4444" },
+  { value: "cancelled", label: "ملغاة", color: "#94A3B8" },
+];
+
+export const PAYMENT_STATUSES: { value: PaymentStatus; label: string; color: string }[] = [
+  { value: "pending", label: "معلّقة", color: "#F59E0B" },
+  { value: "paid", label: "مدفوعة", color: "#22C55E" },
+  { value: "overdue", label: "متأخرة", color: "#EF4444" },
+  { value: "cancelled", label: "ملغاة", color: "#94A3B8" },
+];
+
+export const PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "cash", label: "نقداً" },
+  { value: "bank_transfer", label: "تحويل بنكي" },
+  { value: "card", label: "بطاقة" },
+  { value: "cheque", label: "شيك" },
+  { value: "other", label: "أخرى" },
+];
+
+export const CONTRACT_STATUSES: { value: ContractStatus; label: string; color: string }[] = [
+  { value: "draft", label: "مسودة", color: "#6B7280" },
+  { value: "sent", label: "مُرسل", color: "#06B6D4" },
+  { value: "pending_signature", label: "بانتظار التوقيع", color: "#8B5CF6" },
+  { value: "signed", label: "موقّع", color: "#22C55E" },
+  { value: "cancelled", label: "ملغى", color: "#EF4444" },
+];
+
+export const PROPOSAL_STATUSES: { value: ProposalStatus; label: string; color: string }[] = [
+  { value: "draft", label: "مسودة", color: "#6B7280" },
+  { value: "sent", label: "مُرسل", color: "#06B6D4" },
+  { value: "accepted", label: "مقبول", color: "#22C55E" },
+  { value: "rejected", label: "مرفوض", color: "#EF4444" },
+];
+
+export const PROPOSAL_TYPES: { value: ProposalType; label: string }[] = [
+  { value: "technical", label: "عرض فني" },
+  { value: "financial", label: "عرض مالي" },
+  { value: "final", label: "العرض النهائي" },
+  { value: "pricing", label: "عرض سعر" },
+  { value: "investor", label: "عرض مستثمر" },
+  { value: "general", label: "عرض عام" },
+];
+
+export const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
+  { value: "تصوير", label: "تصوير" },
+  { value: "مونتاج", label: "مونتاج" },
+  { value: "معدات", label: "معدات" },
+  { value: "مواصلات", label: "مواصلات" },
+  { value: "تسويق", label: "تسويق" },
+  { value: "أخرى", label: "أخرى" },
+];
