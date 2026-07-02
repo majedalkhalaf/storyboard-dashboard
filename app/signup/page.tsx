@@ -97,23 +97,66 @@ export default function SignupPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسم الشركة / الاستوديو</label>
-            <input required className="input-field" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="مثال: استوديو الإبداع" />
+            <input
+              required
+              name="organization"
+              autoComplete="organization"
+              className="input-field"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="مثال: استوديو الإبداع"
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسمك الكامل</label>
-            <input required className="input-field" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="الاسم الكامل" />
+            <input
+              required
+              name="name"
+              autoComplete="name"
+              className="input-field"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="الاسم الكامل"
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>البريد الإلكتروني</label>
-            <input type="email" required className="input-field" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@company.com" />
+            <input
+              type="email"
+              required
+              name="email"
+              autoComplete="email"
+              className="input-field"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="example@company.com"
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>رقم الهاتف</label>
-            <input className="input-field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05xxxxxxxx" />
+            <input
+              type="tel"
+              name="tel"
+              autoComplete="tel"
+              className="input-field"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="05xxxxxxxx"
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>كلمة المرور</label>
-            <input type="password" required minLength={6} className="input-field" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" />
+            <input
+              type="password"
+              required
+              minLength={6}
+              name="new-password"
+              autoComplete="new-password"
+              className="input-field"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="6 أحرف على الأقل"
+            />
           </div>
 
           <button type="submit" className="btn btn-gold" disabled={loading} style={{ justifyContent: "center", marginTop: 6 }}>
