@@ -78,7 +78,7 @@ export default async function FinancePage() {
 
   const stats = [
     { label: "إجمالي الفواتير", value: fmtMoney(totalInvoiced), icon: "invoices" as const, color: "var(--gold)" },
-    { label: "المحصّل", value: fmtMoney(paidInvoices), icon: "checkCircle" as const, color: "#22C55E" },
+    { label: "المحصّل", value: fmtMoney(paidInvoices), icon: "checkCircle" as const, color: "#1DB954" },
     { label: "المستحق (غير محصّل)", value: fmtMoney(totalUnpaid), icon: "alert" as const, color: "#F59E0B" },
     { label: "إجمالي المصروفات", value: fmtMoney(totalExpenses), icon: "trendDown" as const, color: "#EF4444" },
     {
@@ -148,7 +148,7 @@ export default async function FinancePage() {
                   <tr key={r.id}>
                     <td style={{ fontWeight: 600 }}>{r.name}</td>
                     <td>{fmtMoney(r.invoiced)}</td>
-                    <td style={{ color: "#22C55E" }}>{fmtMoney(r.paid)}</td>
+                    <td style={{ color: "#1DB954" }}>{fmtMoney(r.paid)}</td>
                     <td style={{ color: "#EF4444" }}>{fmtMoney(r.expenses)}</td>
                     <td style={{ color: r.profit >= 0 ? "#10B981" : "#EF4444", fontWeight: 700 }}>
                       {fmtMoney(r.profit)}

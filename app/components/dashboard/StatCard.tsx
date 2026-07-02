@@ -26,7 +26,7 @@ export default function StatCard({
         <div
           style={{
             fontSize: 11,
-            color: deltaTone === "up" ? "#22C55E" : "#EF4444",
+            color: deltaTone === "up" ? "#1DB954" : "#EF4444",
             marginTop: 6,
             fontWeight: 700,
           }}

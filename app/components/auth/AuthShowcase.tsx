@@ -26,7 +26,7 @@ export default function AuthShowcase() {
       className="auth-showcase"
       style={{
         position: "relative",
-        background: "linear-gradient(160deg, #0A0A0B 0%, #1A1410 55%, #0A0A0B 100%)",
+        background: "linear-gradient(160deg, #090909 0%, #1A1410 55%, #090909 100%)",
         padding: "44px 40px",
         display: "flex",
         flexDirection: "column",

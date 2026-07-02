@@ -195,7 +195,7 @@ function SecurityTab() {
           </div>
         )}
         {success && (
-          <div style={{ color: "#22C55E", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ color: "#1DB954", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
             <Icon name="checkCircle" size={15} />
             تم تحديث كلمة المرور بنجاح
           </div>

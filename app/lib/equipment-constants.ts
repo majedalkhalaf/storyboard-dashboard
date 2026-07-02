@@ -18,7 +18,7 @@ export const EQUIPMENT_CATEGORIES: { value: string; label: string }[] = [
 ];
 
 export const EQUIPMENT_STATUSES: { value: EquipmentStatus; label: string; color: string }[] = [
-  { value: "available", label: "متاحة", color: "#22C55E" },
+  { value: "available", label: "متاحة", color: "#1DB954" },
   { value: "in_use", label: "قيد الاستخدام", color: "#F59E0B" },
   { value: "maintenance", label: "صيانة", color: "#EF4444" },
 ];

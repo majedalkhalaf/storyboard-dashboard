@@ -15,7 +15,7 @@ const PERMISSION_KEYS = Object.keys(CLIENT_PERMISSION_LABELS) as (keyof ClientPe
 
 const STATUS_OPTIONS: { value: ProjectClientStatus; label: string; color: string }[] = [
   { value: "invited", label: "مدعو", color: "#8B5CF6" },
-  { value: "active", label: "نشط", color: "#22C55E" },
+  { value: "active", label: "نشط", color: "#1DB954" },
   { value: "disabled", label: "معطّل", color: "#F59E0B" },
   { value: "revoked", label: "ملغى", color: "#EF4444" },
 ];

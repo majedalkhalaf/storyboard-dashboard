@@ -3,11 +3,13 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 
 const ACTIONS: { label: string; icon: IconName; href: string }[] = [
   { label: "مشروع جديد", icon: "projects", href: "/projects?new=1" },
-  { label: "عرض المشاريع", icon: "clock", href: "/projects" },
-  { label: "رفع ملف", icon: "upload", href: "/projects" },
+  { label: "حلقة جديدة", icon: "episodes", href: "/episodes?new=1" },
+  { label: "رفع ملف", icon: "upload", href: "/files?new=1" },
   { label: "فاتورة جديدة", icon: "invoices", href: "/invoices" },
-  { label: "عرض التقارير", icon: "export", href: "/export" },
-  { label: "العملاء", icon: "clients", href: "/clients" },
+  { label: "عقد جديد", icon: "contracts", href: "/contracts" },
+  { label: "إضافة عميل", icon: "clients", href: "/clients" },
+  { label: "التقارير", icon: "export", href: "/export" },
+  { label: "القوالب", icon: "templates", href: "/templates" },
 ];
 
 export default function QuickActionsGrid() {

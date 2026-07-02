@@ -61,6 +61,13 @@ import {
   User,
   Zap,
   BarChart3,
+  Clapperboard,
+  CreditCard,
+  Receipt,
+  Folder,
+  HardDrive,
+  Command,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 
@@ -125,6 +132,13 @@ export const ICONS = {
   user: User,
   zap: Zap,
   barChart: BarChart3,
+  episodes: Clapperboard,
+  payments: CreditCard,
+  expenses: Receipt,
+  files: Folder,
+  storage: HardDrive,
+  command: Command,
+  tasks: ListChecks,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

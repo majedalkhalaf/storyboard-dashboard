@@ -196,7 +196,7 @@ export default function InvoiceDetail({
             </label>
 
             {error && <p style={{ color: "#EF4444", fontSize: 13 }}>{error}</p>}
-            {savedMsg && <p style={{ color: "#22C55E", fontSize: 13 }}>{savedMsg}</p>}
+            {savedMsg && <p style={{ color: "#1DB954", fontSize: 13 }}>{savedMsg}</p>}
 
             {admin && (
               <button className="btn btn-gold" onClick={saveInvoice} disabled={saving} style={{ alignSelf: "flex-start" }}>
@@ -215,7 +215,7 @@ export default function InvoiceDetail({
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
               <Row label="الإجمالي" value={fmtMoney(total)} bold />
             </div>
-            <Row label="المدفوع" value={fmtMoney(paidSum)} valueColor="#22C55E" />
+            <Row label="المدفوع" value={fmtMoney(paidSum)} valueColor="#1DB954" />
             <Row label="المتبقي" value={fmtMoney(Math.max(0, total - paidSum))} valueColor="#F59E0B" />
             <div style={{ marginTop: 6 }}>
               <span style={{ fontSize: 12, color: "var(--text-muted)" }}>تاريخ الإصدار: </span>

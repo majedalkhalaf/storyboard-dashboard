@@ -7,11 +7,12 @@ import Sidebar, { useNavItems } from "./Sidebar";
 import BrandingProvider from "./BrandingProvider";
 import AccountMenu from "./AccountMenu";
 import NotificationsBell from "./NotificationsBell";
+import GlobalSearch from "./GlobalSearch";
 import Icon from "@/app/components/ui/Icon";
 import { useSession } from "@/app/providers/SessionProvider";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { theme } = useSession();
+  const { theme, company } = useSession();
   const pathname = usePathname();
   const bottomItems = useNavItems().slice(0, 5);
   const [today, setToday] = useState<string | null>(null);
@@ -31,19 +32,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header
-          className="no-print"
+          className="no-print header-bar"
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
+            gap: 16,
             padding: "12px 20px",
             borderBottom: "1px solid var(--border)",
             background: "var(--bg-secondary)",
           }}
         >
-          <div className="header-date" style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          <div className="header-date" style={{ fontSize: 13, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
             {today}
+          </div>
+
+          <div className="header-search" style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <GlobalSearch />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -51,6 +55,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Icon name="plus" size={16} /> <span className="header-new-project-label">مشروع جديد</span>
             </Link>
             <NotificationsBell />
+            <Link href="/settings" className="header-company-badge btn btn-outline">
+              <Icon name="company" size={15} />
+              <span className="header-account-label">{company?.name || "الشركة"}</span>
+              <Icon name="chevronDown" size={13} />
+            </Link>
             <AccountMenu />
           </div>
         </header>

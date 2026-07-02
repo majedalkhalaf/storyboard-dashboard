@@ -38,7 +38,7 @@ export default function ApproveEpisode({
   const badge = (
     <span
       className="chip"
-      style={{ background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.4)", color: "#22C55E", fontWeight: 700 }}
+      style={{ background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.4)", color: "#1DB954", fontWeight: 700 }}
     >
       <Icon name="checkCircle" size={14} />
       تم الاعتماد

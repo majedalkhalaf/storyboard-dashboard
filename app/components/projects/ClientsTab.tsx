@@ -17,7 +17,7 @@ export interface ProjectClientRow {
 
 const STATUS_LABELS: Record<ProjectClientStatus, { label: string; color: string }> = {
   invited: { label: "مدعو", color: "#F59E0B" },
-  active: { label: "نشط", color: "#22C55E" },
+  active: { label: "نشط", color: "#1DB954" },
   disabled: { label: "معطّل", color: "#6B7280" },
   revoked: { label: "ملغى", color: "#EF4444" },
 };

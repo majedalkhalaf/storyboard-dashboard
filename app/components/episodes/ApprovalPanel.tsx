@@ -52,14 +52,14 @@ export default function ApprovalPanel({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {active ? (
-        <div className="card" style={{ padding: 20, borderColor: "#22C55E", background: "rgba(34,197,94,0.06)" }}>
+        <div className="card" style={{ padding: 20, borderColor: "#1DB954", background: "rgba(34,197,94,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ color: "#22C55E" }}>
+              <span style={{ color: "#1DB954" }}>
                 <Icon name="checkCircle" size={22} />
               </span>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#22C55E" }}>الحلقة معتمدة</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1DB954" }}>الحلقة معتمدة</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
                   اعتمدها {active.approver_name || "العميل"} · {formatDate(active.approved_at)}
                 </div>

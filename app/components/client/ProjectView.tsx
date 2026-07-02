@@ -237,7 +237,7 @@ function OverviewTab({
         <div className="card" style={{ padding: 18 }}>
           <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>الملخّص المالي</h3>
           <FinanceRow label="قيمة المشروع" value={formatCurrency(finance.projectValue)} color="var(--text-primary)" />
-          <FinanceRow label="المدفوع" value={formatCurrency(finance.paid)} color="#22C55E" />
+          <FinanceRow label="المدفوع" value={formatCurrency(finance.paid)} color="#1DB954" />
           <FinanceRow label="المتبقّي" value={formatCurrency(finance.remaining)} color="var(--gold)" />
         </div>
       )}

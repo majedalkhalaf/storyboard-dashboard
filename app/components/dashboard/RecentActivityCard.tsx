@@ -35,23 +35,43 @@ export default function RecentActivityCard({ items }: { items: ActivityRow[] }) 
           {items.map((item) => {
             const content = (
               <>
-                <div style={{ fontSize: 13 }}>
-                  {ACTION_LABELS[item.action] ?? item.action}
-                  {item.actor_name && <span style={{ color: "var(--text-muted)" }}> — {item.actor_name}</span>}
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "var(--bg-hover)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {(item.actor_name || "؟").charAt(0)}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13 }}>
+                    {ACTION_LABELS[item.action] ?? item.action}
+                    {item.actor_name && <span style={{ color: "var(--text-muted)" }}> — {item.actor_name}</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{relativeTime(item.created_at)}</div>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{relativeTime(item.created_at)}</div>
               </>
             );
             return item.projectId ? (
               <Link
                 key={item.id}
                 href={`/projects/${item.projectId}`}
-                style={{ padding: "10px 0", borderBottom: "1px solid var(--border)", textDecoration: "none", color: "inherit" }}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)", textDecoration: "none", color: "inherit" }}
               >
                 {content}
               </Link>
             ) : (
-              <div key={item.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+              <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
                 {content}
               </div>
             );

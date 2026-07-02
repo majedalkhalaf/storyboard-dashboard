@@ -30,7 +30,7 @@ export const PROJECT_STATUSES: { value: ProjectStatus; label: string; color: str
   { value: "planning", label: "تخطيط", color: "#8B5CF6" },
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },
   { value: "review", label: "مراجعة", color: "#06B6D4" },
-  { value: "completed", label: "مكتمل", color: "#22C55E" },
+  { value: "completed", label: "مكتمل", color: "#1DB954" },
   { value: "delivered", label: "تم التسليم", color: "#10B981" },
   { value: "archived", label: "أرشيف", color: "#6B7280" },
   { value: "cancelled", label: "ملغى", color: "#EF4444" },
@@ -41,14 +41,14 @@ export const EPISODE_STATUSES: { value: EpisodeStatus; label: string; color: str
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },
   { value: "in_review", label: "قيد المراجعة", color: "#06B6D4" },
   { value: "ready_for_approval", label: "بانتظار الاعتماد", color: "#8B5CF6" },
-  { value: "approved", label: "تم الاعتماد", color: "#22C55E" },
+  { value: "approved", label: "تم الاعتماد", color: "#1DB954" },
   { value: "delivered", label: "تم التسليم", color: "#10B981" },
 ];
 
 export const STAGE_STATUSES: { value: StageStatus; label: string; color: string }[] = [
   { value: "pending", label: "لم يبدأ", color: "#6B7280" },
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },
-  { value: "completed", label: "مكتمل", color: "#22C55E" },
+  { value: "completed", label: "مكتمل", color: "#1DB954" },
   { value: "skipped", label: "متخطّى", color: "#94A3B8" },
 ];
 
@@ -56,7 +56,7 @@ export const NOTE_STATUSES: { value: NoteStatus; label: string; color: string }[
   { value: "new", label: "جديدة", color: "#3B82F6" },
   { value: "in_review", label: "قيد المراجعة", color: "#06B6D4" },
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },
-  { value: "done", label: "تم التنفيذ", color: "#22C55E" },
+  { value: "done", label: "تم التنفيذ", color: "#1DB954" },
   { value: "closed", label: "مغلقة", color: "#6B7280" },
   { value: "rejected", label: "مرفوضة", color: "#EF4444" },
 ];
@@ -195,14 +195,14 @@ export const USER_ROLE_LABELS: Record<string, string> = {
 export const INVOICE_STATUSES: { value: InvoiceStatus; label: string; color: string }[] = [
   { value: "draft", label: "مسودة", color: "#6B7280" },
   { value: "unpaid", label: "غير مدفوعة", color: "#F59E0B" },
-  { value: "paid", label: "مدفوعة", color: "#22C55E" },
+  { value: "paid", label: "مدفوعة", color: "#1DB954" },
   { value: "overdue", label: "متأخرة", color: "#EF4444" },
   { value: "cancelled", label: "ملغاة", color: "#94A3B8" },
 ];
 
 export const PAYMENT_STATUSES: { value: PaymentStatus; label: string; color: string }[] = [
   { value: "pending", label: "معلّقة", color: "#F59E0B" },
-  { value: "paid", label: "مدفوعة", color: "#22C55E" },
+  { value: "paid", label: "مدفوعة", color: "#1DB954" },
   { value: "overdue", label: "متأخرة", color: "#EF4444" },
   { value: "cancelled", label: "ملغاة", color: "#94A3B8" },
 ];
@@ -219,14 +219,14 @@ export const CONTRACT_STATUSES: { value: ContractStatus; label: string; color: s
   { value: "draft", label: "مسودة", color: "#6B7280" },
   { value: "sent", label: "مُرسل", color: "#06B6D4" },
   { value: "pending_signature", label: "بانتظار التوقيع", color: "#8B5CF6" },
-  { value: "signed", label: "موقّع", color: "#22C55E" },
+  { value: "signed", label: "موقّع", color: "#1DB954" },
   { value: "cancelled", label: "ملغى", color: "#EF4444" },
 ];
 
 export const PROPOSAL_STATUSES: { value: ProposalStatus; label: string; color: string }[] = [
   { value: "draft", label: "مسودة", color: "#6B7280" },
   { value: "sent", label: "مُرسل", color: "#06B6D4" },
-  { value: "accepted", label: "مقبول", color: "#22C55E" },
+  { value: "accepted", label: "مقبول", color: "#1DB954" },
   { value: "rejected", label: "مرفوض", color: "#EF4444" },
 ];
 
