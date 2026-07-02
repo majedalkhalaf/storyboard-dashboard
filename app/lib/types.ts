@@ -344,6 +344,34 @@ export interface ProjectClient {
   activated_at: string | null;
 }
 
+export type EquipmentStatus = "available" | "in_use" | "maintenance";
+
+export interface Equipment {
+  id: string;
+  company_id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  status: EquipmentStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  project_type: string | null;
+  is_active: boolean;
+  stages: { key: string; label: string }[];
+  services: { category: string; service_key: string; label: string }[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserSettings {
   user_id: string;
   theme: "dark" | "light";
