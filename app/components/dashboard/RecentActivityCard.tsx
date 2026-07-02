@@ -11,6 +11,7 @@ const ACTION_LABELS: Record<string, string> = {
   episode_stage_updated: "تم تحديث مرحلة تنفيذ",
   approval_revoked: "تم إعادة فتح حلقة للمراجعة",
   note_added: "تمت إضافة ملاحظة",
+  file_uploaded: "تم رفع ملف جديد",
 };
 
 interface ActivityRow {
