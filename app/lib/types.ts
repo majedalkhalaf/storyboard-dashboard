@@ -381,3 +381,11 @@ export interface UserSettings {
   extra: Record<string, unknown>;
   updated_at: string;
 }
+
+export interface ProjectFavorite {
+  id: string;
+  company_id: string;
+  project_id: string;
+  user_id: string;
+  created_at: string;
+}

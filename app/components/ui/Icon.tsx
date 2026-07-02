@@ -68,6 +68,18 @@ import {
   HardDrive,
   Command,
   ListChecks,
+  Star,
+  LayoutGrid,
+  Rows3,
+  Columns3,
+  GanttChartSquare,
+  CalendarDays,
+  SlidersHorizontal,
+  FileUp,
+  GripVertical,
+  BadgeCheck,
+  FileCheck2,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -139,6 +151,18 @@ export const ICONS = {
   storage: HardDrive,
   command: Command,
   tasks: ListChecks,
+  star: Star,
+  grid: LayoutGrid,
+  list: Rows3,
+  kanban: Columns3,
+  timeline: GanttChartSquare,
+  calendarView: CalendarDays,
+  sliders: SlidersHorizontal,
+  fileUp: FileUp,
+  grip: GripVertical,
+  badgeCheck: BadgeCheck,
+  fileCheck: FileCheck2,
+  warning: AlertTriangle,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -147,11 +171,13 @@ export default function Icon({
   name,
   size = 18,
   className,
+  filled,
 }: {
   name: IconName;
   size?: number;
   className?: string;
+  filled?: boolean;
 }) {
   const Cmp = ICONS[name];
-  return <Cmp size={size} className={className} strokeWidth={1.8} />;
+  return <Cmp size={size} className={className} strokeWidth={1.8} fill={filled ? "currentColor" : "none"} />;
 }

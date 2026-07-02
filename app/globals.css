@@ -386,6 +386,9 @@ body {
   /* Settings: stack */
   .settings-layout { grid-template-columns: 1fr !important; }
 
+  /* Projects workspace: activity sidebar moves below main content */
+  .projects-workspace-layout { grid-template-columns: 1fr !important; }
+
   /* Dashboard: hero/charts rows stack, widgets row 2 cols */
   .dashboard-hero { grid-template-columns: 1fr !important; }
   .dashboard-charts-row-3 { grid-template-columns: 1fr 1fr !important; }
@@ -418,7 +421,8 @@ body {
   /* Single column layouts */
   .two-col,
   .export-grid,
-  .settings-layout { grid-template-columns: 1fr !important; }
+  .settings-layout,
+  .projects-workspace-layout { grid-template-columns: 1fr !important; }
 
   /* Shot cards: 1 col on small, 2 on bigger mobile */
   .shots-grid-3 { grid-template-columns: 1fr !important; }
