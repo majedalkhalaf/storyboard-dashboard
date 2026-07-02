@@ -204,7 +204,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
                       fontSize: 14,
                       fontWeight: 600,
                       borderColor: active ? "var(--gold)" : "var(--border)",
-                      background: active ? "rgba(201,168,76,0.1)" : "var(--bg-card)",
+                      background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-card)",
                       color: active ? "var(--gold)" : "var(--text-primary)",
                     }}
                   >

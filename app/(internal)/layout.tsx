@@ -14,9 +14,9 @@ export default async function InternalLayout({ children }: { children: React.Rea
 
   if (!session.profile.company_id) {
     const repaired = await ensureCompanyForPendingUser(supabase, session.userId);
-    if (!repaired) redirect("/signup");
+    if (!repaired) redirect("/onboarding");
     session = await getCurrentSession();
-    if (!session || !session.profile.company_id) redirect("/signup");
+    if (!session || !session.profile.company_id) redirect("/onboarding");
   }
 
   const { data: settings } = await supabase

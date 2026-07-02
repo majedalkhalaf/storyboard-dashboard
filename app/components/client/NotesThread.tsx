@@ -90,7 +90,7 @@ export default function NotesThread({
     return (
       <div
         style={{
-          background: mine ? "rgba(201,168,76,0.08)" : "var(--bg-secondary)",
+          background: mine ? "rgba(var(--gold-rgb),0.08)" : "var(--bg-secondary)",
           border: "1px solid var(--border)",
           borderRadius: 12,
           padding: "10px 14px",

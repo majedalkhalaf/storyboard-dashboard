@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --gold: #C9A84C;
-  --gold-light: #E8C97A;
-  --gold-dark: #A07830;
+  --gold: #CE902F;
+  --gold-light: #DAAC63;
+  --gold-dark: #9B6C23;
+  --gold-rgb: 206, 144, 47;
   --bg-primary: #0A0A0B;
   --bg-secondary: #111114;
   --bg-card: #16161A;
@@ -27,6 +28,11 @@
   --text-primary: #1A1A20;
   --text-secondary: #555568;
   --text-muted: #8A8A9A;
+  /* نسخة أغمق قليلاً من اللون الذهبي لضمان تباين كافٍ فوق الخلفية الفاتحة */
+  --gold: #9B6C23;
+  --gold-light: #CE902F;
+  --gold-dark: #7C561C;
+  --gold-rgb: 155, 108, 35;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,6 +49,18 @@ body {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-secondary); }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+/* ── AUTH PAGES (login/signup/onboarding) ── */
+.auth-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.auth-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
 
 /* ── CARD ── */
 .card {
@@ -79,7 +97,7 @@ body {
 }
 .sidebar-link:hover { background: var(--bg-hover); color: var(--text-primary); }
 .sidebar-link.active {
-  background: rgba(201,168,76,0.12);
+  background: rgba(var(--gold-rgb), 0.12);
   color: var(--gold);
   border-right: 3px solid var(--gold);
 }
@@ -124,7 +142,7 @@ body {
   background: linear-gradient(135deg, var(--gold-dark), var(--gold));
   color: #0A0A0B;
 }
-.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(201,168,76,0.3); }
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(var(--gold-rgb), 0.3); }
 .btn-gold:active { transform: scale(0.97); }
 .btn-outline {
   background: transparent;
@@ -252,8 +270,8 @@ body {
   white-space: nowrap;
 }
 .chip-gold {
-  background: rgba(201,168,76,0.1);
-  border-color: rgba(201,168,76,0.3);
+  background: rgba(var(--gold-rgb), 0.1);
+  border-color: rgba(var(--gold-rgb), 0.3);
   color: var(--gold);
 }
 
@@ -451,6 +469,10 @@ body {
 
   /* Export options: 1 col */
   .export-options-grid { grid-template-columns: 1fr !important; }
+
+  /* Auth pages: hide decorative showcase panel, form takes full width */
+  .auth-grid { grid-template-columns: 1fr !important; }
+  .auth-showcase { display: none !important; }
 
   /* Dashboard: all rows single column on mobile */
   .dashboard-charts-row,

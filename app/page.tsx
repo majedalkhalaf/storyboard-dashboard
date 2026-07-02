@@ -12,7 +12,7 @@ export default async function RootPage() {
   if (!session.profile.company_id) {
     const supabase = await createClient();
     const repaired = await ensureCompanyForPendingUser(supabase, session.userId);
-    if (!repaired) redirect("/signup");
+    if (!repaired) redirect("/onboarding");
   }
 
   redirect("/dashboard");

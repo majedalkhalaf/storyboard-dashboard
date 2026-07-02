@@ -124,7 +124,7 @@ export default function ClientNotificationsBell() {
                     textAlign: "right",
                     padding: "10px 14px",
                     borderBottom: "1px solid var(--border)",
-                    background: n.is_read ? "transparent" : "rgba(201,168,76,0.06)",
+                    background: n.is_read ? "transparent" : "rgba(var(--gold-rgb),0.06)",
                     border: "none",
                     cursor: "pointer",
                     color: "var(--text-primary)",

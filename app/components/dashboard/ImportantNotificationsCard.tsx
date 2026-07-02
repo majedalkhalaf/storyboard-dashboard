@@ -65,7 +65,7 @@ export default function ImportantNotificationsCard({
           ))}
           {notifications.map((n) => (
             <div key={n.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <span style={{ color: "var(--gold)", background: "rgba(201,168,76,0.1)", padding: 6, borderRadius: 8, flexShrink: 0 }}>
+              <span style={{ color: "var(--gold)", background: "rgba(var(--gold-rgb),0.1)", padding: 6, borderRadius: 8, flexShrink: 0 }}>
                 <Icon name="bell" size={14} />
               </span>
               <div>

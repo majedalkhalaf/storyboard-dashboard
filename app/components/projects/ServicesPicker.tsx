@@ -67,7 +67,7 @@ export default function ServicesPicker({
                       cursor: "pointer",
                       textAlign: "right",
                       borderColor: active ? "var(--gold)" : "var(--border)",
-                      background: active ? "rgba(201,168,76,0.1)" : "var(--bg-card)",
+                      background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-card)",
                     }}
                   >
                     <span

@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
+import AuthShowcase from "@/app/components/auth/AuthShowcase";
+import OAuthButtons from "@/app/components/auth/OAuthButtons";
 
 export default function SignupPage() {
   const [companyName, setCompanyName] = useState("");
@@ -82,95 +84,100 @@ export default function SignupPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <form onSubmit={handleSubmit} className="card animate-fade-in" style={{ width: "100%", maxWidth: 440, padding: 32 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>إنشاء حساب شركة جديد</h1>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>ابدأ بإدارة مشاريع الإنتاج خلال دقيقة</p>
+      <div
+        className="auth-grid card animate-fade-in"
+        style={{ width: "100%", maxWidth: 940, overflow: "hidden", padding: 0 }}
+      >
+        <div style={{ padding: "40px 40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ marginBottom: 20 }}>
+            <h1 style={{ fontSize: 21, fontWeight: 800 }}>إنشاء حساب شركة جديد</h1>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>ابدأ بإدارة مشاريع الإنتاج خلال دقيقة</p>
+          </div>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسم الشركة / الاستوديو</label>
+              <input
+                required
+                name="organization"
+                autoComplete="organization"
+                className="input-field"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="مثال: استوديو الإبداع"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسمك الكامل</label>
+              <input
+                required
+                name="name"
+                autoComplete="name"
+                className="input-field"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="الاسم الكامل"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>البريد الإلكتروني</label>
+              <input
+                type="email"
+                required
+                name="email"
+                autoComplete="email"
+                className="input-field"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@company.com"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>رقم الهاتف</label>
+              <input
+                type="tel"
+                name="tel"
+                autoComplete="tel"
+                className="input-field"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="05xxxxxxxx"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>كلمة المرور</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                name="new-password"
+                autoComplete="new-password"
+                className="input-field"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="6 أحرف على الأقل"
+              />
+            </div>
+
+            <button type="submit" className="btn btn-gold" disabled={loading} style={{ justifyContent: "center", marginTop: 6 }}>
+              {loading ? "جاري الإنشاء..." : "إنشاء الحساب"}
+            </button>
+          </form>
+
+          <OAuthButtons label="أو أنشئ حسابك باستخدام" />
+
+          <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 18 }}>
+            لديك حساب بالفعل؟{" "}
+            <Link href="/login" style={{ color: "var(--gold)", fontWeight: 700 }}>
+              تسجيل الدخول
+            </Link>
+          </p>
         </div>
 
-        {error && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسم الشركة / الاستوديو</label>
-            <input
-              required
-              name="organization"
-              autoComplete="organization"
-              className="input-field"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="مثال: استوديو الإبداع"
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>اسمك الكامل</label>
-            <input
-              required
-              name="name"
-              autoComplete="name"
-              className="input-field"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="الاسم الكامل"
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>البريد الإلكتروني</label>
-            <input
-              type="email"
-              required
-              name="email"
-              autoComplete="email"
-              className="input-field"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@company.com"
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>رقم الهاتف</label>
-            <input
-              type="tel"
-              name="tel"
-              autoComplete="tel"
-              className="input-field"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="05xxxxxxxx"
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>كلمة المرور</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              name="new-password"
-              autoComplete="new-password"
-              className="input-field"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="6 أحرف على الأقل"
-            />
-          </div>
-
-          <button type="submit" className="btn btn-gold" disabled={loading} style={{ justifyContent: "center", marginTop: 6 }}>
-            {loading ? "جاري الإنشاء..." : "إنشاء الحساب"}
-          </button>
-        </div>
-
-        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 20 }}>
-          لديك حساب بالفعل؟{" "}
-          <Link href="/login" style={{ color: "var(--gold)", fontWeight: 700 }}>
-            تسجيل الدخول
-          </Link>
-        </p>
-      </form>
+        <AuthShowcase />
+      </div>
     </div>
   );
 }

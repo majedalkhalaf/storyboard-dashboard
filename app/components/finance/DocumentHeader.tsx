@@ -15,12 +15,12 @@ export const printResetCss = `
   line-height: 1.7;
 }
 .doc-page * { color: inherit; }
-.doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #C9A84C; padding-bottom: 20px; margin-bottom: 24px; }
+.doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #9B6C23; padding-bottom: 20px; margin-bottom: 24px; }
 .doc-company-name { font-size: 20px; font-weight: 800; }
 .doc-company-line { font-size: 12px; color: #555; margin-top: 3px; }
 .doc-logo { max-height: 64px; max-width: 180px; object-fit: contain; }
 .doc-title-wrap { text-align: left; }
-.doc-title { font-size: 30px; font-weight: 800; color: #C9A84C; }
+.doc-title { font-size: 30px; font-weight: 800; color: #9B6C23; }
 .doc-subtitle { font-size: 14px; color: #555; margin-top: 2px; }
 .doc-meta { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
 .doc-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #999; margin-bottom: 4px; }
@@ -32,7 +32,7 @@ export const printResetCss = `
 .doc-table td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid #eee; }
 .doc-totals { margin-inline-start: auto; width: 280px; margin-bottom: 24px; }
 .doc-total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-.doc-grand { border-top: 2px solid #C9A84C; margin-top: 6px; padding-top: 10px; font-size: 17px; font-weight: 800; }
+.doc-grand { border-top: 2px solid #9B6C23; margin-top: 6px; padding-top: 10px; font-size: 17px; font-weight: 800; }
 .doc-section { margin-bottom: 20px; }
 .doc-section-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #1a1a20; }
 .doc-notes { background: #f9f8f4; border: 1px solid #eee; border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 13px; }
