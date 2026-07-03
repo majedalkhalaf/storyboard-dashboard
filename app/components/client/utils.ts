@@ -64,6 +64,13 @@ export function fileIconName(category: string): "image" | "video" | "archive" | 
   }
 }
 
+// وسم (Hashtag) باسم المشروع لعرضه أمام كل نشاط/إشعار — يميّز مباشرة إلى أي
+// مشروع ينتمي التحديث عندما يتابع العميل أكثر من مشروع في آن واحد.
+export function projectHashtag(name: string): string {
+  const cleaned = name.trim().replace(/\s+/g, "_");
+  return cleaned ? `#${cleaned}` : "";
+}
+
 export function formatBytes(bytes: number | null | undefined): string {
   if (!bytes || bytes <= 0) return "";
   const units = ["B", "KB", "MB", "GB"];

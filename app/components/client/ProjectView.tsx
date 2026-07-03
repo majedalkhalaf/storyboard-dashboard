@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
@@ -99,7 +99,10 @@ export default function ProjectView({
     { key: "notes", label: "الملاحظات", show: true },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
-  const [active, setActive] = useState<TabKey>(showEpisodes ? "episodes" : "overview");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab") as TabKey | null;
+  const initialTab = requestedTab && tabs.some((t) => t.key === requestedTab && t.show) ? requestedTab : showEpisodes ? "episodes" : "overview";
+  const [active, setActive] = useState<TabKey>(initialTab);
 
   const episodesCompleted = episodes.filter((e) => e.status === "delivered" || e.status === "approved").length;
   const episodesInProgress = episodes.filter((e) => e.status === "in_progress" || e.status === "in_review" || e.status === "ready_for_approval").length;

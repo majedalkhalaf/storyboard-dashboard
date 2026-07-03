@@ -5,13 +5,25 @@ import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { projectHashtag } from "@/app/components/client/utils";
 import type { AppNotification } from "@/app/lib/types";
 
+interface ClientNotification extends AppNotification {
+  project: { name: string } | { name: string }[] | null;
+}
+
+function notificationProjectName(n: ClientNotification): string | null {
+  const p = Array.isArray(n.project) ? n.project[0] : n.project;
+  return p?.name ?? null;
+}
+
 // نسخة خاصة ببوابة العميل: تقرأ إشعارات المستخدم الحالي وتفتح روابط /client/**
-// بدل روابط لوحة الفريق الداخلية. تدعم التحديث الحيّ عبر Realtime.
+// بدل روابط لوحة الفريق الداخلية. تدعم التحديث الحيّ عبر Realtime. كل إشعار
+// يعرض وسم اسم المشروع (#اسم_المشروع) حتى يعرف العميل متعدد المشاريع مباشرة
+// إلى أي مشروع ينتمي التحديث.
 export default function ClientNotificationsBell() {
   const { userId } = useSession();
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const [items, setItems] = useState<ClientNotification[]>([]);
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const unread = items.filter((n) => !n.is_read).length;
@@ -22,11 +34,11 @@ export default function ClientNotificationsBell() {
     async function load() {
       const { data } = await supabase
         .from("notifications")
-        .select("*")
+        .select("*, project:projects(name)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(20);
-      setItems(data ?? []);
+      setItems((data ?? []) as ClientNotification[]);
     }
     load();
 
@@ -35,7 +47,15 @@ export default function ClientNotificationsBell() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload) => setItems((prev) => [payload.new as AppNotification, ...prev])
+        async (payload) => {
+          const inserted = payload.new as AppNotification;
+          let project: ClientNotification["project"] = null;
+          if (inserted.project_id) {
+            const { data } = await supabase.from("projects").select("name").eq("id", inserted.project_id).maybeSingle();
+            if (data) project = data;
+          }
+          setItems((prev) => [{ ...inserted, project }, ...prev]);
+        }
       )
       .subscribe();
 
@@ -50,7 +70,7 @@ export default function ClientNotificationsBell() {
     await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false);
   }
 
-  async function openNotification(n: AppNotification) {
+  async function openNotification(n: ClientNotification) {
     setOpen(false);
     if (!n.is_read) {
       const supabase = createClient();
@@ -114,26 +134,30 @@ export default function ClientNotificationsBell() {
                 لا توجد إشعارات بعد
               </div>
             ) : (
-              items.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => openNotification(n)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "right",
-                    padding: "10px 14px",
-                    borderBottom: "1px solid var(--border)",
-                    background: n.is_read ? "transparent" : "rgba(var(--gold-rgb),0.06)",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{n.message}</div>
-                </button>
-              ))
+              items.map((n) => {
+                const projectName = notificationProjectName(n);
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => openNotification(n)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "right",
+                      padding: "10px 14px",
+                      borderBottom: "1px solid var(--border)",
+                      background: n.is_read ? "transparent" : "rgba(var(--gold-rgb),0.06)",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {projectName && <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(projectName)}</div>}
+                    {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{n.message}</div>
+                  </button>
+                );
+              })
             )}
           </div>
         </>

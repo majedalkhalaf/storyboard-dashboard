@@ -4,6 +4,7 @@ import SessionProvider from "@/app/providers/SessionProvider";
 import ClientShell, { type ActivityRailItem, type ProjectManagerInfo } from "@/app/components/client/ClientShell";
 import { requireClient } from "@/app/components/client/guards";
 import { canClient } from "@/app/lib/permissions";
+import { projectHashtag } from "@/app/components/client/utils";
 import type { ClientPermissions, Episode, Note, ProjectFile } from "@/app/lib/types";
 
 interface ActiveProjectInfo {
@@ -75,6 +76,8 @@ export default async function ClientLayout({ children }: { children: React.React
     scannedProjects.map(async ({ permissions, project }) => {
       const items: ActivityRailItem[] = [];
 
+      const hashtag = projectHashtag(project.name);
+
       async function loadFiles() {
         if (!canClient(permissions, "files")) return;
         const { data } = await supabase
@@ -85,14 +88,14 @@ export default async function ClientLayout({ children }: { children: React.React
           .order("created_at", { ascending: false })
           .limit(3);
         for (const f of (data ?? []) as Pick<ProjectFile, "id" | "name" | "created_at">[]) {
-          items.push({ id: `file-${f.id}`, title: "تم رفع ملف جديد", subtitle: `${f.name} — ${project.name}`, icon: "fileUp", color: "#3987e5", at: f.created_at, projectId: project.id });
+          items.push({ id: `file-${f.id}`, title: `${hashtag} – تم رفع ملف جديد`, subtitle: f.name, icon: "fileUp", color: "#3987e5", at: f.created_at, projectId: project.id });
         }
       }
 
       async function loadNotes() {
         const { data } = await supabase.from("notes").select("id, body, created_at").eq("project_id", project.id).order("created_at", { ascending: false }).limit(3);
         for (const n of (data ?? []) as Pick<Note, "id" | "body" | "created_at">[]) {
-          items.push({ id: `note-${n.id}`, title: "تعليق جديد من فريق العمل", subtitle: `${n.body} — ${project.name}`, icon: "message", color: "#F59E0B", at: n.created_at, projectId: project.id });
+          items.push({ id: `note-${n.id}`, title: `${hashtag} – تعليق جديد من فريق العمل`, subtitle: n.body, icon: "message", color: "#F59E0B", at: n.created_at, projectId: project.id });
         }
       }
 
@@ -108,8 +111,8 @@ export default async function ClientLayout({ children }: { children: React.React
         for (const e of (data ?? []) as Pick<Episode, "id" | "title" | "status" | "updated_at">[]) {
           items.push({
             id: `episode-${e.id}`,
-            title: e.status === "delivered" ? "تم تسليم حلقة" : "تم اعتماد حلقة",
-            subtitle: `${e.title} — ${project.name}`,
+            title: `${hashtag} – ${e.status === "delivered" ? "تم تسليم حلقة" : "تم اعتماد حلقة"}`,
+            subtitle: e.title,
             icon: "checkCircle",
             color: "var(--success)",
             at: e.updated_at,
