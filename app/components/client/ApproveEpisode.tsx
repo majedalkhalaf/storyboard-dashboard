@@ -104,7 +104,7 @@ export default function ApproveEpisode({
         }
       >
         <Icon name="checkCircle" size={variant === "card" ? 15 : 18} />
-        {variant === "card" ? "بانتظار اعتمادك" : variant === "hero" ? "اعتماد نهائي" : "اعتماد الحلقة"}
+        {variant === "card" ? "اعتماد نهائي للحلقة" : variant === "hero" ? "اعتماد نهائي" : "اعتماد الحلقة"}
       </button>
 
       {open && (
@@ -115,8 +115,8 @@ export default function ApproveEpisode({
               <h3 style={{ fontSize: 18, fontWeight: 800 }}>هل أنت متأكد من اعتماد هذه الحلقة اعتماداً نهائياً؟</h3>
             </div>
             <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 16, lineHeight: 1.7 }}>
-              بعد الاعتماد النهائي لن تتمكن من طلب أي تعديلات على هذه الحلقة، وستُعتبر معتمدة بشكل نهائي. لن يتمكن فريق العمل من
-              تعديل محتواها إلا إذا قام مدير المشروع بإلغاء الاعتماد.
+              في حال الاعتماد النهائي لن تتمكن من طلب أي تعديل على هذه الحلقة مرة أخرى، لكن يمكنك دائماً الدخول إليها ومشاهدة
+              وتحميل مرفقاتها في أي وقت.
             </p>
             <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>ملاحظة (اختياري)</label>
             <textarea
