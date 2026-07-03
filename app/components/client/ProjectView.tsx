@@ -7,13 +7,13 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
-import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import ProjectStageTimeline from "@/app/components/client/ProjectStageTimeline";
+import EpisodeGridCard from "@/app/components/client/EpisodeGridCard";
 import StatCard from "@/app/components/dashboard/StatCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
-import { episodeStatusMeta, projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
+import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
 import type { ClientPermissions, Company, CompanyPipelineStage, Episode, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
@@ -135,7 +135,7 @@ export default function ProjectView({
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto", overflowX: "hidden" }}>
       <div style={{ marginBottom: 8 }}>
-        <Link href="/client" className="btn btn-ghost" style={{ padding: "4px 8px", marginBottom: 10, fontSize: 13 }}>
+        <Link href="/client/projects" className="btn btn-ghost" style={{ padding: "4px 8px", marginBottom: 10, fontSize: 13 }}>
           <Icon name="arrowRight" size={16} />
           مشاريعي
         </Link>
@@ -462,64 +462,19 @@ function EpisodesTab({
           </div>
         ) : (
           filtered.map((ep) => {
-            const es = episodeStatusMeta(ep.status);
             const isApproved = approvedSet.has(ep.id) || ep.status === "approved" || ep.status === "delivered";
-            const overdue = ep.delivery_date && new Date(ep.delivery_date) < new Date() && !isApproved;
             return (
-              <div key={ep.id} className="shot-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <Link href={`/client/projects/${project.id}/episodes/${ep.id}`} style={{ textDecoration: "none", color: "var(--text-primary)" }}>
-                  <div style={{ background: "#000", maxHeight: 160, overflow: "hidden", display: "flex", justifyContent: "center", position: "relative" }}>
-                    {ep.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={ep.cover_image_url} alt={ep.title} style={{ width: "100%", maxHeight: 160, objectFit: "contain" }} />
-                    ) : (
-                      <div style={{ width: "100%", height: 130, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Icon name="video" size={30} className="nav-icon" />
-                      </div>
-                    )}
-                    <div style={{ position: "absolute", top: 8, insetInlineStart: 8, display: "flex", gap: 6 }}>
-                      <StatusChip label={es.label} color={es.color} />
-                      {overdue && <StatusChip label="متأخرة" color="#EF4444" />}
-                    </div>
-                  </div>
-                  <div style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>{ep.number != null ? `الحلقة ${ep.number}` : "حلقة"}</div>
-                    <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>{ep.title}</h3>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", marginBottom: 5 }}>
-                      <span>{ep.progress ?? 0}%</span>
-                      <span>{relativeTime(ep.updated_at)}</span>
-                    </div>
-                    <div className="progress-bar" style={{ marginBottom: 10 }}>
-                      <div className="progress-fill" style={{ width: `${ep.progress ?? 0}%`, background: es.color }} />
-                    </div>
-                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <Icon name="files" size={12} /> {episodeFileCounts[ep.id] ?? 0}
-                      </span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <Icon name="message" size={12} /> {episodeNoteCounts[ep.id] ?? 0}
-                      </span>
-                      {ep.delivery_date && (
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <Icon name="calendar" size={12} /> {formatDate(ep.delivery_date)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-                <div style={{ padding: "0 14px 14px", marginTop: "auto" }}>
-                  <ApproveEpisode
-                    episodeId={ep.id}
-                    projectId={project.id}
-                    companyId={project.company_id}
-                    currentUserId={userId}
-                    status={ep.status}
-                    alreadyApproved={isApproved}
-                    canApprove={canClient(permissions, "approve_episodes")}
-                    variant="card"
-                  />
-                </div>
-              </div>
+              <EpisodeGridCard
+                key={ep.id}
+                episode={ep}
+                projectId={project.id}
+                companyId={project.company_id}
+                userId={userId}
+                permissions={permissions}
+                isApproved={isApproved}
+                fileCount={episodeFileCounts[ep.id] ?? 0}
+                noteCount={episodeNoteCounts[ep.id] ?? 0}
+              />
             );
           })
         )}

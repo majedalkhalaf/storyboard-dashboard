@@ -31,7 +31,8 @@ export type NoteTargetType =
   | "file"
   | "script"
   | "scenario"
-  | "storyboard";
+  | "storyboard"
+  | "meeting";
 
 export type FileCategory = "image" | "video" | "document" | "audio" | "archive" | "design" | "project_file" | "link" | "other";
 

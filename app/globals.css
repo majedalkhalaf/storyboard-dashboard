@@ -133,6 +133,7 @@ body {
 .sidebar-collapse-btn:hover { border-color: var(--gold); color: var(--gold); }
 
 .desktop-sidebar { transition: width 200ms ease, min-width 200ms ease; }
+.desktop-activity-rail { transition: width 200ms ease, min-width 200ms ease; }
 
 /* ── MOBILE NAV DRAWER ── */
 .mobile-menu-btn { display: none; }
@@ -468,6 +469,7 @@ body {
 @media (max-width: 767px) {
   /* Hide desktop sidebar completely */
   aside.desktop-sidebar { display: none !important; }
+  aside.desktop-activity-rail { display: none !important; }
 
   /* Show bottom nav */
   .bottom-nav { display: flex !important; }

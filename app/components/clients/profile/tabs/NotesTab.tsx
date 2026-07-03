@@ -16,6 +16,7 @@ const TARGET_TYPE_LABELS: Record<NoteTargetType, string> = {
   script: "ملاحظة على السكربت",
   scenario: "ملاحظة على السيناريو",
   storyboard: "ملاحظة على Storyboard",
+  meeting: "طلب اجتماع",
 };
 
 export default function NotesTab({ clientId }: { clientId: string }) {
