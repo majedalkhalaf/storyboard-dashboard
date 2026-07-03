@@ -84,6 +84,12 @@ body {
 }
 .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
 
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.skeleton { background: var(--bg-hover); animation: skeletonPulse 1.4s ease-in-out infinite; }
+
 /* ── SIDEBAR (desktop) ── */
 .sidebar-link {
   display: flex;

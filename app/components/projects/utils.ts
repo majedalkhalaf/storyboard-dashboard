@@ -60,6 +60,13 @@ export const FILE_CATEGORY_ICON: Record<FileCategory, "image" | "video" | "attac
   other: "attachment",
 };
 
+export function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds && seconds !== 0) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export function humanFileSize(bytes: number | null | undefined): string {
   if (!bytes) return "";
   const units = ["B", "KB", "MB", "GB"];

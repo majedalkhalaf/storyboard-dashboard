@@ -136,9 +136,23 @@ export interface Episode {
   script: string | null;
   scenario: string | null;
   sort_order: number;
+  duration_seconds: number | null;
+  assigned_to: string | null;
+  shooting_date: string | null;
+  delivery_date: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface EpisodeScriptVersion {
+  id: string;
+  company_id: string;
+  episode_id: string;
+  field: "script" | "scenario";
+  content: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface EpisodeStage {
@@ -152,6 +166,7 @@ export interface EpisodeStage {
   started_at: string | null;
   completed_at: string | null;
   updated_by: string | null;
+  assigned_to: string | null;
   notes: string | null;
   sort_order: number;
   due_date: string | null;
@@ -189,6 +204,7 @@ export interface Note {
   status: NoteStatus;
   mentions: string[];
   attachments: { name: string; url: string }[];
+  video_timestamp_seconds: number | null;
   created_at: string;
   updated_at: string;
 }
