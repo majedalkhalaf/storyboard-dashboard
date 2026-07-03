@@ -85,13 +85,17 @@ export const CLIENT_ACCESS_TYPES: { value: ClientAccessType; label: string }[] =
   { value: "until_date", label: "حتى تاريخ محدد" },
 ];
 
-export type ClientDeliveryMethod = "email" | "link";
+export type ClientDeliveryMethod = "email" | "link" | "whatsapp";
 
-// لا يوجد تكامل واتساب/SMS حقيقي في هذا النظام — "نسخ الرابط" يُستخدم يدوياً لِلصقه
-// في أي قناة (واتساب، SMS، بريد آخر) بدل ادّعاء إرسال تلقائي عبر مزوّد لا نملكه.
+// لا يوجد تكامل واتساب بزنس API حقيقي في هذا النظام (لا حساب Meta Business ولا رقم
+// معتمد) — لذا "واتساب" هنا ليست إرسالاً تلقائياً خلفياً، بل تنشئ حساباً حقيقياً بكلمة
+// مرور مؤقتة، ثم تفتح رابط wa.me برسالة جاهزة داخل واتساب ويب/التطبيق كي يضغط
+// المستخدم "إرسال" بنفسه من الجلسة المسجّل بها فعلياً. "نسخ الرابط" يبقى للحالات
+// الأخرى (SMS أو أي قناة يدوية بلا رسالة جاهزة).
 export const CLIENT_DELIVERY_METHODS: { value: ClientDeliveryMethod; label: string; description: string; icon: IconName }[] = [
   { value: "email", label: "البريد الإلكتروني", description: "يُرسل بريد دعوة حقيقي فوراً عبر Supabase", icon: "mail" },
-  { value: "link", label: "نسخ الرابط", description: "لإرساله يدوياً عبر واتساب أو SMS أو أي قناة أخرى", icon: "link" },
+  { value: "whatsapp", label: "واتساب", description: "حساب بكلمة مرور مؤقتة + رسالة جاهزة تُفتح في واتساب لإرسالها يدوياً", icon: "phone" },
+  { value: "link", label: "نسخ الرابط", description: "لإرساله يدوياً عبر أي قناة أخرى", icon: "link" },
 ];
 
 export function permissionCountOf(permissions: ClientPermissions): number {

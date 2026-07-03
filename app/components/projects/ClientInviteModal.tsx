@@ -121,6 +121,8 @@ export default function ClientInviteModal({
   const [sentLink, setSentLink] = useState<string | null | undefined>(undefined); // undefined = لم يُرسل بعد
   const [usedFallbackMailer, setUsedFallbackMailer] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const canNext1 = name.trim() !== "" && email.trim() !== "";
   const hasUnsavedInput = Boolean(name.trim() || email.trim() || phone.trim() || jobTitle.trim() || clientCompanyName.trim());
@@ -241,6 +243,11 @@ export default function ClientInviteModal({
       setError("الاسم والبريد الإلكتروني مطلوبان");
       return;
     }
+    if (deliveryMethod === "whatsapp" && !phone.trim()) {
+      setStep(1);
+      setError("رقم جوال العميل مطلوب للإرسال عبر واتساب");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -272,10 +279,13 @@ export default function ClientInviteModal({
       }
       onInvited();
       setUsedFallbackMailer(Boolean(json.usedFallbackMailer));
+      setWhatsappLink((json.whatsappLink as string | null) ?? null);
+      setTempPassword((json.tempPassword as string | null) ?? null);
 
-      // تُعرض شاشة نجاح موحّدة لكلا طريقتي الإرسال — تحمل رابطاً فعلياً لنسخه في حالة
-      // "نسخ الرابط"، أو (في حالة البريد) ملاحظة صادقة إن تم التراجع فعلياً لبريد
-      // Supabase الافتراضي بدل بريد الشركة المخصص، بدل إغلاق النافذة صامتاً.
+      // تُعرض شاشة نجاح موحّدة لكل طرق الإرسال — تحمل رابطاً فعلياً لنسخه في حالة
+      // "نسخ الرابط"، زر فتح واتساب برسالة جاهزة في حالة "واتساب"، أو (في حالة البريد)
+      // ملاحظة صادقة إن تم التراجع فعلياً لبريد Supabase الافتراضي بدل بريد الشركة
+      // المخصص، بدل إغلاق النافذة صامتاً.
       setSentLink(deliveryMethod === "link" ? (json.inviteLink as string | null) ?? null : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّرت الدعوة");
@@ -362,6 +372,8 @@ export default function ClientInviteModal({
                 onCopy={copyLink}
                 usedFallbackMailer={usedFallbackMailer}
                 senderNumber={selectedSenderNumber}
+                whatsappLink={whatsappLink}
+                tempPassword={tempPassword}
               />
             ) : (
               <>
@@ -835,8 +847,8 @@ function Step3({
           </Field>
         ))}
 
-      {deliveryMethod === "link" && senderNumbers && senderNumbers.length > 0 && (
-        <Field label="الرقم المرجعي (اختياري)">
+      {(deliveryMethod === "link" || deliveryMethod === "whatsapp") && senderNumbers && senderNumbers.length > 0 && (
+        <Field label={deliveryMethod === "whatsapp" ? "أرسل من رقم واتساب" : "الرقم المرجعي (اختياري)"}>
           <select className="input-field" value={senderNumberId ?? ""} onChange={(e) => setSenderNumberId(e.target.value || null)}>
             <option value="">بدون رقم مرجعي</option>
             {senderNumbers.map((n) => (
@@ -845,6 +857,12 @@ function Step3({
               </option>
             ))}
           </select>
+          {deliveryMethod === "whatsapp" && (
+            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
+              هذا الاختيار تذكير فقط — تأكد أنك مسجّل الدخول في واتساب ويب أو التطبيق بهذا الرقم فعلياً قبل الضغط على زر الإرسال، فلا تحكّم برمجي حقيقي
+              في رقم المُرسِل بدون واتساب بزنس API.
+            </p>
+          )}
         </Field>
       )}
     </div>
@@ -888,7 +906,12 @@ function SummaryPanel({
       ? `حتى ${new Date(untilDate).toLocaleDateString("ar-SA")}`
       : CLIENT_INVITE_DURATIONS.find((d) => d.value === durationDays)?.label ?? "—";
   const accessLabel = CLIENT_ACCESS_TYPES.find((a) => a.value === accessType)?.label ?? "—";
-  const deliveryText = deliveryMethod === "email" ? "سيتم إرسال إشعار بالبريد الإلكتروني فور إرسال الدعوة" : "سيتم إنشاء رابط دعوة لنسخه وإرساله يدوياً عبر أي قناة";
+  const deliveryText =
+    deliveryMethod === "email"
+      ? "سيتم إرسال إشعار بالبريد الإلكتروني فور إرسال الدعوة"
+      : deliveryMethod === "whatsapp"
+        ? "سيُنشأ حساب بكلمة مرور مؤقتة، ثم يُفتح واتساب برسالة جاهزة لإرسالها يدوياً لرقم العميل"
+        : "سيتم إنشاء رابط دعوة لنسخه وإرساله يدوياً عبر أي قناة";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -956,7 +979,9 @@ function SummaryPanel({
           <SummaryRow label="مدة الدعوة" value={durationLabel} />
           <SummaryRow label="صلاحية الوصول" value={accessLabel} />
           {deliveryMethod === "email" && <SummaryRow label="البريد المُرسِل منه" value={senderEmail ?? "بريد Supabase الافتراضي"} />}
-          {deliveryMethod === "link" && senderNumberLabel && <SummaryRow label="الرقم المرجعي" value={senderNumberLabel} />}
+          {(deliveryMethod === "link" || deliveryMethod === "whatsapp") && senderNumberLabel && (
+            <SummaryRow label={deliveryMethod === "whatsapp" ? "إرسال من رقم" : "الرقم المرجعي"} value={senderNumberLabel} />
+          )}
           <div style={{ color: "var(--text-muted)", fontSize: 11.5, marginTop: 2 }}>{deliveryText}</div>
         </div>
       </div>
@@ -990,6 +1015,8 @@ function SendSuccessView({
   onCopy,
   usedFallbackMailer,
   senderNumber,
+  whatsappLink,
+  tempPassword,
 }: {
   deliveryMethod: ClientDeliveryMethod;
   link: string | null;
@@ -997,7 +1024,19 @@ function SendSuccessView({
   onCopy: () => void;
   usedFallbackMailer: boolean;
   senderNumber: CompanySenderNumber | null;
+  whatsappLink: string | null;
+  tempPassword: string | null;
 }) {
+  const [pwCopied, setPwCopied] = useState(false);
+
+  function copyPassword() {
+    if (!tempPassword) return;
+    navigator.clipboard.writeText(tempPassword).then(() => {
+      setPwCopied(true);
+      setTimeout(() => setPwCopied(false), 1800);
+    });
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", textAlign: "center", padding: "40px 10px" }}>
       <div
@@ -1015,9 +1054,13 @@ function SendSuccessView({
         <Icon name="check" size={26} />
       </div>
       <div>
-        <h3 style={{ fontSize: 16, fontWeight: 800 }}>تم إرسال الدعوة بنجاح</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 800 }}>تم إنشاء الدعوة بنجاح</h3>
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-          {deliveryMethod === "link" ? "انسخ الرابط أدناه وأرسله للعميل عبر أي قناة" : "تم إرسال بريد إلكتروني للعميل بتفاصيل الدخول"}
+          {deliveryMethod === "link"
+            ? "انسخ الرابط أدناه وأرسله للعميل عبر أي قناة"
+            : deliveryMethod === "whatsapp"
+              ? "اضغط الزر أدناه لفتح واتساب برسالة جاهزة، ثم اضغط إرسال بنفسك"
+              : "تم إرسال بريد إلكتروني للعميل بتفاصيل الدخول"}
         </p>
       </div>
 
@@ -1052,6 +1095,53 @@ function SendSuccessView({
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
           من الرقم: {senderNumber.label} — {senderNumber.phone_number}
         </p>
+      )}
+
+      {deliveryMethod === "whatsapp" && whatsappLink && (
+        <>
+          <a
+            href={whatsappLink}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-gold"
+            style={{ width: "100%", maxWidth: 320, justifyContent: "center" }}
+          >
+            <Icon name="phone" size={16} /> فتح واتساب وإرسال الآن
+          </a>
+
+          {tempPassword && (
+            <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 420, alignItems: "center" }}>
+              <input className="input-field" readOnly value={tempPassword} style={{ fontSize: 13, textAlign: "center", fontFamily: "monospace" }} />
+              <button type="button" className="btn btn-outline" style={{ flexShrink: 0 }} onClick={copyPassword}>
+                <Icon name={pwCopied ? "check" : "copy"} size={14} /> {pwCopied ? "تم النسخ" : "نسخ كلمة المرور"}
+              </button>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              background: "var(--bg-hover)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: "10px 12px",
+              fontSize: 11.5,
+              color: "var(--text-secondary)",
+              textAlign: "right",
+              maxWidth: 420,
+            }}
+          >
+            <span style={{ flexShrink: 0, marginTop: 1, display: "flex" }}>
+              <Icon name="info" size={14} className="text-muted" />
+            </span>
+            <span>
+              لا يوجد إرسال تلقائي حقيقي عبر واتساب بزنس API — سيُفتح واتساب ويب أو التطبيق مع رسالة جاهزة لرقم العميل، وعليك أنت الضغط على
+              زر الإرسال داخل واتساب من الجلسة المسجّل بها فعلياً.
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

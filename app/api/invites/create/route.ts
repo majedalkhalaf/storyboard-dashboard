@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
@@ -5,6 +6,25 @@ import { notifyUser } from "@/app/lib/server/notify";
 import { getDefaultEmailSender, getEmailSenderById, sendMailViaSender } from "@/app/lib/server/mailer";
 import { DEFAULT_CLIENT_PERMISSIONS } from "@/app/lib/constants";
 import type { ClientAccessType, ClientPermissions } from "@/app/lib/types";
+
+// كلمة مرور مؤقتة قابلة للقراءة (بلا أحرف/أرقام متشابهة 0/O، 1/l/I) — تُفرض إعادة
+// تعيينها فوراً عند أول دخول عبر must_change_password (نفس آلية الإنفاذ الموجودة أصلاً).
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = randomBytes(12);
+  let out = "";
+  for (let i = 0; i < 12; i++) out += chars[bytes[i] % chars.length];
+  return out;
+}
+
+// لا تكامل واتساب بزنس API حقيقياً هنا (يتطلب حساب Meta Business ورقماً معتمداً لا
+// نملكهما) — التطبيع أدناه افتراض عملي فقط (يستهدف أرقام السعودية بصيغة محلية 05xxxxxxxx
+// كما في نموذج الإدخال الحالي)، وليس معياراً دولياً كاملاً.
+function toWhatsappDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0")) return `966${digits.slice(1)}`;
+  return digits;
+}
 
 // يُستدعى من نافذة "دعوة عميل" داخل مشروع (ClientInviteModal، معالج 3 خطوات). ينشئ
 // حساب Supabase Auth للعميل عبر service_role إن لم يكن موجوداً، ثم يربطه بالمشروع
@@ -49,7 +69,7 @@ export async function POST(request: Request) {
       jobTitle?: string;
       clientCompanyName?: string;
       permissions?: Partial<ClientPermissions>;
-      deliveryMethod?: "email" | "link";
+      deliveryMethod?: "email" | "link" | "whatsapp";
       durationDays?: number | null;
       accessType?: ClientAccessType;
       senderId?: string | null;
@@ -58,10 +78,13 @@ export async function POST(request: Request) {
     if (!projectId || !email || !clientName) {
       return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
     }
+    if (deliveryMethod === "whatsapp" && !phone?.trim()) {
+      return NextResponse.json({ error: "رقم جوال العميل مطلوب للإرسال عبر واتساب" }, { status: 400 });
+    }
 
     const { data: project } = await supabase
       .from("projects")
-      .select("id, company_id")
+      .select("id, company_id, name")
       .eq("id", projectId)
       .eq("company_id", profile.company_id)
       .single();
@@ -90,6 +113,7 @@ export async function POST(request: Request) {
     let clientUserId: string | null = null;
     let inviteLink: string | null = null;
     let usedFallbackMailer = false;
+    let tempPassword: string | null = null;
     const { data: existingProfile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
 
     if (existingProfile) {
@@ -107,6 +131,22 @@ export async function POST(request: Request) {
       }
       clientUserId = linkData.user.id;
       inviteLink = linkData.properties?.action_link ?? null;
+      await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
+    } else if (deliveryMethod === "whatsapp") {
+      // لا رابط سحري هنا عمداً — رسالة واتساب تحمل بريداً وكلمة مرور مؤقتة يكتبهما
+      // العميل يدوياً في صفحة الدخول، بدل رابط طويل غير عملي داخل رسالة واتساب.
+      tempPassword = generateTempPassword();
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { role: "client", full_name: clientName },
+      });
+      if (createError || !created.user) {
+        return NextResponse.json({ error: createError?.message || "تعذّر إنشاء حساب العميل" }, { status: 500 });
+      }
+      clientUserId = created.user.id;
+      inviteLink = `${origin}/login`;
       await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
     } else {
       const sender = senderId ? await getEmailSenderById(profile.company_id, senderId) : await getDefaultEmailSender(profile.company_id);
@@ -183,7 +223,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "تعذّر ربط العميل بالمشروع" }, { status: 500 });
     }
 
-    if (clientUserId && deliveryMethod !== "link") {
+    if (clientUserId && deliveryMethod !== "link" && deliveryMethod !== "whatsapp") {
       await notifyUser({
         userId: clientUserId,
         companyId: profile.company_id,
@@ -194,7 +234,43 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, projectClientId: projectClient.id, inviteLink, usedFallbackMailer });
+    // رسالة واتساب جاهزة تُفتح عبر wa.me — لا إرسال تلقائي فعلي (لا تكامل واتساب بزنس
+    // API)، فقط رابط يفتح جلسة واتساب الحالية (ويب أو تطبيق) للمستخدم برسالة مكتوبة
+    // مسبقاً، ليضغط "إرسال" بنفسه من الرقم الذي يستخدمه فعلياً في تلك اللحظة.
+    let whatsappLink: string | null = null;
+    if (deliveryMethod === "whatsapp" && phone?.trim()) {
+      const projectName = project.name ?? "مشروعك";
+      const loginUrl = `${origin}/login`;
+      const message = tempPassword
+        ? [
+            `مرحباً ${clientName}،`,
+            `تمت دعوتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+            ``,
+            `رابط الدخول: ${loginUrl}`,
+            `البريد الإلكتروني: ${email}`,
+            `كلمة المرور المؤقتة: ${tempPassword}`,
+            ``,
+            `سيُطلب منك تعيين كلمة مرور جديدة عند أول تسجيل دخول.`,
+          ].join("\n")
+        : [
+            `مرحباً ${clientName}،`,
+            `تمت إضافتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+            ``,
+            `رابط الدخول: ${loginUrl}`,
+            `البريد الإلكتروني: ${email}`,
+            `استخدم كلمة المرور الحالية لحسابك لديك.`,
+          ].join("\n");
+      whatsappLink = `https://wa.me/${toWhatsappDigits(phone.trim())}?text=${encodeURIComponent(message)}`;
+    }
+
+    return NextResponse.json({
+      success: true,
+      projectClientId: projectClient.id,
+      inviteLink,
+      usedFallbackMailer,
+      whatsappLink,
+      tempPassword,
+    });
   } catch (err) {
     // أي خطأ غير متوقع (مثل غياب SUPABASE_SERVICE_ROLE_KEY من متغيرات البيئة) كان
     // يوقف الدالة بلا استجابة JSON صالحة، فيظهر للمستخدم خطأ "Unexpected end of JSON

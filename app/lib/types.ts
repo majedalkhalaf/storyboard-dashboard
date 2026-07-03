@@ -583,7 +583,7 @@ export interface ClientInviteWizardData {
   durationDays: number | null; // null = دائم
   accessType: ClientAccessType;
   expiresAt?: string | null;
-  deliveryMethod: "email" | "link";
+  deliveryMethod: "email" | "link" | "whatsapp";
   senderId?: string | null;
   senderNumberId?: string | null;
 }
