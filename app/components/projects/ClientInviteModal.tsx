@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import { CLIENT_PERMISSION_LABELS, DEFAULT_CLIENT_PERMISSIONS } from "@/app/lib/constants";
 import { createClient } from "@/app/lib/supabase/client";
@@ -17,7 +18,14 @@ import {
   type ClientDeliveryMethod,
   type ClientInviteType,
 } from "@/app/lib/client-invite-catalog";
-import type { ClientAccessType, ClientInviteDraft, ClientInviteWizardData, ClientPermissions } from "@/app/lib/types";
+import type {
+  ClientAccessType,
+  ClientInviteDraft,
+  ClientInviteWizardData,
+  ClientPermissions,
+  CompanyEmailSenderPublic,
+  CompanySenderNumber,
+} from "@/app/lib/types";
 
 const STEP_LABELS = ["معلومات العميل", "الصلاحيات", "المراجعة والإرسال"];
 const ALL_PERM_KEYS = Object.keys(CLIENT_PERMISSION_LABELS) as (keyof ClientPermissions)[];
@@ -66,12 +74,52 @@ export default function ClientInviteModal({
   const [accessType, setAccessType] = useState<ClientAccessType>(() => draft?.data.accessType ?? "unlimited");
   const [untilDate, setUntilDate] = useState(() => draft?.data.expiresAt?.slice(0, 10) ?? "");
   const [deliveryMethod, setDeliveryMethod] = useState<ClientDeliveryMethod>(() => draft?.data.deliveryMethod ?? "email");
+  const [senderId, setSenderId] = useState<string | null>(() => draft?.data.senderId ?? null);
+  const [senderNumberId, setSenderNumberId] = useState<string | null>(() => draft?.data.senderNumberId ?? null);
+
+  // هويات الإرسال (بريد SMTP مخصص/رقم مرجعي) — تُجلب مرة واحدة عند فتح المعالج، وتُستخدم
+  // فقط لعرض قائمة الاختيار في الخطوة 3 وإثراء ملخص الدعوة، وليستا حقلين إلزاميين.
+  const [senders, setSenders] = useState<CompanyEmailSenderPublic[] | null>(null);
+  const [senderNumbers, setSenderNumbers] = useState<CompanySenderNumber[] | null>(null);
+
+  const loadSenders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/email-senders");
+      const json = await res.json();
+      setSenders(res.ok ? (json.senders ?? []) : []);
+    } catch {
+      setSenders([]);
+    }
+  }, []);
+
+  const loadSenderNumbers = useCallback(async () => {
+    const { data } = await supabase.from("company_sender_numbers").select("*").eq("company_id", companyId).order("created_at");
+    setSenderNumbers((data as CompanySenderNumber[] | null) ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- تُجلب مرة واحدة لكل مشروع/شركة، وليس عند كل تغيّر لعميل supabase
+  }, [companyId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل هويات الإرسال (بريد/أرقام مرجعية) مرة واحدة عند فتح معالج الدعوة
+    loadSenders();
+    loadSenderNumbers();
+  }, [loadSenders, loadSenderNumbers]);
+
+  // اختيار البريد الافتراضي تلقائياً بعد أول تحميل فقط (لا يُعيد الكتابة إن اختار المستخدم بريداً آخر لاحقاً)
+  useEffect(() => {
+    if (!senders || senderId !== null) return;
+    const def = senders.find((s) => s.is_default) ?? senders[0];
+    if (def) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- تعيين البريد المُرسِل الافتراضي تلقائياً بعد تحميل القائمة لأول مرة فقط
+      setSenderId(def.id);
+    }
+  }, [senders, senderId]);
 
   // ── حالة الإرسال/الحفظ ──
   const [saving, setSaving] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentLink, setSentLink] = useState<string | null | undefined>(undefined); // undefined = لم يُرسل بعد
+  const [usedFallbackMailer, setUsedFallbackMailer] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const canNext1 = name.trim() !== "" && email.trim() !== "";
@@ -129,6 +177,8 @@ export default function ClientInviteModal({
       accessType,
       expiresAt,
       deliveryMethod,
+      senderId,
+      senderNumberId,
     };
   }
 
@@ -208,6 +258,7 @@ export default function ClientInviteModal({
           deliveryMethod,
           durationDays: computeEffectiveDurationDays(),
           accessType,
+          senderId: deliveryMethod === "email" ? senderId ?? undefined : undefined,
         }),
       });
       // استجابة فارغة/غير JSON (مثل انقطاع الخادم قبل إرسال أي رد) تُعامَل برسالة واضحة
@@ -220,12 +271,12 @@ export default function ClientInviteModal({
         await supabase.from("client_invite_drafts").delete().eq("id", draft.id);
       }
       onInvited();
+      setUsedFallbackMailer(Boolean(json.usedFallbackMailer));
 
-      if (deliveryMethod === "link") {
-        setSentLink((json.inviteLink as string | null) ?? null);
-      } else {
-        onClose();
-      }
+      // تُعرض شاشة نجاح موحّدة لكلا طريقتي الإرسال — تحمل رابطاً فعلياً لنسخه في حالة
+      // "نسخ الرابط"، أو (في حالة البريد) ملاحظة صادقة إن تم التراجع فعلياً لبريد
+      // Supabase الافتراضي بدل بريد الشركة المخصص، بدل إغلاق النافذة صامتاً.
+      setSentLink(deliveryMethod === "link" ? (json.inviteLink as string | null) ?? null : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّرت الدعوة");
     } finally {
@@ -243,6 +294,7 @@ export default function ClientInviteModal({
 
   const busy = saving || savingDraft;
   const selectedCount = permissionCountOf(permissions);
+  const selectedSenderNumber = senderNumbers?.find((n) => n.id === senderNumberId) ?? null;
 
   return (
     <div className="modal-overlay" onClick={() => !busy && requestClose()}>
@@ -289,6 +341,8 @@ export default function ClientInviteModal({
               accessType={accessType}
               untilDate={untilDate}
               deliveryMethod={deliveryMethod}
+              senderEmail={deliveryMethod === "email" ? senders?.find((s) => s.id === senderId)?.from_email ?? null : null}
+              senderNumberLabel={selectedSenderNumber ? `${selectedSenderNumber.label} — ${selectedSenderNumber.phone_number}` : null}
             />
           </div>
 
@@ -301,7 +355,14 @@ export default function ClientInviteModal({
             )}
 
             {sentLink !== undefined ? (
-              <SendSuccessView deliveryMethod={deliveryMethod} link={sentLink} copied={copied} onCopy={copyLink} />
+              <SendSuccessView
+                deliveryMethod={deliveryMethod}
+                link={sentLink}
+                copied={copied}
+                onCopy={copyLink}
+                usedFallbackMailer={usedFallbackMailer}
+                senderNumber={selectedSenderNumber}
+              />
             ) : (
               <>
                 {step === 1 && (
@@ -341,6 +402,12 @@ export default function ClientInviteModal({
                     setUntilDate={setUntilDate}
                     deliveryMethod={deliveryMethod}
                     setDeliveryMethod={setDeliveryMethod}
+                    senders={senders}
+                    senderId={senderId}
+                    setSenderId={setSenderId}
+                    senderNumbers={senderNumbers}
+                    senderNumberId={senderNumberId}
+                    setSenderNumberId={setSenderNumberId}
                   />
                 )}
               </>
@@ -628,6 +695,12 @@ function Step3({
   setUntilDate,
   deliveryMethod,
   setDeliveryMethod,
+  senders,
+  senderId,
+  setSenderId,
+  senderNumbers,
+  senderNumberId,
+  setSenderNumberId,
 }: {
   durationDays: number | null;
   setDurationDays: (v: number | null) => void;
@@ -637,6 +710,12 @@ function Step3({
   setUntilDate: (v: string) => void;
   deliveryMethod: ClientDeliveryMethod;
   setDeliveryMethod: (v: ClientDeliveryMethod) => void;
+  senders: CompanyEmailSenderPublic[] | null;
+  senderId: string | null;
+  setSenderId: (v: string | null) => void;
+  senderNumbers: CompanySenderNumber[] | null;
+  senderNumberId: string | null;
+  setSenderNumberId: (v: string | null) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -716,6 +795,58 @@ function Step3({
           })}
         </div>
       </div>
+
+      {deliveryMethod === "email" &&
+        (senders === null ? (
+          <div className="skeleton" style={{ height: 44, borderRadius: 10 }} />
+        ) : senders.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              background: "var(--bg-hover)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: 12,
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+            }}
+          >
+            <span style={{ flexShrink: 0, display: "flex", marginTop: 1 }}>
+              <Icon name="info" size={15} className="text-muted" />
+            </span>
+            <span>
+              لم يتم إعداد بريد إرسال مخصص بعد — سيُستخدم بريد Supabase الافتراضي.{" "}
+              <Link href="/settings/invite-channels" style={{ color: "var(--gold)", fontWeight: 700 }}>
+                إعداد بريد مخصص
+              </Link>
+            </span>
+          </div>
+        ) : (
+          <Field label="البريد المُرسِل منه">
+            <select className="input-field" value={senderId ?? ""} onChange={(e) => setSenderId(e.target.value || null)}>
+              {senders.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label} — {s.from_email}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ))}
+
+      {deliveryMethod === "link" && senderNumbers && senderNumbers.length > 0 && (
+        <Field label="الرقم المرجعي (اختياري)">
+          <select className="input-field" value={senderNumberId ?? ""} onChange={(e) => setSenderNumberId(e.target.value || null)}>
+            <option value="">بدون رقم مرجعي</option>
+            {senderNumbers.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.label} — {n.phone_number}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
     </div>
   );
 }
@@ -731,6 +862,8 @@ function SummaryPanel({
   accessType,
   untilDate,
   deliveryMethod,
+  senderEmail,
+  senderNumberLabel,
 }: {
   name: string;
   email: string;
@@ -742,6 +875,8 @@ function SummaryPanel({
   accessType: ClientAccessType;
   untilDate: string;
   deliveryMethod: ClientDeliveryMethod;
+  senderEmail: string | null;
+  senderNumberLabel: string | null;
 }) {
   const groupCounts = CLIENT_PERMISSION_GROUPS.map((g) => ({
     group: g,
@@ -820,6 +955,8 @@ function SummaryPanel({
         <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
           <SummaryRow label="مدة الدعوة" value={durationLabel} />
           <SummaryRow label="صلاحية الوصول" value={accessLabel} />
+          {deliveryMethod === "email" && <SummaryRow label="البريد المُرسِل منه" value={senderEmail ?? "بريد Supabase الافتراضي"} />}
+          {deliveryMethod === "link" && senderNumberLabel && <SummaryRow label="الرقم المرجعي" value={senderNumberLabel} />}
           <div style={{ color: "var(--text-muted)", fontSize: 11.5, marginTop: 2 }}>{deliveryText}</div>
         </div>
       </div>
@@ -846,7 +983,21 @@ function SummaryPanel({
   );
 }
 
-function SendSuccessView({ deliveryMethod, link, copied, onCopy }: { deliveryMethod: ClientDeliveryMethod; link: string | null; copied: boolean; onCopy: () => void }) {
+function SendSuccessView({
+  deliveryMethod,
+  link,
+  copied,
+  onCopy,
+  usedFallbackMailer,
+  senderNumber,
+}: {
+  deliveryMethod: ClientDeliveryMethod;
+  link: string | null;
+  copied: boolean;
+  onCopy: () => void;
+  usedFallbackMailer: boolean;
+  senderNumber: CompanySenderNumber | null;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", textAlign: "center", padding: "40px 10px" }}>
       <div
@@ -869,6 +1020,26 @@ function SendSuccessView({ deliveryMethod, link, copied, onCopy }: { deliveryMet
           {deliveryMethod === "link" ? "انسخ الرابط أدناه وأرسله للعميل عبر أي قناة" : "تم إرسال بريد إلكتروني للعميل بتفاصيل الدخول"}
         </p>
       </div>
+
+      {deliveryMethod === "email" && usedFallbackMailer && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "var(--bg-hover)",
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            padding: "8px 12px",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+          }}
+        >
+          <Icon name="info" size={14} className="text-muted" />
+          لم يتم إعداد بريد إرسال مخصص لهذه الشركة — تم استخدام بريد Supabase الافتراضي
+        </div>
+      )}
+
       {deliveryMethod === "link" && link && (
         <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 420 }}>
           <input className="input-field" readOnly value={link} style={{ fontSize: 12, textAlign: "left", direction: "ltr" }} />
@@ -876,6 +1047,11 @@ function SendSuccessView({ deliveryMethod, link, copied, onCopy }: { deliveryMet
             <Icon name={copied ? "check" : "copy"} size={14} /> {copied ? "تم النسخ" : "نسخ"}
           </button>
         </div>
+      )}
+      {deliveryMethod === "link" && senderNumber && (
+        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          من الرقم: {senderNumber.label} — {senderNumber.phone_number}
+        </p>
       )}
     </div>
   );
