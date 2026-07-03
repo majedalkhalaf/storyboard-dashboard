@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { useSession } from "@/app/providers/SessionProvider";
 import { STAGE_STATUSES } from "@/app/lib/constants";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 import { formatDate } from "../utils";
 
-export default function OverviewTab({ episode, onChanged }: { episode: EpisodeFullDetail; onChanged: (patch: Partial<EpisodeFullDetail>) => void }) {
+export default function OverviewTab({
+  episode,
+  onChanged,
+}: {
+  episode: EpisodeFullDetail;
+  onChanged: (patch: Partial<EpisodeFullDetail>) => void;
+}) {
   const supabase = createClient();
+  const { company } = useSession();
+  const companyId = company!.id;
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(episode.description ?? "");
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   async function save() {
     setEditing(false);
@@ -18,6 +29,27 @@ export default function OverviewTab({ episode, onChanged }: { episode: EpisodeFu
       await supabase.from("episodes").update({ description: description || null }).eq("id", episode.id);
       onChanged({ description: description || null });
     }
+  }
+
+  async function uploadCover(file: File | null) {
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const path = `${companyId}/covers/${crypto.randomUUID()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
+      if (upErr) return;
+      const url = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
+      await supabase.from("episodes").update({ cover_image_url: url }).eq("id", episode.id);
+      onChanged({ cover_image_url: url });
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  }
+
+  async function removeCover() {
+    await supabase.from("episodes").update({ cover_image_url: null }).eq("id", episode.id);
+    onChanged({ cover_image_url: null });
   }
 
   const statItems = [
@@ -29,6 +61,49 @@ export default function OverviewTab({ episode, onChanged }: { episode: EpisodeFu
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700 }}>صورة الغلاف</h3>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              width: 140,
+              height: 90,
+              borderRadius: 10,
+              flexShrink: 0,
+              border: "1px solid var(--border)",
+              background: episode.cover_image_url
+                ? `center/cover no-repeat url(${episode.cover_image_url})`
+                : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {!episode.cover_image_url && <Icon name="video" size={22} className="text-muted" />}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label className="btn btn-outline" style={{ cursor: uploadingCover ? "wait" : "pointer", width: "fit-content" }}>
+              <Icon name="upload" size={14} /> {uploadingCover ? "جارٍ الرفع..." : episode.cover_image_url ? "تغيير الصورة" : "إضافة صورة"}
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={uploadingCover}
+                onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {episode.cover_image_url && (
+              <button className="btn btn-ghost" style={{ width: "fit-content", padding: "6px 10px", fontSize: 12, color: "#ef4444" }} onClick={removeCover}>
+                <Icon name="trash" size={13} /> إزالة الصورة
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
         {statItems.map((s) => (
           <div key={s.label} className="stat-card">

@@ -43,6 +43,12 @@ export default function EpisodeWorkspace({
   const { company } = useSession();
   const companyId = company!.id;
 
+  const [galleryItems, setGalleryItems] = useState(gallery);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- مزامنة مع بيانات المعرض القادمة من السيرفر (بعد router.refresh() مثلاً)
+    setGalleryItems(gallery);
+  }, [gallery]);
+
   const [selectedId, setSelectedId] = useState<string | null>(initialEpisodeId ?? gallery[0]?.id ?? null);
   const [detail, setDetail] = useState<EpisodeFullDetail | null>(null);
   const [loading, setLoading] = useState(Boolean(selectedId));
@@ -78,15 +84,18 @@ export default function EpisodeWorkspace({
 
   function applyPatch(patch: Partial<EpisodeFullDetail>) {
     setDetail((prev) => (prev ? { ...prev, ...patch } : prev));
+    if ("cover_image_url" in patch && selectedId) {
+      setGalleryItems((prev) => prev.map((e) => (e.id === selectedId ? { ...e, cover_image_url: patch.cover_image_url ?? null } : e)));
+    }
   }
 
-  const activeGalleryItem = gallery.find((e) => e.id === selectedId);
+  const activeGalleryItem = galleryItems.find((e) => e.id === selectedId);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>الحلقات</h2>
-        <EpisodeGallery episodes={gallery} selectedId={selectedId} onSelect={selectEpisode} />
+        <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
       </div>
 
       {selectedId && (
