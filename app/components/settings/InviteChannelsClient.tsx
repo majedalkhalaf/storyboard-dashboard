@@ -6,7 +6,8 @@ import { createClient } from "@/app/lib/supabase/client";
 import { logActivity } from "@/app/lib/activity";
 import Icon from "@/app/components/ui/Icon";
 import Modal, { Field } from "@/app/components/settings/Modal";
-import type { CompanyEmailSenderPublic, CompanySenderNumber } from "@/app/lib/types";
+import EnvHealthCard from "@/app/components/settings/EnvHealthCard";
+import type { CompanyEmailSenderPublic, CompanySenderNumber, CompanyWhatsappConfigPublic } from "@/app/lib/types";
 
 interface SenderForm {
   id: string | null;
@@ -50,6 +51,24 @@ interface TestState {
   message?: string;
 }
 
+interface WhatsappForm {
+  id: string | null;
+  label: string;
+  phoneNumberId: string;
+  businessPhoneDisplay: string;
+  accessToken: string;
+  isActive: boolean;
+}
+
+const emptyWhatsappForm: WhatsappForm = {
+  id: null,
+  label: "",
+  phoneNumberId: "",
+  businessPhoneDisplay: "",
+  accessToken: "",
+  isActive: false,
+};
+
 export default function InviteChannelsClient({
   companyId,
   initialNumbers,
@@ -65,7 +84,7 @@ export default function InviteChannelsClient({
             قنوات إرسال الدعوات
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-            إدارة عناوين البريد المُرسِل منها دعوات العملاء عبر SMTP، والأرقام المرجعية المستخدمة عند نسخ رابط الدعوة يدوياً
+            إدارة عناوين البريد المُرسِل منها دعوات العملاء عبر SMTP، وإعدادات واتساب بزنس API، والأرقام المرجعية المستخدمة عند نسخ رابط الدعوة يدوياً
           </p>
         </div>
         <Link href="/settings/invitations" className="btn btn-outline">
@@ -73,7 +92,9 @@ export default function InviteChannelsClient({
         </Link>
       </div>
 
+      <EnvHealthCard />
       <EmailSendersSection />
+      <WhatsappConfigSection />
       <SenderNumbersSection companyId={companyId} initialNumbers={initialNumbers} />
     </div>
   );
@@ -347,7 +368,282 @@ function EmailSendersSection() {
   );
 }
 
-// ══════════════════ ب. الأرقام المرجعية ══════════════════
+// ══════════════════ ب. واتساب بزنس API ══════════════════
+// تمر حصراً عبر مسارات API (app/api/settings/whatsapp-config/*) وليس عبر عميل
+// Supabase مباشرة، لأن جدول company_whatsapp_config بلا أي سياسة RLS عمداً
+// (access_token حساس). ملاحظة صادقة: هذا يتطلب حساب Meta Business حقيقياً
+// (phone_number_id + access token دائم من Meta for Developers) — بلا هذه
+// البيانات، يبقى النظام يعتمد تلقائياً على رابط wa.me اليدوي عند إرسال دعوة عبر
+// واتساب (انظر ClientInviteModal)، وهذا ليس عيباً بل سلوك احتياطي مقصود.
+function WhatsappConfigSection() {
+  const [configs, setConfigs] = useState<CompanyWhatsappConfigPublic[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const loadConfigs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/whatsapp-config");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "تعذّر تحميل إعدادات واتساب بزنس");
+      setConfigs(json.configs ?? []);
+      setListError(null);
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : "تعذّر تحميل إعدادات واتساب بزنس");
+      setConfigs([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConfigs();
+  }, [loadConfigs]);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<WhatsappForm>(emptyWhatsappForm);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [testState, setTestState] = useState<Record<string, TestState>>({});
+  const [testPhone, setTestPhone] = useState<Record<string, string>>({});
+
+  function openNew() {
+    setForm(emptyWhatsappForm);
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(c: CompanyWhatsappConfigPublic) {
+    setForm({
+      id: c.id,
+      label: c.label,
+      phoneNumberId: c.phone_number_id,
+      businessPhoneDisplay: c.business_phone_display ?? "",
+      accessToken: "",
+      isActive: c.is_active,
+    });
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  async function save() {
+    if (!form.label.trim() || !form.phoneNumberId.trim()) {
+      setFormError("الاسم التعريفي ومعرّف رقم الهاتف (Phone Number ID) مطلوبان");
+      return;
+    }
+    if (!form.id && !form.accessToken.trim()) {
+      setFormError("توكن الوصول (Access Token) مطلوب عند إضافة إعداد جديد");
+      return;
+    }
+    setSaving(true);
+    setFormError(null);
+    const body: Record<string, unknown> = {
+      label: form.label.trim(),
+      phoneNumberId: form.phoneNumberId.trim(),
+      businessPhoneDisplay: form.businessPhoneDisplay.trim() || undefined,
+      isActive: form.isActive,
+    };
+    if (form.accessToken.trim()) body.accessToken = form.accessToken.trim();
+
+    try {
+      const res = await fetch(form.id ? `/api/settings/whatsapp-config/${form.id}` : "/api/settings/whatsapp-config", {
+        method: form.id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "تعذّر حفظ إعداد واتساب بزنس");
+      await loadConfigs();
+      setModalOpen(false);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تعذّر حفظ إعداد واتساب بزنس");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setActive(c: CompanyWhatsappConfigPublic) {
+    await fetch(`/api/settings/whatsapp-config/${c.id}/set-active`, { method: "POST" });
+    await loadConfigs();
+  }
+
+  async function remove(c: CompanyWhatsappConfigPublic) {
+    if (!confirm(`حذف إعداد واتساب بزنس "${c.label}"؟`)) return;
+    const res = await fetch(`/api/settings/whatsapp-config/${c.id}`, { method: "DELETE" });
+    if (res.ok) await loadConfigs();
+  }
+
+  async function test(c: CompanyWhatsappConfigPublic) {
+    const phone = (testPhone[c.id] || "").trim();
+    if (!phone) {
+      setTestState((prev) => ({ ...prev, [c.id]: { loading: false, success: false, message: "أدخل رقم جوال مستقبِل حقيقياً للاختبار أولاً" } }));
+      return;
+    }
+    setTestState((prev) => ({ ...prev, [c.id]: { loading: true } }));
+    try {
+      const res = await fetch(`/api/settings/whatsapp-config/${c.id}/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testPhoneNumber: phone }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "فشل إرسال رسالة الاختبار");
+      setTestState((prev) => ({ ...prev, [c.id]: { loading: false, success: true, message: `تم الإرسال بنجاح إلى ${json.sentTo}` } }));
+    } catch (e) {
+      setTestState((prev) => ({
+        ...prev,
+        [c.id]: { loading: false, success: false, message: e instanceof Error ? e.message : "فشل إرسال رسالة الاختبار" },
+      }));
+    }
+  }
+
+  return (
+    <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h3 style={{ fontWeight: 700 }}>واتساب بزنس API</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            إرسال دعوات العملاء تلقائياً عبر Meta WhatsApp Cloud API الحقيقي — يتطلب حساب Meta Business فعلياً
+            (Phone Number ID + Access Token دائم). بلا هذه البيانات يتراجع النظام تلقائياً لرابط wa.me اليدوي
+          </p>
+        </div>
+        <button className="btn btn-gold" onClick={openNew}>
+          <Icon name="plus" size={16} /> إضافة إعداد جديد
+        </button>
+      </div>
+
+      {listError && (
+        <div className="btn-danger" style={{ width: "100%", justifyContent: "center", cursor: "default" }}>
+          {listError}
+        </div>
+      )}
+
+      {configs === null ? (
+        <div className="skeleton" style={{ height: 120, borderRadius: 12 }} />
+      ) : configs.length === 0 ? (
+        <div className="empty-state card">
+          <Icon name="message" size={28} className="text-muted" />
+          <p style={{ marginTop: 10 }}>لا توجد إعدادات واتساب بزنس بعد — سيُستخدم رابط wa.me اليدوي عند دعوة العملاء عبر واتساب</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
+          {configs.map((c) => {
+            const t = testState[c.id];
+            return (
+              <div key={c.id} className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, fontSize: 14.5 }}>{c.label}</span>
+                      {c.is_active && <span className="chip chip-gold">نشط</span>}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 4 }}>
+                      {c.business_phone_display || "بلا رقم عرض"}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4, fontFamily: "monospace" }}>
+                      Phone Number ID: {c.phone_number_id}
+                    </div>
+                  </div>
+                </div>
+
+                {t?.message && (
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      background: t.success ? "rgba(29,185,84,0.1)" : "rgba(239,68,68,0.1)",
+                      color: t.success ? "var(--success)" : "#EF4444",
+                    }}
+                  >
+                    {t.message}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    className="input-field"
+                    style={{ flex: 1, minWidth: 130, fontSize: 12, padding: "6px 10px" }}
+                    placeholder="رقم جوال الاختبار 05xxxxxxxx"
+                    value={testPhone[c.id] ?? ""}
+                    onChange={(e) => setTestPhone((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                  />
+                  <button className="btn btn-outline" style={{ fontSize: 11.5, padding: "6px 10px" }} onClick={() => test(c)} disabled={t?.loading}>
+                    <Icon name="send" size={13} /> {t?.loading ? "جارٍ الإرسال..." : "اختبار الإرسال"}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button className="btn btn-outline" style={{ fontSize: 11.5, padding: "6px 10px" }} onClick={() => openEdit(c)}>
+                    <Icon name="edit" size={13} /> تعديل
+                  </button>
+                  {!c.is_active && (
+                    <button className="btn btn-outline" style={{ fontSize: 11.5, padding: "6px 10px" }} onClick={() => setActive(c)}>
+                      <Icon name="badgeCheck" size={13} /> تفعيل
+                    </button>
+                  )}
+                  <button className="btn-ghost" style={{ fontSize: 11.5, padding: "6px 10px", color: "#EF4444" }} onClick={() => remove(c)}>
+                    <Icon name="trash" size={13} /> حذف
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modalOpen && (
+        <Modal
+          title={form.id ? "تعديل إعداد واتساب بزنس" : "إضافة إعداد واتساب بزنس جديد"}
+          onClose={() => setModalOpen(false)}
+          footer={
+            <>
+              <button className="btn btn-gold" onClick={save} disabled={saving}>
+                {saving ? "جارٍ الحفظ..." : "حفظ"}
+              </button>
+              <button className="btn btn-outline" onClick={() => setModalOpen(false)}>
+                إلغاء
+              </button>
+            </>
+          }
+        >
+          {formError && (
+            <div className="btn-danger" style={{ width: "100%", justifyContent: "center", marginBottom: 14, cursor: "default" }}>
+              {formError}
+            </div>
+          )}
+          <Field label="الاسم التعريفي">
+            <input className="input-field" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="مثال: واتساب دعوات العملاء" />
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Field label="معرّف رقم الهاتف (Phone Number ID)">
+              <input className="input-field" value={form.phoneNumberId} onChange={(e) => setForm({ ...form, phoneNumberId: e.target.value })} placeholder="من Meta for Developers" />
+            </Field>
+            <Field label="رقم العرض (اختياري)">
+              <input
+                className="input-field"
+                value={form.businessPhoneDisplay}
+                onChange={(e) => setForm({ ...form, businessPhoneDisplay: e.target.value })}
+                placeholder="+966 5x xxx xxxx"
+              />
+            </Field>
+          </div>
+          <Field label="توكن الوصول (Access Token)">
+            <input
+              className="input-field"
+              type="password"
+              value={form.accessToken}
+              onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
+              placeholder={form.id ? "اتركه فارغاً للإبقاء على التوكن الحالي" : ""}
+            />
+          </Field>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+            <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+            تفعيل هذا الإعداد (يُلغي أي إعداد آخر نشط لهذه الشركة)
+          </label>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════ ج. الأرقام المرجعية ══════════════════
 // جدول عادي بسياسات RLS بسيطة — يُدار مباشرة عبر عميل Supabase، مطابقاً لنمط
 // VendorsClient/BankAccountsClient. لا يوجد أي إرسال SMS/واتساب فعلي هنا.
 function SenderNumbersSection({ companyId, initialNumbers }: { companyId: string; initialNumbers: CompanySenderNumber[] }) {
