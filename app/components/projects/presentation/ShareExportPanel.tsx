@@ -1,18 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import { setPresentationSharing, type PresentationBundle } from "@/app/lib/presentation-builder";
+import { PRESENTATION_THEMES } from "@/app/lib/presentation-themes";
+import { buildPresentationPptx } from "@/app/lib/presentation-pptx";
 
 export default function ShareExportPanel({
   bundle,
   onBundleChange,
+  projectId,
 }: {
   bundle: PresentationBundle;
   onBundleChange: (b: PresentationBundle) => void;
+  projectId: string;
 }) {
   const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [buildingPptx, setBuildingPptx] = useState(false);
+  const [pptxError, setPptxError] = useState<string | null>(null);
   const { presentation } = bundle;
 
   const shareUrl = presentation.share_token ? `${window.location.origin}/present/${presentation.share_token}` : null;
@@ -30,6 +37,19 @@ export default function ShareExportPanel({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     });
+  }
+
+  async function downloadPptx() {
+    setBuildingPptx(true);
+    setPptxError(null);
+    try {
+      const theme = PRESENTATION_THEMES[bundle.presentation.template];
+      await buildPresentationPptx(bundle.data, bundle.presentation, theme);
+    } catch {
+      setPptxError("تعذّر إنشاء ملف PowerPoint. حاول مجدداً.");
+    } finally {
+      setBuildingPptx(false);
+    }
   }
 
   return (
@@ -56,9 +76,29 @@ export default function ShareExportPanel({
         )}
       </div>
 
-      <div className="empty-state card">
-        <Icon name="export" size={26} className="text-muted" />
-        <p style={{ marginTop: 8 }}>تصدير PDF وPowerPoint وHTML قيد الإنشاء.</p>
+      <div className="card" style={{ padding: 18 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>تصدير الملفات</h3>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>احصل على نسخة قابلة للتنزيل أو الطباعة من نفس محتوى العرض الحالي.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <Link
+            href={`/projects/${projectId}/presentation/print`}
+            target="_blank"
+            className="btn btn-outline"
+            style={{ justifyContent: "flex-start", gap: 10 }}
+          >
+            <Icon name="export" size={16} /> فتح نسخة الطباعة / تصدير PDF
+          </Link>
+
+          <button className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }} onClick={downloadPptx} disabled={buildingPptx}>
+            <Icon name="proposals" size={16} /> {buildingPptx ? "جارٍ الإنشاء..." : "تنزيل PowerPoint"}
+          </button>
+          {pptxError && <p style={{ fontSize: 12, color: "var(--danger, #EF4444)" }}>{pptxError}</p>}
+
+          <a href={`/api/presentation/${projectId}/html`} className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }}>
+            <Icon name="fileUp" size={16} /> تنزيل HTML
+          </a>
+        </div>
       </div>
     </div>
   );

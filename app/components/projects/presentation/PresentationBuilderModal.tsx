@@ -97,7 +97,7 @@ export default function PresentationBuilderModal({ projectId, onClose }: { proje
                 <TemplatePanel value={bundle.presentation.template} onChange={(template) => persist({ template })} />
               )}
               {tab === "preview" && <PresentationPreview bundle={bundle} />}
-              {tab === "share" && <ShareExportPanel bundle={bundle} onBundleChange={setBundle} />}
+              {tab === "share" && <ShareExportPanel bundle={bundle} onBundleChange={setBundle} projectId={projectId} />}
             </div>
           </div>
         )}
