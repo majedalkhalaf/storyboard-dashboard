@@ -12,11 +12,14 @@ export interface StageBadge {
 
 export interface EpisodeGalleryItem {
   id: string;
+  project_id: string;
   number: number | null;
   title: string;
+  description: string | null;
   type: string | null;
   status: EpisodeStatus;
   progress: number;
+  pipeline_stage: string;
   cover_image_url: string | null;
   duration_seconds: number | null;
   assigned_to_name: string | null;
@@ -123,11 +126,14 @@ export async function getEpisodeGallery(companyId: string, projectId: string): P
     const assignee = Array.isArray(e.assignee) ? e.assignee[0] : e.assignee;
     return {
       id: e.id,
+      project_id: e.project_id,
       number: e.number,
       title: e.title,
+      description: e.description,
       type: e.type,
       status: e.status,
       progress: Number(e.progress ?? 0),
+      pipeline_stage: e.pipeline_stage,
       cover_image_url: e.cover_image_url,
       duration_seconds: e.duration_seconds,
       assigned_to_name: assignee?.full_name ?? null,

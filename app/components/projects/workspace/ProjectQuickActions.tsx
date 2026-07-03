@@ -3,7 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
+import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import ClientInviteModal from "@/app/components/projects/ClientInviteModal";
+import { createClient } from "@/app/lib/supabase/client";
+import { useSession } from "@/app/providers/SessionProvider";
+import { logActivity } from "@/app/lib/activity";
+import { exportProjectZip } from "@/app/lib/zip-export";
+import type { Project } from "@/app/lib/types";
+import type { EpisodeGalleryItem, StageBadge } from "@/app/lib/episode-gallery";
+import type { ZipProgress } from "@/app/lib/zip-export";
 
 interface ActionDef {
   icon: IconName;
@@ -11,8 +19,27 @@ interface ActionDef {
   href?: string;
 }
 
-export default function ProjectQuickActions({ projectId }: { projectId: string }) {
+// شارة مرحلة افتراضية محايدة — الأرشيف المُصدَّر من البطاقة لا يعرض شارات المراحل
+// لأي مستخدم (هذه القيمة لا تظهر في واجهة المستخدم إطلاقاً)، فهي مجرّد قيمة قانونية
+// لإرضاء نوع EpisodeGalleryItem الذي يحتاجه exportProjectZip.
+const NEUTRAL_STAGE_BADGE: StageBadge = { label: "", color: "#6B7280" };
+
+export default function ProjectQuickActions({
+  projectId,
+  projectName,
+  onArchive,
+}: {
+  projectId: string;
+  projectName: string;
+  /** يُستدعى بعد تأكيد المستخدم للأرشفة (بعد نجاح تحديث الحالة في القاعدة) — البطاقة الأب تحدّث حالتها المحلية */
+  onArchive?: () => void;
+}) {
+  const supabase = createClient();
+  const { company } = useSession();
+  const companyId = company!.id;
+
   const [showInvite, setShowInvite] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   const actions: ActionDef[] = [
     { icon: "eye", label: "فتح المشروع", href: `/projects/${projectId}` },
@@ -25,7 +52,69 @@ export default function ProjectQuickActions({ projectId }: { projectId: string }
     { icon: "files", label: "الملفات", href: `/files?project=${projectId}` },
     { icon: "export", label: "التقرير", href: `/export/project/${projectId}` },
     { icon: "settings", label: "الإعدادات", href: `/projects/${projectId}` },
+    // ملاحظة: الرابط أدناه لا يفتح تلقائياً نافذة "حلقة جديدة" — صفحة المشروع لا تقرأ
+    // معامل new_episode من الرابط حالياً (يتطلب تعديل EpisodeWorkspace.tsx، خارج نطاق هذه المهمة).
+    { icon: "plus", label: "إضافة حلقة", href: `/projects/${projectId}?new_episode=1` },
+    { icon: "upload", label: "رفع ملف", href: `/files?project=${projectId}` },
   ];
+
+  // جلب مصغّر لغرض تصدير ZIP فقط: exportProjectZip يحتاج شكل EpisodeGalleryItem[] لمعرفة
+  // عدد الحلقات ومعدّل الإنجاز في ملخص التقرير، لكنه لا يقرأ stageBadge/الأعداد الفرعية
+  // إطلاقاً أثناء التصدير (يُعيد جلب تفاصيل كل حلقة كاملة بنفسه عبر fetchEpisodeDetail).
+  // لذا نبني هنا استعلاماً خفيفاً بدل استدعاء getEpisodeGallery الكامل (وهو دالة خادم فقط
+  // Server Component لا يمكن استدعاؤها من مكوّن "use client" كهذا).
+  async function fetchGalleryForExport(): Promise<EpisodeGalleryItem[]> {
+    const { data } = await supabase
+      .from("episodes")
+      .select("id, project_id, number, title, description, type, status, progress, pipeline_stage, cover_image_url, duration_seconds, updated_at")
+      .eq("project_id", projectId)
+      .order("sort_order");
+    return (data ?? []).map((e) => ({
+      id: e.id,
+      project_id: e.project_id,
+      number: e.number,
+      title: e.title,
+      description: e.description,
+      type: e.type,
+      status: e.status,
+      progress: Number(e.progress ?? 0),
+      pipeline_stage: e.pipeline_stage,
+      cover_image_url: e.cover_image_url,
+      duration_seconds: e.duration_seconds,
+      assigned_to_name: null,
+      updated_at: e.updated_at,
+      stageBadge: NEUTRAL_STAGE_BADGE,
+      filesCount: 0,
+      notesCount: 0,
+      commentsCount: 0,
+      versionsCount: 0,
+      hasActiveApproval: false,
+    }));
+  }
+
+  async function runProjectExport(onProgress: (p: ZipProgress) => void) {
+    const [{ data: projectRow }, gallery] = await Promise.all([
+      supabase.from("projects").select("*").eq("id", projectId).single(),
+      fetchGalleryForExport(),
+    ]);
+    if (!projectRow) throw new Error("تعذّر تحميل بيانات المشروع");
+    await exportProjectZip(supabase, companyId, projectRow as Project, gallery, onProgress);
+  }
+
+  // الأرشفة هي البديل الآمن والقابل للتراجع بدل حذف نهائي حقيقي للمشروع (Hard Delete) —
+  // حذف نهائي فعلي يمسح كل الحلقات/الملفات/الفواتير المرتبطة بلا رجعة، وهو إجراء أخطر
+  // بكثير من مجرد اختصار بطاقة، فتُرك عمداً خارج نطاق هذه الميزة.
+  async function archiveProject() {
+    if (!confirm(`أرشفة المشروع "${projectName}"؟ يمكنك إعادته لاحقاً من الإعدادات.`)) return;
+    setArchiving(true);
+    try {
+      await supabase.from("projects").update({ status: "archived" }).eq("id", projectId);
+      await logActivity(supabase, { companyId, projectId, action: "project_status_changed", details: { to: "archived" } });
+      onArchive?.();
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   return (
     <>
@@ -58,6 +147,29 @@ export default function ProjectQuickActions({ projectId }: { projectId: string }
             </button>
           )
         )}
+
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <ZipExportButton label="تصدير المشروع ZIP" icon="archive" run={runProjectExport} size="sm" />
+        </div>
+
+        <button
+          title="أرشفة المشروع"
+          disabled={archiving}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            archiveProject();
+          }}
+          className="btn-ghost"
+          style={{ padding: 7, borderRadius: 8, color: "var(--text-muted)", cursor: archiving ? "wait" : "pointer" }}
+        >
+          <Icon name="archive" size={15} />
+        </button>
       </div>
 
       {showInvite && (

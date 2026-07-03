@@ -172,6 +172,8 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
   const [replacingId, setReplacingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ file: ProjectFile; url: string | null; loading: boolean } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = useCallback(async () => {
     let query = supabase.from("files").select("*").eq("project_id", projectId);
@@ -413,13 +415,39 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     }
   }
 
+  // منطق حذف مشترك (ملف واحد أو دفعة) — يزيل كائنات Storage (مجمّعة حسب bucket)، يحذف
+  // صفوف "files"، يسجّل نشاط "file_deleted" لكل ملف (نفس اسم الحدث المستخدم سابقاً في
+  // الحذف الفردي)، ثم يحدّث القائمة المحلية فوراً (Optimistic) بدل انتظار إعادة جلب كاملة.
+  async function performDelete(list: ProjectFile[]) {
+    const byBucket = new Map<string, string[]>();
+    for (const f of list) {
+      if (!f.storage_path) continue;
+      const bucket = f.bucket_name || "project-files";
+      byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), f.storage_path]);
+    }
+    await Promise.all([...byBucket.entries()].map(([bucket, paths]) => supabase.storage.from(bucket).remove(paths)));
+    const ids = list.map((f) => f.id);
+    await supabase.from("files").delete().in("id", ids);
+    // إشعار العميل عند حذف ملف كان مرئياً له يتم تلقائياً عبر trigger في قاعدة البيانات
+    // (notify_client_on_file_delete، راجع supabase/migrations/0017_file_delete_notify.sql)
+    // بنفس منطق التحقق من صلاحية "files" وحالة العميل المستخدم في trigger الإضافة الحالي.
+    await Promise.all(list.map((f) => logActivity(supabase, { companyId, projectId, episodeId, action: "file_deleted", details: { name: f.name } })));
+    setFiles((prev) => prev.filter((f) => !ids.includes(f.id)));
+    onChanged?.();
+  }
+
   async function remove(f: ProjectFile) {
     if (!confirm(`حذف الملف "${f.name}"؟`)) return;
-    if (f.storage_path) await supabase.storage.from(f.bucket_name || "project-files").remove([f.storage_path]);
-    await supabase.from("files").delete().eq("id", f.id);
-    await logActivity(supabase, { companyId, projectId, episodeId, action: "file_deleted", details: { name: f.name } });
-    await load();
-    onChanged?.();
+    await performDelete([f]);
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function toggleVisible(f: ProjectFile) {
@@ -441,6 +469,35 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     });
     return list;
   }, [files, categoryFilter, sortMode]);
+
+  const selectedVisible = useMemo(() => visibleFiles.filter((f) => selected.has(f.id)), [visibleFiles, selected]);
+  const selectedSize = useMemo(() => selectedVisible.reduce((s, f) => s + (f.size_bytes ?? 0), 0), [selectedVisible]);
+
+  async function removeSelected() {
+    if (selectedVisible.length === 0) return;
+    if (!confirm(`حذف ${selectedVisible.length} ملف محدد (${humanFileSize(selectedSize) || "0 B"})؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    setBulkDeleting(true);
+    try {
+      await performDelete(selectedVisible);
+      setSelected(new Set());
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  async function removeAllVisible() {
+    if (visibleFiles.length === 0) return;
+    const totalSize = visibleFiles.reduce((s, f) => s + (f.size_bytes ?? 0), 0);
+    const label = episodeId ? "كل مرفقات الحلقة" : "كل الملفات المعروضة";
+    if (!confirm(`حذف ${label} (${visibleFiles.length} ملف، ${humanFileSize(totalSize) || "0 B"})؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    setBulkDeleting(true);
+    try {
+      await performDelete(visibleFiles);
+      setSelected(new Set());
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   return (
     <div
@@ -563,6 +620,49 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
         </div>
       )}
 
+      {files.length > 0 && (
+        <div className="card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button
+            className="btn btn-outline"
+            style={{ padding: "6px 10px", fontSize: 12 }}
+            onClick={() => setSelected(new Set(visibleFiles.map((f) => f.id)))}
+          >
+            تحديد الكل
+          </button>
+          <button
+            className="btn btn-outline"
+            style={{ padding: "6px 10px", fontSize: 12 }}
+            disabled={selected.size === 0}
+            onClick={() => setSelected(new Set())}
+          >
+            إلغاء التحديد
+          </button>
+          {selectedVisible.length > 0 && (
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+              {selectedVisible.length} محدد ({humanFileSize(selectedSize) || "0 B"})
+            </span>
+          )}
+          <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-outline"
+              style={{ padding: "6px 10px", fontSize: 12, color: "#ef4444", cursor: bulkDeleting ? "wait" : "pointer" }}
+              disabled={selectedVisible.length === 0 || bulkDeleting}
+              onClick={removeSelected}
+            >
+              <Icon name="trash" size={13} /> حذف المحدد
+            </button>
+            <button
+              className="btn btn-outline"
+              style={{ padding: "6px 10px", fontSize: 12, color: "#ef4444", cursor: bulkDeleting ? "wait" : "pointer" }}
+              disabled={bulkDeleting}
+              onClick={removeAllVisible}
+            >
+              <Icon name="trash" size={13} /> {episodeId ? "حذف كل مرفقات الحلقة" : "حذف كل الملفات"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="empty-state">جارٍ التحميل...</div>
       ) : visibleFiles.length === 0 ? (
@@ -575,6 +675,13 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
           {visibleFiles.map((f) => (
             <div key={f.id} className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(f.id)}
+                  onChange={() => toggleSelect(f.id)}
+                  style={{ marginTop: 4, flexShrink: 0 }}
+                  aria-label="تحديد الملف"
+                />
                 {f.thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={f.thumbnail_url} alt={f.name} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
@@ -613,6 +720,14 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleFiles.length > 0 && selectedVisible.length === visibleFiles.length}
+                    onChange={(e) => setSelected(e.target.checked ? new Set(visibleFiles.map((f) => f.id)) : new Set())}
+                    aria-label="تحديد الكل"
+                  />
+                </th>
                 <th>الملف</th>
                 <th>الحجم</th>
                 <th>تاريخ الرفع</th>
@@ -622,6 +737,9 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
             <tbody>
               {visibleFiles.map((f) => (
                 <tr key={f.id}>
+                  <td>
+                    <input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleSelect(f.id)} aria-label="تحديد الملف" />
+                  </td>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ color: "var(--gold)", flexShrink: 0 }}>

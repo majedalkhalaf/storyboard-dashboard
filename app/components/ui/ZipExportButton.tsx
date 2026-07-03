@@ -14,11 +14,14 @@ export default function ZipExportButton({
   icon = "export",
   run,
   variant = "outline",
+  size = "md",
 }: {
   label: string;
   icon?: "export" | "archive" | "folderUp";
   run: (onProgress: (p: ZipProgress) => void) => Promise<void>;
   variant?: "outline" | "gold";
+  /** "sm" لعرض مضغوط أيقونة فقط (بطاقات المشروع/الحلقة) بدل الزر الكامل بنصّه */
+  size?: "sm" | "md";
 }) {
   const [open, setOpen] = useState(false);
   const [progress, setProgress] = useState<ZipProgress>({ stage: "", percent: 0 });
@@ -40,9 +43,15 @@ export default function ZipExportButton({
 
   return (
     <>
-      <button type="button" className={`btn btn-${variant}`} style={{ padding: "9px 14px", fontSize: 12 }} onClick={start}>
-        <Icon name={icon} size={14} /> {label}
-      </button>
+      {size === "sm" ? (
+        <button type="button" title={label} className="btn-ghost" style={{ padding: 7, borderRadius: 8, color: "var(--text-muted)" }} onClick={start}>
+          <Icon name={icon} size={15} />
+        </button>
+      ) : (
+        <button type="button" className={`btn btn-${variant}`} style={{ padding: "9px 14px", fontSize: 12 }} onClick={start}>
+          <Icon name={icon} size={14} /> {label}
+        </button>
+      )}
 
       {open && (
         <div className="modal-overlay" onClick={() => (done || error) && setOpen(false)}>

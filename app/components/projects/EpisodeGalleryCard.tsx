@@ -1,23 +1,141 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ZipExportButton from "@/app/components/ui/ZipExportButton";
+import StageQuickSelect from "./StageQuickSelect";
+import EditableTitle from "@/app/components/ui/EditableTitle";
+import { createClient } from "@/app/lib/supabase/client";
+import { useSession } from "@/app/providers/SessionProvider";
+import { logActivity } from "@/app/lib/activity";
+import { safeStorageKey } from "@/app/lib/storage-path";
+import { updateEpisodeTitle, updateEpisodePipelineStage, updateEpisodeNumber } from "@/app/lib/episode-actions";
+import { exportEpisodeZip } from "@/app/lib/zip-export";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
+import type { CompanyPipelineStage } from "@/app/lib/types";
 import { formatDuration, relativeTime } from "./utils";
+
+const iconBtnStyle: React.CSSProperties = { padding: "5px 6px", borderRadius: 7 };
 
 export default function EpisodeGalleryCard({
   episode,
   active,
   onSelect,
+  pipelineStages,
+  onChanged,
+  onDeleted,
+  onDragStartHandle,
+  onDragEndHandle,
+  onCardDragOver,
+  onCardDrop,
+  dimmed,
 }: {
   episode: EpisodeGalleryItem;
   active: boolean;
   onSelect: () => void;
+  pipelineStages: CompanyPipelineStage[];
+  onChanged: (patch: Partial<EpisodeGalleryItem>) => void;
+  onDeleted: () => void;
+  onDragStartHandle: () => void;
+  onDragEndHandle: () => void;
+  onCardDragOver: (e: React.DragEvent) => void;
+  onCardDrop: (e: React.DragEvent) => void;
+  dimmed: boolean;
 }) {
+  const supabase = createClient();
+  const { company } = useSession();
+  const companyId = company!.id;
+
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [editingNumber, setEditingNumber] = useState(false);
+  const [numberDraft, setNumberDraft] = useState(String(episode.number ?? ""));
+  const [deleting, setDeleting] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  async function uploadCover(file: File | null) {
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      // نفس مسار/طريقة رفع صورة الغلاف المستخدمة في تبويب "نظرة عامة" (OverviewTab.tsx)
+      // — bucket عام public-assets لأنها معاينة منخفضة الحساسية تحتاج رابطاً عاماً دائماً.
+      const path = `${companyId}/covers/${safeStorageKey(file.name)}`;
+      const { error } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
+      if (error) return;
+      const url = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
+      await supabase.from("episodes").update({ cover_image_url: url }).eq("id", episode.id);
+      onChanged({ cover_image_url: url });
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  }
+
+  async function saveNumber() {
+    setEditingNumber(false);
+    const trimmed = numberDraft.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && Number.isNaN(parsed)) return;
+    if (parsed === episode.number) return;
+    onChanged({ number: parsed });
+    await updateEpisodeNumber(supabase, episode.id, parsed);
+  }
+
+  async function saveTitle(next: string) {
+    const oldTitle = episode.title;
+    onChanged({ title: next });
+    await updateEpisodeTitle(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, oldTitle, newTitle: next });
+  }
+
+  async function saveStage(key: string) {
+    const label = pipelineStages.find((s) => s.key === key)?.label ?? key;
+    onChanged({ pipeline_stage: key });
+    await updateEpisodePipelineStage(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, stageKey: key, stageLabel: label });
+  }
+
+  async function deleteEpisode() {
+    if (!confirm(`حذف الحلقة "${episode.title}" نهائياً؟ سيُحذف كل ما يرتبط بها من ملفات وملاحظات ونسخ سكربت — لا يمكن التراجع.`)) return;
+    setDeleting(true);
+    try {
+      const { data: fileRows } = await supabase.from("files").select("storage_path, bucket_name").eq("episode_id", episode.id);
+      const byBucket = new Map<string, string[]>();
+      for (const f of fileRows ?? []) {
+        if (!f.storage_path) continue;
+        const bucket = f.bucket_name || "project-files";
+        byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), f.storage_path]);
+      }
+      await Promise.all([...byBucket.entries()].map(([bucket, paths]) => supabase.storage.from(bucket).remove(paths)));
+      // حذف صف الحلقة نفسه يحذف تلقائياً (on delete cascade) كل الصفوف المرتبطة بها:
+      // episode_stages وfiles وnotes وapprovals وepisode_script_versions — راجع
+      // supabase/migrations/0001_init_multi_tenant.sql وsupabase/migrations/0010_episode_workspace_columns.sql.
+      // الكائنات الفعلية في Storage لا تُحذف تلقائياً بالـ cascade، لذا حُذفت أعلاه يدوياً.
+      await supabase.from("episodes").delete().eq("id", episode.id);
+      await logActivity(supabase, {
+        companyId,
+        projectId: episode.project_id,
+        episodeId: episode.id,
+        action: "episode_deleted",
+        details: { title: episode.title },
+      });
+      onDeleted();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <div
       className="card animate-fade-in"
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      onDragOver={onCardDragOver}
+      onDrop={onCardDrop}
       style={{
         display: "block",
         textAlign: "right",
@@ -26,7 +144,8 @@ export default function EpisodeGalleryCard({
         padding: 0,
         borderColor: active ? "var(--gold)" : "var(--border)",
         boxShadow: active ? "0 0 0 1px var(--gold)" : "none",
-        transition: "border-color .15s, box-shadow .15s, transform .15s",
+        opacity: dimmed ? 0.5 : 1,
+        transition: "border-color .15s, box-shadow .15s, opacity .15s",
       }}
     >
       <div
@@ -42,13 +161,85 @@ export default function EpisodeGalleryCard({
           justifyContent: "center",
         }}
       >
-        {!episode.cover_image_url && <Icon name="video" size={26} className="text-muted" />}
+        {!episode.cover_image_url && (
+          <label
+            className="btn btn-outline"
+            style={{ cursor: uploadingCover ? "wait" : "pointer", fontSize: 11, padding: "6px 10px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Icon name="image" size={13} /> {uploadingCover ? "جارٍ الرفع..." : "إضافة صورة للحلقة"}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={uploadingCover}
+              onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        )}
 
-        {episode.number != null && (
-          <span className="chip chip-gold" style={{ position: "absolute", top: 8, right: 8, fontSize: 11 }}>
-            حلقة {episode.number}
+        <span
+          draggable
+          title="اسحب لإعادة الترتيب"
+          onClick={(e) => e.stopPropagation()}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = "move";
+            onDragStartHandle();
+          }}
+          onDragEnd={(e) => {
+            e.stopPropagation();
+            onDragEndHandle();
+          }}
+          style={{
+            position: "absolute",
+            top: 8,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "2px 6px",
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.5)",
+            color: "#fff",
+            cursor: "grab",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <Icon name="grip" size={13} />
+        </span>
+
+        {editingNumber ? (
+          <span onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 8, right: 8 }}>
+            <input
+              type="number"
+              autoFocus
+              className="input-field"
+              value={numberDraft}
+              onChange={(e) => setNumberDraft(e.target.value)}
+              onBlur={saveNumber}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveNumber();
+                if (e.key === "Escape") setEditingNumber(false);
+              }}
+              style={{ width: 62, fontSize: 11, padding: "2px 6px" }}
+            />
+          </span>
+        ) : (
+          <span
+            className="chip chip-gold"
+            title="تعديل رقم الحلقة"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNumberDraft(String(episode.number ?? ""));
+              setEditingNumber(true);
+            }}
+            style={{ position: "absolute", top: 8, right: 8, fontSize: 11, cursor: "pointer" }}
+          >
+            {episode.number != null ? `حلقة ${episode.number}` : "بدون رقم"}
           </span>
         )}
+
         <span
           className="chip"
           style={{
@@ -87,7 +278,32 @@ export default function EpisodeGalleryCard({
       </div>
 
       <div style={{ padding: 14 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{episode.title}</div>
+        <div onClick={(e) => e.stopPropagation()} style={{ marginBottom: 2 }}>
+          <EditableTitle value={episode.title} onSave={saveTitle} fontSize={14} maxWidth={220} />
+        </div>
+
+        {episode.description && (
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "var(--text-muted)",
+              marginBottom: 8,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {episode.description}
+          </p>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+          <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>المرحلة:</span>
+          <StageQuickSelect stages={pipelineStages} currentKey={episode.pipeline_stage} onChange={saveStage} size="sm" />
+        </div>
+
         <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>
           {episode.type || "—"} · آخر تعديل {relativeTime(episode.updated_at)}
         </div>
@@ -102,7 +318,7 @@ export default function EpisodeGalleryCard({
           </span>
         </div>
 
-        <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
+        <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Icon name="attachment" size={12} /> {episode.filesCount}
           </span>
@@ -116,7 +332,44 @@ export default function EpisodeGalleryCard({
             <Icon name="fileCheck" size={12} /> {episode.versionsCount}
           </span>
         </div>
+
+        {/* اختصارات سريعة — كلها تفتح الحلقة على تبويبها الافتراضي (نظرة عامة) وليس تبويباً
+            محدداً: القفز مباشرة لتبويب بعينه (السكربت/الملفات/الملاحظات...) يتطلب تعديل حالة
+            tab داخل EpisodeWorkspace.tsx، وهو ملف مملوك لعمل آخر جارٍ على هذا الفرع وخارج
+            نطاق هذه المهمة — إفصاح صريح بدل الإدّعاء بسلوك غير موجود فعلياً. */}
+        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+          <button className="btn-ghost" title="رفع ملف" onClick={onSelect} style={iconBtnStyle}>
+            <Icon name="upload" size={13} />
+          </button>
+          <button className="btn-ghost" title="السكربت" onClick={onSelect} style={iconBtnStyle}>
+            <Icon name="fileCheck" size={13} />
+          </button>
+          <button className="btn-ghost" title="ستوري بورد" onClick={onSelect} style={iconBtnStyle}>
+            <Icon name="palette" size={13} />
+          </button>
+          <button className="btn-ghost" title="الملاحظات" onClick={onSelect} style={iconBtnStyle}>
+            <Icon name="message" size={13} />
+          </button>
+          <button className="btn-ghost" title="الاعتماد" onClick={onSelect} style={iconBtnStyle}>
+            <Icon name="badgeCheck" size={13} />
+          </button>
+          <ZipExportButton
+            label="تصدير الحلقة ZIP"
+            icon="archive"
+            size="sm"
+            run={(onProgress) => exportEpisodeZip(supabase, companyId, episode.id, onProgress)}
+          />
+          <button
+            className="btn-ghost"
+            title="حذف الحلقة"
+            disabled={deleting}
+            onClick={deleteEpisode}
+            style={{ ...iconBtnStyle, color: "#ef4444", marginInlineStart: "auto", cursor: deleting ? "wait" : "pointer" }}
+          >
+            <Icon name="trash" size={13} />
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }

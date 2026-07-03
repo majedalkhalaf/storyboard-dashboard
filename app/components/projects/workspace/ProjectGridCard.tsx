@@ -1,17 +1,44 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
+import { createClient } from "@/app/lib/supabase/client";
+import { useSession } from "@/app/providers/SessionProvider";
+import { logActivity } from "@/app/lib/activity";
 import { PROJECT_STATUSES, PROJECT_TYPES } from "@/app/lib/constants";
-import { relativeTime } from "@/app/components/projects/utils";
+import { relativeTime, formatDate } from "@/app/components/projects/utils";
 import type { WorkspaceProject } from "@/app/lib/workspace-projects";
+import type { ProjectStatus } from "@/app/lib/types";
 import FavoriteButton from "./FavoriteButton";
 import SmartIndicators from "./SmartIndicators";
 import StageProgressBars from "./StageProgressBars";
 import ProjectQuickActions from "./ProjectQuickActions";
 
 export default function ProjectGridCard({ project, compact = false }: { project: WorkspaceProject; compact?: boolean }) {
-  const status = PROJECT_STATUSES.find((s) => s.value === project.status);
+  const supabase = createClient();
+  const { company } = useSession();
+  const companyId = company!.id;
+
+  const [status, setStatus] = useState<ProjectStatus>(project.status as ProjectStatus);
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  const statusInfo = PROJECT_STATUSES.find((s) => s.value === status);
   const typeLabel =
     project.type === "other" ? project.custom_type || "أخرى" : PROJECT_TYPES.find((t) => t.value === project.type)?.label || project.type || "—";
+
+  async function changeStatus(next: ProjectStatus) {
+    if (next === status) return;
+    const prev = status;
+    setStatus(next);
+    setSavingStatus(true);
+    try {
+      await supabase.from("projects").update({ status: next }).eq("id", project.id);
+      await logActivity(supabase, { companyId, projectId: project.id, action: "project_status_changed", details: { from: prev, to: next } });
+    } finally {
+      setSavingStatus(false);
+    }
+  }
 
   return (
     <Link
@@ -35,9 +62,9 @@ export default function ProjectGridCard({ project, compact = false }: { project:
         {!project.cover_image_url && <Icon name="projects" size={30} className="text-muted" />}
 
         <div style={{ position: "absolute", top: 10, insetInlineStart: 10, display: "flex", gap: 6 }}>
-          {status && (
-            <span className="chip" style={{ color: status.color, borderColor: status.color, background: "rgba(0,0,0,0.55)" }}>
-              {status.label}
+          {statusInfo && (
+            <span className="chip" style={{ color: statusInfo.color, borderColor: statusInfo.color, background: "rgba(0,0,0,0.55)" }}>
+              {statusInfo.label}
             </span>
           )}
         </div>
@@ -64,6 +91,21 @@ export default function ProjectGridCard({ project, compact = false }: { project:
             )}
           </div>
         </div>
+
+        {!compact && (project.shooting_date || project.delivery_date) && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
+            {project.shooting_date && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Icon name="calendar" size={11} /> تصوير: {formatDate(project.shooting_date)}
+              </span>
+            )}
+            {project.delivery_date && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Icon name="calendar" size={11} /> تسليم: {formatDate(project.delivery_date)}
+              </span>
+            )}
+          </div>
+        )}
 
         <SmartIndicators project={project} />
 
@@ -102,7 +144,35 @@ export default function ProjectGridCard({ project, compact = false }: { project:
           </div>
         )}
 
-        <ProjectQuickActions projectId={project.id} />
+        {!compact && (
+          <div
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 8 }}
+          >
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="zap" size={11} /> الحالة
+            </span>
+            <select
+              className="input-field"
+              value={status}
+              disabled={savingStatus}
+              onChange={(e) => changeStatus(e.target.value as ProjectStatus)}
+              style={{ width: "auto", fontSize: 11.5, padding: "4px 8px", color: statusInfo?.color, fontWeight: 700, borderColor: statusInfo?.color }}
+              title="تغيير حالة المشروع"
+            >
+              {PROJECT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <ProjectQuickActions projectId={project.id} projectName={project.name} onArchive={() => changeStatus("archived")} />
       </div>
     </Link>
   );
