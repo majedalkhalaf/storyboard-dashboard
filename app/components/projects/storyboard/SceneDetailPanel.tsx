@@ -7,6 +7,7 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { STORYBOARD_SCENE_STATUSES, SHOT_TYPES } from "@/app/lib/constants";
 import type { StoryboardSceneStatus } from "@/app/lib/types";
 import type { StoryboardSceneFullDetail } from "@/app/lib/storyboard-detail";
+import type { TeamMemberOption } from "@/app/lib/episode-detail";
 import { formatDuration } from "../utils";
 import CameraSetupSection from "./CameraSetupSection";
 import DirectorNotesSection from "./DirectorNotesSection";
@@ -17,11 +18,15 @@ import SceneEquipmentSection from "./SceneEquipmentSection";
 
 export default function SceneDetailPanel({
   scene,
+  projectId,
+  teamMembers,
   onChanged,
   onRefetch,
   onDelete,
 }: {
   scene: StoryboardSceneFullDetail;
+  projectId: string;
+  teamMembers: TeamMemberOption[];
   onChanged: (patch: Partial<StoryboardSceneFullDetail>) => void;
   onRefetch: () => void;
   onDelete: () => void;
@@ -173,8 +178,8 @@ export default function SceneDetailPanel({
       <DirectorNotesSection scene={scene} onChanged={onChanged} />
       <SceneCastSection scene={scene} onChanged={onRefetch} />
       <SceneEquipmentSection scene={scene} onChanged={onRefetch} />
-      <SceneAttachmentsSection scene={scene} onChanged={onRefetch} />
-      <SceneNotesSection scene={scene} onChanged={onRefetch} />
+      <SceneAttachmentsSection scene={scene} projectId={projectId} onChanged={onRefetch} />
+      <SceneNotesSection scene={scene} projectId={projectId} teamMembers={teamMembers} onChanged={onRefetch} />
     </div>
   );
 }

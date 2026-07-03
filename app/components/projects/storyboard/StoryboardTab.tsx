@@ -106,7 +106,14 @@ export default function StoryboardTab({ episode }: { episode: EpisodeFullDetail;
           {detailLoading || !detail ? (
             <div className="skeleton" style={{ height: 320, borderRadius: 14 }} />
           ) : (
-            <SceneDetailPanel scene={detail} onChanged={patchDetail} onRefetch={() => loadDetail(detail.id)} onDelete={deleteScene} />
+            <SceneDetailPanel
+              scene={detail}
+              projectId={episode.project_id}
+              teamMembers={episode.teamMembers}
+              onChanged={patchDetail}
+              onRefetch={() => loadDetail(detail.id)}
+              onDelete={deleteScene}
+            />
           )}
           <SceneListSidebar scenes={scenes} selectedId={selectedId} onSelect={selectScene} />
         </div>
