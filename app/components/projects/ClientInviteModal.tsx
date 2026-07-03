@@ -40,7 +40,10 @@ export default function ClientInviteModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, email: email.trim(), clientName: name.trim(), phone: phone.trim() || undefined, permissions }),
       });
-      const json = await res.json();
+      // استجابة فارغة/غير JSON (مثل انقطاع الخادم قبل إرسال أي رد) تُعامَل برسالة واضحة
+      // بدل ترك JSON.parse يرمي خطأ تقني غير مفهوم للمستخدم ("Unexpected end of JSON input")
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok) throw new Error(json.error || "تعذّرت الدعوة");
       onInvited();
       onClose();
