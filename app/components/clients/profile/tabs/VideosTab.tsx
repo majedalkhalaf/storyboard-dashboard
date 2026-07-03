@@ -3,16 +3,39 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
+import StageQuickSelect from "@/app/components/projects/StageQuickSelect";
+import { createClient } from "@/app/lib/supabase/client";
+import { useSession } from "@/app/providers/SessionProvider";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
 import { fetchClientEpisodes, type EpisodeWithProject } from "@/app/lib/client-profile";
+import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
+import { updateEpisodePipelineStage } from "@/app/lib/episode-actions";
 import { relativeTime } from "@/app/components/projects/utils";
+import type { CompanyPipelineStage } from "@/app/lib/types";
 
+// هذا التبويب داخلي (فريق العمل يشاهد ملف العميل من app/(internal)/clients/[id])
+// وليس بوابة العميل نفسها، لذا اختصار "تغيير المرحلة" هنا مرئي دائماً بلا فحص صلاحية إضافي.
 export default function VideosTab({ clientId }: { clientId: string }) {
+  const { company } = useSession();
+  const companyId = company!.id;
   const [episodes, setEpisodes] = useState<EpisodeWithProject[] | null>(null);
+  const [stages, setStages] = useState<CompanyPipelineStage[]>([]);
 
   useEffect(() => {
     fetchClientEpisodes(clientId).then(setEpisodes);
   }, [clientId]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    getCompanyPipelineStages(supabase, companyId).then(setStages);
+  }, [companyId]);
+
+  async function changeStage(episode: EpisodeWithProject, key: string) {
+    const label = stages.find((s) => s.key === key)?.label ?? key;
+    setEpisodes((prev) => (prev ?? []).map((e) => (e.id === episode.id ? { ...e, pipeline_stage: key } : e)));
+    const supabase = createClient();
+    await updateEpisodePipelineStage(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, stageKey: key, stageLabel: label });
+  }
 
   if (episodes === null) {
     return (
@@ -85,6 +108,14 @@ export default function VideosTab({ clientId }: { clientId: string }) {
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
                 <span>{Math.round(e.progress)}% مكتمل</span>
                 <span>{relativeTime(e.updated_at)}</span>
+              </div>
+
+              <div
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}
+                onClick={(ev) => ev.stopPropagation()}
+              >
+                <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>المرحلة</span>
+                <StageQuickSelect stages={stages} currentKey={e.pipeline_stage} onChange={(key) => changeStage(e, key)} size="sm" />
               </div>
             </div>
           </Link>

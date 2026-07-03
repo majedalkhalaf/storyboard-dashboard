@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/client";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
-import type { Company, Profile } from "@/app/lib/types";
+import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
+import {
+  addCompanyPipelineStage,
+  deleteCompanyPipelineStage,
+  swapCompanyPipelineStageOrder,
+  updateCompanyPipelineStage,
+} from "@/app/lib/company-pipeline-stages-actions";
+import type { Company, CompanyPipelineStage, Profile } from "@/app/lib/types";
 
 async function uploadPublicAsset(companyId: string, folder: string, file: File): Promise<string | null> {
   const supabase = createClient();
@@ -35,7 +42,153 @@ export default function SettingsClient({ company, profile }: { company: Company;
         </Link>
       </div>
 
-      <IdentityTab company={company} admin={admin} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <IdentityTab company={company} admin={admin} />
+        {admin && <PipelineStagesSection companyId={company.id} />}
+      </div>
+    </div>
+  );
+}
+
+// إدارة مراحل "تغيير المرحلة" السريعة لكل شركة — مقصورة على المدير/المالك في
+// الواجهة فقط كخيار منتج (تقليل الفوضى لبقية الفريق)، وليس لأن RLS يفرض ذلك:
+// سياسة company_pipeline_stages (0016_episode_pipeline_stage.sql) تسمح لأي
+// عضو بالشركة بالإدارة الكاملة.
+function PipelineStagesSection({ companyId }: { companyId: string }) {
+  const [stages, setStages] = useState<CompanyPipelineStage[] | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    getCompanyPipelineStages(supabase, companyId).then(setStages);
+  }, [companyId]);
+
+  async function handleAdd() {
+    const label = window.prompt("اسم المرحلة الجديدة:");
+    if (!label || !label.trim()) return;
+    const supabase = createClient();
+    const created = await addCompanyPipelineStage(supabase, companyId, stages ?? [], label.trim());
+    setStages((prev) => [...(prev ?? []), created]);
+  }
+
+  async function handleDelete(stage: CompanyPipelineStage) {
+    if (!window.confirm(`حذف مرحلة "${stage.label}"؟ هذا لن يؤثر على أي حلقة تستخدمها حالياً.`)) return;
+    const supabase = createClient();
+    await deleteCompanyPipelineStage(supabase, stage.id);
+    setStages((prev) => (prev ?? []).filter((s) => s.id !== stage.id));
+  }
+
+  function patchLocal(id: string, patch: Partial<CompanyPipelineStage>) {
+    setStages((prev) => (prev ?? []).map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  async function handleLabelBlur(stage: CompanyPipelineStage, label: string) {
+    if (label === stage.label) return;
+    const supabase = createClient();
+    await updateCompanyPipelineStage(supabase, stage.id, { label });
+  }
+
+  async function handleColorChange(stage: CompanyPipelineStage, color: string) {
+    patchLocal(stage.id, { color });
+    const supabase = createClient();
+    await updateCompanyPipelineStage(supabase, stage.id, { color });
+  }
+
+  async function handleNotifyToggle(stage: CompanyPipelineStage) {
+    const next = !stage.notify_client;
+    patchLocal(stage.id, { notify_client: next });
+    const supabase = createClient();
+    await updateCompanyPipelineStage(supabase, stage.id, { notify_client: next });
+  }
+
+  async function handleMove(index: number, direction: "up" | "down") {
+    if (!stages) return;
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= stages.length) return;
+    const current = stages[index];
+    const other = stages[swapIndex];
+    const supabase = createClient();
+    await swapCompanyPipelineStageOrder(supabase, current, other);
+    const next = [...stages];
+    next[index] = { ...current, sort_order: other.sort_order };
+    next[swapIndex] = { ...other, sort_order: current.sort_order };
+    next.sort((a, b) => a.sort_order - b.sort_order);
+    setStages(next);
+  }
+
+  return (
+    <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h3 style={{ fontWeight: 700 }}>مراحل العمل السريعة</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            تُستخدم في اختصار «تغيير المرحلة» أعلى كل حلقة — منفصلة عن نظام مراحل التنفيذ التفصيلي.
+          </p>
+        </div>
+        <button className="btn btn-outline" style={{ padding: "7px 14px", fontSize: 12 }} onClick={handleAdd} disabled={stages === null}>
+          <Icon name="plus" size={14} /> إضافة مرحلة
+        </button>
+      </div>
+
+      {stages === null ? (
+        <div className="skeleton" style={{ height: 160, borderRadius: 10 }} />
+      ) : stages.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>لا توجد مراحل بعد</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {stages.map((stage, i) => (
+            <div
+              key={stage.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 10px",
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="color"
+                value={stage.color}
+                onChange={(e) => handleColorChange(stage, e.target.value)}
+                style={{ width: 30, height: 30, border: "none", background: "none", cursor: "pointer", flexShrink: 0 }}
+                title="لون المرحلة"
+              />
+              <input
+                className="input-field"
+                defaultValue={stage.label}
+                onChange={(e) => patchLocal(stage.id, { label: e.target.value })}
+                onBlur={(e) => handleLabelBlur(stage, e.target.value)}
+                style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={stage.notify_client} onChange={() => handleNotifyToggle(stage)} />
+                إشعار العميل عند هذه المرحلة
+              </label>
+              <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                <button className="btn-ghost" style={{ padding: "4px 6px", borderRadius: 6 }} disabled={i === 0} onClick={() => handleMove(i, "up")} title="نقل لأعلى">
+                  <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}>
+                    <Icon name="chevronDown" size={14} />
+                  </span>
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ padding: "4px 6px", borderRadius: 6 }}
+                  disabled={i === stages.length - 1}
+                  onClick={() => handleMove(i, "down")}
+                  title="نقل لأسفل"
+                >
+                  <Icon name="chevronDown" size={14} />
+                </button>
+                <button className="btn-ghost" style={{ padding: "4px 6px", borderRadius: 6, color: "#ef4444" }} onClick={() => handleDelete(stage)} title="حذف المرحلة">
+                  <Icon name="trash" size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
