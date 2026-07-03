@@ -78,6 +78,10 @@ export interface Company {
   stamp_url: string | null;
   signature_url: string | null;
   presentation_defaults: PresentationDefaultTexts;
+  // إعدادات مالية أساسية — supabase/migrations/0019_finance_settings.sql (لم تُطبَّق بعد)
+  default_tax_rate: number;
+  invoice_number_prefix: string;
+  default_payment_terms_days: number;
   created_at: string;
   updated_at: string;
 }
