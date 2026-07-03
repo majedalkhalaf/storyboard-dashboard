@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
+import { toEmbedUrl } from "@/app/lib/video-embed";
 import type { ProjectFile } from "@/app/lib/types";
 import type { EpisodeFullDetail, NoteWithAuthor } from "@/app/lib/episode-detail";
 import { formatDuration, relativeTime } from "../utils";
@@ -39,8 +40,13 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [posting, setPosting] = useState(false);
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [addingLink, setAddingLink] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const embedUrl = src ? toEmbedUrl(src) : null;
 
   const resolveSrc = useCallback(
     async (file: ProjectFile | null) => {
@@ -121,28 +127,103 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
     }
   }
 
+  // إضافة فيديو مستضاف خارجياً (YouTube/Vimeo أو رابط ملف مباشر) بدل رفعه لمساحة التخزين —
+  // يُحفظ كسجل files بتصنيف "video" (وليس "link") فيظهر في مشغّل الفيديو مباشرة، لا في
+  // قائمة الروابط الجانبية.
+  async function addVideoLink() {
+    const url = linkUrl.trim();
+    if (!url || addingLink) return;
+    setAddingLink(true);
+    try {
+      const name = linkName.trim() || "فيديو خارجي";
+      await supabase.from("files").insert({
+        company_id: companyId,
+        project_id: episode.project_id,
+        episode_id: episode.id,
+        uploaded_by: userId,
+        uploaded_by_role: profile.role,
+        name,
+        original_name: name,
+        external_url: url,
+        category: "video",
+        client_visible: true,
+        client_can_view: true,
+        client_can_download: false,
+        status: "ready",
+        bucket_name: "project-files",
+      });
+      await logActivity(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, action: "video_link_added", details: { url } });
+      setLinkName("");
+      setLinkUrl("");
+      setShowAddLink(false);
+      onChanged();
+    } finally {
+      setAddingLink(false);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="card" style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: videoFiles.length === 0 ? 0 : 10 }}>
+          <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setShowAddLink((v) => !v)}>
+            <Icon name="link" size={13} /> إضافة فيديو برابط (YouTube/Vimeo أو رابط مباشر)
+          </button>
+        </div>
+
+        {showAddLink && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            <input
+              className="input-field"
+              placeholder="اسم الفيديو (اختياري)"
+              value={linkName}
+              onChange={(e) => setLinkName(e.target.value)}
+              style={{ flex: "1 1 160px" }}
+            />
+            <input
+              className="input-field"
+              placeholder="رابط الفيديو..."
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addVideoLink()}
+              style={{ flex: "2 1 240px" }}
+              dir="ltr"
+            />
+            <button className="btn btn-gold" style={{ padding: "9px 16px", fontSize: 12 }} disabled={addingLink || !linkUrl.trim()} onClick={addVideoLink}>
+              {addingLink ? "جارٍ الإضافة..." : "إضافة"}
+            </button>
+          </div>
+        )}
+
         {videoFiles.length === 0 ? (
           <div className="empty-state">
             <Icon name="video" size={30} className="text-muted" />
-            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفع فيديو من تبويب الملفات.</p>
+            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفع فيديو من تبويب الملفات، أو أضف رابط فيديو خارجي أعلاه.</p>
           </div>
         ) : (
           <>
             {loadingSrc && !src ? (
               <div className="skeleton" style={{ height: 320, borderRadius: 12 }} />
             ) : src ? (
-              <video
-                key={activeFile?.id}
-                ref={videoRef}
-                src={src}
-                controls
-                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
-                style={{ width: "100%", maxHeight: 480, borderRadius: 12, background: "#000", display: "block" }}
-              />
+              embedUrl ? (
+                <iframe
+                  key={activeFile?.id}
+                  src={embedUrl}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  style={{ width: "100%", aspectRatio: "16 / 9", border: "none", borderRadius: 12, display: "block" }}
+                />
+              ) : (
+                <video
+                  key={activeFile?.id}
+                  ref={videoRef}
+                  src={src}
+                  controls
+                  onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                  onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+                  style={{ width: "100%", maxHeight: 480, borderRadius: 12, background: "#000", display: "block" }}
+                />
+              )
             ) : (
               <div className="empty-state">تعذّر تحميل رابط الفيديو</div>
             )}
@@ -207,7 +288,7 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <input
                 className="input-field"
-                placeholder={`أضف تعليقاً عند ${formatDuration(currentTime)}...`}
+                placeholder={embedUrl ? "أضف تعليقاً على الفيديو..." : `أضف تعليقاً عند ${formatDuration(currentTime)}...`}
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submitComment()}
