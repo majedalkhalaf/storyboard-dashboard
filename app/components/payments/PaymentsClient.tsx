@@ -178,14 +178,14 @@ export default function PaymentsClient({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>
-            الدفعات
+            الإيرادات
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             {initialPayments.length} دفعة
           </p>
         </div>
         <button className="btn btn-gold" onClick={() => setOpen(true)}>
-          <Icon name="plus" size={16} /> دفعة جديدة
+          <Icon name="plus" size={16} /> إضافة دفعة جديدة
         </button>
       </div>
 

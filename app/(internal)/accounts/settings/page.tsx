@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function FinanceSettingsPage() {
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  if (!isInternalAdmin(session.profile.role)) redirect("/finance");
+  if (!isInternalAdmin(session.profile.role)) redirect("/accounts");
 
   return <FinanceSettingsClient company={session.company!} />;
 }

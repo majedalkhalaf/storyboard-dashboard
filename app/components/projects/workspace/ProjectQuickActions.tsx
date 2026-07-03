@@ -48,7 +48,7 @@ export default function ProjectQuickActions({
     { icon: "contracts", label: "العقد", href: "/contracts" },
     { icon: "proposals", label: "العرض", href: "/proposals" },
     { icon: "invoices", label: "الفواتير", href: "/invoices" },
-    { icon: "finance", label: "المالية", href: "/finance" },
+    { icon: "finance", label: "الحساب", href: `/accounts/${projectId}` },
     { icon: "files", label: "الملفات", href: `/files?project=${projectId}` },
     { icon: "export", label: "التقرير", href: `/export/project/${projectId}` },
     { icon: "settings", label: "الإعدادات", href: `/projects/${projectId}` },

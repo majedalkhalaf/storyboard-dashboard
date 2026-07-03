@@ -33,26 +33,34 @@ export const SIDEBAR_NAV: SidebarEntry[] = [
     ],
   },
   { type: "link", href: "/clients", label: "العملاء", icon: "clients" },
+  // أُعيدت هيكلة قسم "المالية" السابق (14 عنصراً) إلى "الحسابات" ببنية مبسّطة من 6
+  // عناصر فقط بناءً على طلب صريح — الحسابات البنكية/الموردون/التصنيفات المالية/
+  // المستندات المالية لم تُحذف، بل انتقلت لتصبح روابط فرعية داخل صفحة "الإعدادات"
+  // نفسها (accounts/settings) بدل عناصر مستقلة في القائمة الجانبية. العقود والعروض
+  // والفواتير خرجت من هذه المجموعة إلى مجموعة "العقود والفواتير" المستقلة أدناه.
   {
     type: "group",
-    key: "finance",
-    label: "المالية",
+    key: "accounts",
+    label: "الحسابات",
     icon: "finance",
     items: [
-      { href: "/finance", label: "لوحة المالية", icon: "barChart", adminOnly: true },
-      { href: "/finance/projects", label: "المشاريع المالية", icon: "projects", adminOnly: true },
-      { href: "/contracts", label: "العقود المالية", icon: "contracts", adminOnly: true },
+      { href: "/accounts", label: "حسابات المشاريع", icon: "barChart", adminOnly: true },
+      { href: "/expenses", label: "المصروفات", icon: "expenses", adminOnly: true },
+      { href: "/payments", label: "الإيرادات", icon: "money", adminOnly: true },
+      { href: "/accounts/dues", label: "المستحقات", icon: "clock", adminOnly: true },
+      { href: "/accounts/reports", label: "التقارير", icon: "export", adminOnly: true },
+      { href: "/accounts/settings", label: "الإعدادات", icon: "settings", adminOnly: true },
+    ],
+  },
+  {
+    type: "group",
+    key: "documents",
+    label: "العقود والفواتير",
+    icon: "contracts",
+    items: [
+      { href: "/contracts", label: "العقود", icon: "contracts", adminOnly: true },
       { href: "/proposals", label: "عروض الأسعار", icon: "proposals", adminOnly: true },
       { href: "/invoices", label: "الفواتير", icon: "invoices", adminOnly: true },
-      { href: "/payments", label: "الدفعات", icon: "payments", adminOnly: true },
-      { href: "/expenses", label: "المصروفات", icon: "expenses", adminOnly: true },
-      { href: "/finance/dues", label: "المستحقات", icon: "clock", adminOnly: true },
-      { href: "/finance/bank-accounts", label: "الحسابات البنكية", icon: "storage", adminOnly: true },
-      { href: "/finance/vendors", label: "الموردون", icon: "clients", adminOnly: true },
-      { href: "/finance/categories", label: "التصنيفات المالية", icon: "sliders", adminOnly: true },
-      { href: "/finance/reports", label: "التقارير المالية", icon: "export", adminOnly: true },
-      { href: "/finance/documents", label: "المستندات المالية", icon: "files", adminOnly: true },
-      { href: "/finance/settings", label: "الإعدادات المالية", icon: "settings", adminOnly: true },
     ],
   },
   { type: "link", href: "/files", label: "الملفات", icon: "files" },

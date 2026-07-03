@@ -7,6 +7,7 @@ export interface FinanceProjectRow {
   code: string | null;
   name: string;
   clientName: string | null;
+  status: string;
   contractValue: number;
   invoiced: number;
   paid: number;
@@ -15,6 +16,14 @@ export interface FinanceProjectRow {
   profit: number;
   collectionRate: number;
   health: FinancialHealth;
+  // حقول "حسابات المشاريع" المبسّطة — قيمة المشروع = ميزانية المشروع (لا مجموع
+  // الفواتير)، والمدفوع = مجموع دفعات جدول payments الفعلية المرتبطة بالمشروع
+  // (لا حالة الفواتير)، لتطابق نموذج "كل مشروع حساب مستقل" المطلوب بدل الاعتماد
+  // على الفواتير كخطوة وسيطة إلزامية.
+  paidFromPayments: number;
+  remainingFromBudget: number;
+  profitFromBudget: number;
+  profitabilityRate: number;
 }
 
 export interface MonthPoint {
@@ -111,6 +120,7 @@ export async function getFinanceDashboardData(companyId: string): Promise<Financ
   // تجميع حسب المشروع
   const invByProject = new Map<string, number>();
   const paidByProject = new Map<string, number>();
+  const paidFromPaymentsByProject = new Map<string, number>();
   const expByProject = new Map<string, number>();
   const overdueProjectIds = new Set<string>();
   for (const i of invoices) {
@@ -121,6 +131,7 @@ export async function getFinanceDashboardData(companyId: string): Promise<Financ
   }
   for (const p of payments) {
     if (p.status === "overdue" && p.project_id) overdueProjectIds.add(p.project_id);
+    if (p.status === "paid" && p.project_id) paidFromPaymentsByProject.set(p.project_id, (paidFromPaymentsByProject.get(p.project_id) ?? 0) + Number(p.amount));
   }
   for (const e of expenses) {
     if (!e.project_id) continue;
@@ -133,12 +144,16 @@ export async function getFinanceDashboardData(companyId: string): Promise<Financ
     const exp = expByProject.get(p.id) ?? 0;
     const profit = paid - exp;
     const rate = invoiced > 0 ? (paid / invoiced) * 100 : 0;
+    const budget = Number(p.budget ?? 0);
+    const paidFromPayments = paidFromPaymentsByProject.get(p.id) ?? 0;
+    const profitFromBudget = paidFromPayments - exp;
     return {
       id: p.id,
       code: p.code,
       name: p.name,
       clientName: p.client_id ? (clientNameById.get(p.client_id) ?? null) : null,
-      contractValue: Number(p.budget ?? 0),
+      status: p.status,
+      contractValue: budget,
       invoiced,
       paid,
       remaining: invoiced - paid,
@@ -146,6 +161,10 @@ export async function getFinanceDashboardData(companyId: string): Promise<Financ
       profit,
       collectionRate: rate,
       health: computeFinancialHealth({ collectionRate: rate, hasOverdueInvoice: overdueProjectIds.has(p.id), projectStatus: p.status }),
+      paidFromPayments,
+      remainingFromBudget: budget - paidFromPayments,
+      profitFromBudget,
+      profitabilityRate: budget > 0 ? (profitFromBudget / budget) * 100 : 0,
     };
   });
 

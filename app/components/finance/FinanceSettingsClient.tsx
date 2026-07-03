@@ -94,11 +94,20 @@ export default function FinanceSettingsClient({ company }: { company: Company })
       <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
         <h3 style={{ fontWeight: 700 }}>إدارة مرتبطة</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
-          <Link href="/finance/categories" className="btn btn-outline">
+          <Link href="/accounts/settings/categories" className="btn btn-outline">
             <Icon name="sliders" size={16} /> إدارة التصنيفات المالية
           </Link>
-          <Link href="/finance/bank-accounts" className="btn btn-outline">
+          <Link href="/accounts/settings/bank-accounts" className="btn btn-outline">
             <Icon name="storage" size={16} /> إدارة الحسابات البنكية
+          </Link>
+          <Link href="/accounts/settings/vendors" className="btn btn-outline">
+            <Icon name="clients" size={16} /> إدارة الموردين
+          </Link>
+          <Link href="/accounts/settings/documents" className="btn btn-outline">
+            <Icon name="files" size={16} /> المستندات المالية
+          </Link>
+          <Link href="/settings/invite-channels" className="btn btn-outline">
+            <Icon name="mail" size={16} /> قنوات إرسال الدعوات
           </Link>
         </div>
       </div>

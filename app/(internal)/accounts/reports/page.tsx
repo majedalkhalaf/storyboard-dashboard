@@ -18,7 +18,7 @@ export default async function FinanceReportsPage({
   const { type, year: yearParam, month: monthParam } = await searchParams;
   const session = await getCurrentSession();
   if (!session) redirect("/login");
-  if (!isInternalAdmin(session.profile.role)) redirect("/finance");
+  if (!isInternalAdmin(session.profile.role)) redirect("/accounts");
   const companyId = session.company!.id;
   const company = session.company!;
 
@@ -41,10 +41,10 @@ export default async function FinanceReportsPage({
         </div>
 
         <div style={{ display: "flex", gap: 8 }} className="no-print">
-          <Link href="/finance/reports?type=monthly" className={reportType === "monthly" ? "btn btn-gold" : "btn btn-outline"}>
+          <Link href="/accounts/reports?type=monthly" className={reportType === "monthly" ? "btn btn-gold" : "btn btn-outline"}>
             شهري
           </Link>
-          <Link href={`/finance/reports?type=annual&year=${year}`} className={reportType === "annual" ? "btn btn-gold" : "btn btn-outline"}>
+          <Link href={`/accounts/reports?type=annual&year=${year}`} className={reportType === "annual" ? "btn btn-gold" : "btn btn-outline"}>
             سنوي
           </Link>
         </div>
@@ -54,7 +54,7 @@ export default async function FinanceReportsPage({
         <>
           <div className="no-print" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 14 }}>
             <Link
-              href={`/finance/reports?type=monthly&year=${prevMonthRef.getFullYear()}&month=${prevMonthRef.getMonth() + 1}`}
+              href={`/accounts/reports?type=monthly&year=${prevMonthRef.getFullYear()}&month=${prevMonthRef.getMonth() + 1}`}
               className="btn-ghost"
               style={{ padding: 8, borderRadius: 8 }}
             >
@@ -64,7 +64,7 @@ export default async function FinanceReportsPage({
               {year} / {month}
             </span>
             <Link
-              href={`/finance/reports?type=monthly&year=${nextMonthRef.getFullYear()}&month=${nextMonthRef.getMonth() + 1}`}
+              href={`/accounts/reports?type=monthly&year=${nextMonthRef.getFullYear()}&month=${nextMonthRef.getMonth() + 1}`}
               className="btn-ghost"
               style={{ padding: 8, borderRadius: 8 }}
             >
@@ -76,11 +76,11 @@ export default async function FinanceReportsPage({
       ) : (
         <>
           <div className="no-print" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 14 }}>
-            <Link href={`/finance/reports?type=annual&year=${year - 1}`} className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
+            <Link href={`/accounts/reports?type=annual&year=${year - 1}`} className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
               <Icon name="chevronRight" size={16} />
             </Link>
             <span style={{ fontSize: 13, fontWeight: 700, minWidth: 60, textAlign: "center" }}>{year}</span>
-            <Link href={`/finance/reports?type=annual&year=${year + 1}`} className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
+            <Link href={`/accounts/reports?type=annual&year=${year + 1}`} className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
               <Icon name="chevronLeft" size={16} />
             </Link>
           </div>
