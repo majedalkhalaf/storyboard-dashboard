@@ -10,7 +10,7 @@ import { copyFileLink, downloadFile, FilePreviewModal, openFile, previewKind, re
 
 // الأصول = نفس ملفات الحلقة (جدول files) مُجمّعة حسب تصنيفها الفعلي في قاعدة البيانات (FileCategory)،
 // وليست 8 فئات وهمية (شعارات/خطوط/موسيقى...) لا يوجد لها عمود حقيقي — عرض مُصنَّف صادق بدل قائمة مسطّحة.
-const SECTION_ORDER: FileCategory[] = ["image", "video", "audio", "document", "archive", "link", "other"];
+const SECTION_ORDER: FileCategory[] = ["image", "video", "audio", "document", "archive", "design", "project_file", "link", "other"];
 
 const SECTION_LABEL: Record<FileCategory, string> = {
   image: "الصور",
@@ -18,6 +18,8 @@ const SECTION_LABEL: Record<FileCategory, string> = {
   document: "المستندات",
   audio: "الصوتيات",
   archive: "الأرشيف/الخام",
+  design: "ملفات التصميم",
+  project_file: "ملفات المشروع (مونتاج/موشن)",
   link: "الروابط",
   other: "أخرى",
 };

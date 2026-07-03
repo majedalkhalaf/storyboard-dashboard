@@ -30,32 +30,38 @@ export function formatDate(iso: string | null | undefined): string {
   }
 }
 
-// استنتاج تصنيف الملف من نوع MIME أو الامتداد
+// استنتاج تصنيف الملف من نوع MIME أو الامتداد — لا يُرفض أي امتداد هنا؛ كل ما هو
+// غير معروف يُصنَّف "أخرى" بدل رفض الرفع (لا يوجد سبب أمني لرفض نوع ملف بحد ذاته).
 export function inferCategory(mime: string | null | undefined, name: string): FileCategory {
   const m = (mime ?? "").toLowerCase();
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (m.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic"].includes(ext)) return "image";
-  if (m.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
-  if (m.startsWith("audio/") || ["mp3", "wav", "aac", "m4a", "ogg"].includes(ext)) return "audio";
+  if (m.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic", "heif", "bmp", "tiff"].includes(ext)) return "image";
+  if (m.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "flv", "wmv", "m4v"].includes(ext)) return "video";
+  if (m.startsWith("audio/") || ["mp3", "wav", "aac", "m4a", "ogg", "flac"].includes(ext)) return "audio";
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
+  if (["psd", "ai", "xd", "fig", "sketch"].includes(ext)) return "design";
+  if (["prproj", "aep", "aet", "fcpxml", "drp", "veg"].includes(ext)) return "project_file";
   if (
     m === "application/pdf" ||
     m.includes("word") ||
     m.includes("document") ||
     m.includes("sheet") ||
     m.includes("presentation") ||
-    ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"].includes(ext)
+    m === "application/json" ||
+    ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "json", "csv", "rtf"].includes(ext)
   )
     return "document";
   return "other";
 }
 
-export const FILE_CATEGORY_ICON: Record<FileCategory, "image" | "video" | "attachment" | "archive" | "link" | "info"> = {
+export const FILE_CATEGORY_ICON: Record<FileCategory, "image" | "video" | "attachment" | "archive" | "link" | "info" | "palette" | "fileCheck"> = {
   image: "image",
   video: "video",
   document: "attachment",
   audio: "info",
   archive: "archive",
+  design: "palette",
+  project_file: "fileCheck",
   link: "link",
   other: "attachment",
 };
@@ -77,4 +83,19 @@ export function humanFileSize(bytes: number | null | undefined): string {
     i++;
   }
   return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+export function humanSpeed(bytesPerSecond: number): string {
+  if (!bytesPerSecond || bytesPerSecond <= 0) return "—";
+  return `${humanFileSize(bytesPerSecond)}/ث`;
+}
+
+export function humanEta(remainingBytes: number, bytesPerSecond: number): string {
+  if (!bytesPerSecond || bytesPerSecond <= 0) return "—";
+  const seconds = Math.ceil(remainingBytes / bytesPerSecond);
+  if (seconds < 60) return `${seconds}ث`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}د ${seconds % 60}ث`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}س ${minutes % 60}د`;
 }

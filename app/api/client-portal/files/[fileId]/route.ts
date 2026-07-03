@@ -24,8 +24,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
   const admin = createAdminClient();
 
   const { data: file } = await admin.from("files").select("*").eq("id", fileId).maybeSingle();
-  if (!file || !file.client_visible || !file.storage_path) {
+  if (!file || !file.client_visible || !file.client_can_view || !file.storage_path) {
     return NextResponse.json({ error: "الملف غير متاح" }, { status: 404 });
+  }
+  if (isDownload && !file.client_can_download) {
+    return NextResponse.json({ error: "غير مصرح بتحميل هذا الملف" }, { status: 403 });
   }
 
   const { data: pc } = await admin
@@ -40,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
     return NextResponse.json({ error: "غير مصرح بالوصول لهذا الملف" }, { status: 403 });
   }
 
-  const { data: signed, error } = await admin.storage.from("project-files").createSignedUrl(file.storage_path, 300);
+  const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 300);
   if (error || !signed) {
     return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
   }

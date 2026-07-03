@@ -166,7 +166,7 @@ export async function fetchPresentationData(
     )
   );
 
-  const fileCounts = { image: 0, video: 0, document: 0, audio: 0, archive: 0, link: 0, other: 0 };
+  const fileCounts = { image: 0, video: 0, document: 0, audio: 0, archive: 0, design: 0, project_file: 0, link: 0, other: 0 };
   for (const f of files ?? []) {
     if (f.category in fileCounts) fileCounts[f.category as keyof typeof fileCounts] += 1;
   }

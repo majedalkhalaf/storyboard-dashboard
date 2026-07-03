@@ -33,7 +33,9 @@ export type NoteTargetType =
   | "scenario"
   | "storyboard";
 
-export type FileCategory = "image" | "video" | "document" | "audio" | "archive" | "link" | "other";
+export type FileCategory = "image" | "video" | "document" | "audio" | "archive" | "design" | "project_file" | "link" | "other";
+
+export type FileStatus = "uploading" | "ready" | "failed";
 
 export type StoryboardSceneStatus = "planning" | "ready_to_shoot" | "shot" | "editing" | "client_review" | "approved";
 
@@ -215,6 +217,23 @@ export interface ProjectFile {
   size_bytes: number | null;
   client_visible: boolean;
   created_at: string;
+  original_name: string | null;
+  mime_type: string | null;
+  file_extension: string | null;
+  bucket_name: string;
+  uploaded_by_role: string | null;
+  client_can_view: boolean;
+  client_can_download: boolean;
+  is_public: boolean;
+  version: number;
+  status: FileStatus;
+  thumbnail_url: string | null;
+  preview_url: string | null;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  metadata: Record<string, unknown>;
+  updated_at: string;
 }
 
 export interface Note {

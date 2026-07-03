@@ -307,7 +307,17 @@ function renderReferences(pptx: Pptx, theme: PresentationTheme, data: Presentati
 function renderFiles(pptx: Pptx, theme: PresentationTheme, data: PresentationData) {
   const slide = newSlide(pptx, theme);
   addTitle(slide, theme, "الملفات والمرفقات");
-  const labels: Record<string, string> = { image: "صور", video: "فيديو", document: "مستندات", audio: "صوتيات", archive: "أرشيف", link: "روابط", other: "أخرى" };
+  const labels: Record<string, string> = {
+    image: "صور",
+    video: "فيديو",
+    document: "مستندات",
+    audio: "صوتيات",
+    archive: "أرشيف",
+    design: "تصميم",
+    project_file: "ملفات مشروع",
+    link: "روابط",
+    other: "أخرى",
+  };
   addBulletList(
     slide,
     theme,

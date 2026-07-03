@@ -12,6 +12,8 @@ const FILE_CATEGORY_LABEL: Record<FileCategory, string> = {
   document: "مستند",
   audio: "صوت",
   archive: "أرشيف",
+  design: "تصميم",
+  project_file: "ملف مشروع",
   link: "رابط",
   other: "أخرى",
 };

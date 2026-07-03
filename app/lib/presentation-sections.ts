@@ -14,6 +14,8 @@ export interface PresentationFileGroups {
   document: number;
   audio: number;
   archive: number;
+  design: number;
+  project_file: number;
   link: number;
   other: number;
 }
@@ -145,7 +147,7 @@ export const PRESENTATION_SECTIONS: PresentationSectionDef[] = [
   { key: "thanks", label: "صفحة الشكر", category: "closing", isAvailable: () => true },
 ];
 
-export const FILE_CATEGORY_KEYS: FileCategory[] = ["image", "video", "document", "audio", "archive", "link", "other"];
+export const FILE_CATEGORY_KEYS: FileCategory[] = ["image", "video", "document", "audio", "archive", "design", "project_file", "link", "other"];
 
 export function buildDefaultSectionConfig(data: PresentationData): { key: string; enabled: boolean }[] {
   return PRESENTATION_SECTIONS.map((s) => ({ key: s.key, enabled: s.isAvailable(data) }));

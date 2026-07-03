@@ -88,6 +88,10 @@ import {
   Palette,
   Wand2,
   Minus,
+  Pause,
+  Play,
+  RotateCcw,
+  FolderUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -179,6 +183,10 @@ export const ICONS = {
   palette: Palette,
   wand: Wand2,
   minus: Minus,
+  pause: Pause,
+  play: Play,
+  retry: RotateCcw,
+  folderUp: FolderUp,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
