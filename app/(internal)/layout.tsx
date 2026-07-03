@@ -34,7 +34,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
       profile={session.profile}
       company={session.company}
       initialTheme={settings?.theme ?? "dark"}
-      initialSidebarCollapsed={Boolean(extra.sidebar_collapsed)}
+      initialExtra={extra}
     >
       <AppShell>{children}</AppShell>
     </SessionProvider>

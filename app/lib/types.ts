@@ -171,6 +171,19 @@ export interface Episode {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  pipeline_stage: string;
+}
+
+// مرحلة "تغيير المرحلة" السريعة — منفصلة تماماً عن نظام episode_stages التفصيلي،
+// وقابلة للتخصيص لكل شركة من الإعدادات.
+export interface CompanyPipelineStage {
+  id: string;
+  company_id: string;
+  key: string;
+  label: string;
+  color: string;
+  notify_client: boolean;
+  sort_order: number;
 }
 
 export interface EpisodeScriptVersion {

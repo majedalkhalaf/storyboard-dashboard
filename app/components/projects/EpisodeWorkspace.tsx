@@ -2,9 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Tabs, { type TabDef } from "@/app/components/ui/Tabs";
+import Icon from "@/app/components/ui/Icon";
+import EditableTitle from "@/app/components/ui/EditableTitle";
+import StageQuickSelect from "./StageQuickSelect";
 import { useSession } from "@/app/providers/SessionProvider";
+import { createClient } from "@/app/lib/supabase/client";
 import { fetchEpisodeDetail, type EpisodeFullDetail } from "@/app/lib/episode-detail";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
+import type { CompanyPipelineStage } from "@/app/lib/types";
+import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
+import { updateEpisodeTitle, updateEpisodePipelineStage } from "@/app/lib/episode-actions";
 import EpisodeGallery from "./EpisodeGallery";
 import EpisodeSidebar from "./EpisodeSidebar";
 import OverviewTab from "./episode-tabs/OverviewTab";
@@ -42,6 +49,13 @@ export default function EpisodeWorkspace({
 }) {
   const { company } = useSession();
   const companyId = company!.id;
+  const supabase = createClient();
+
+  const [pipelineStages, setPipelineStages] = useState<CompanyPipelineStage[]>([]);
+  useEffect(() => {
+    getCompanyPipelineStages(supabase, companyId).then(setPipelineStages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- يُجلب مرة واحدة لكل شركة
+  }, [companyId]);
 
   const [galleryItems, setGalleryItems] = useState(gallery);
   useEffect(() => {
@@ -84,9 +98,33 @@ export default function EpisodeWorkspace({
 
   function applyPatch(patch: Partial<EpisodeFullDetail>) {
     setDetail((prev) => (prev ? { ...prev, ...patch } : prev));
-    if ("cover_image_url" in patch && selectedId) {
-      setGalleryItems((prev) => prev.map((e) => (e.id === selectedId ? { ...e, cover_image_url: patch.cover_image_url ?? null } : e)));
+    if (selectedId && ("cover_image_url" in patch || "title" in patch)) {
+      setGalleryItems((prev) =>
+        prev.map((e) =>
+          e.id === selectedId
+            ? {
+                ...e,
+                ...("cover_image_url" in patch ? { cover_image_url: patch.cover_image_url ?? null } : {}),
+                ...("title" in patch ? { title: patch.title ?? e.title } : {}),
+              }
+            : e
+        )
+      );
     }
+  }
+
+  async function saveTitle(next: string) {
+    if (!detail) return;
+    const oldTitle = detail.title;
+    applyPatch({ title: next });
+    await updateEpisodeTitle(supabase, { companyId, projectId: detail.project_id, episodeId: detail.id, oldTitle, newTitle: next });
+  }
+
+  async function saveStage(key: string) {
+    if (!detail) return;
+    const label = pipelineStages.find((s) => s.key === key)?.label ?? key;
+    applyPatch({ pipeline_stage: key });
+    await updateEpisodePipelineStage(supabase, { companyId, projectId: detail.project_id, episodeId: detail.id, stageKey: key, stageLabel: label });
   }
 
   const activeGalleryItem = galleryItems.find((e) => e.id === selectedId);
@@ -100,6 +138,36 @@ export default function EpisodeWorkspace({
 
       {selectedId && (
         <div className="animate-fade-in">
+          {detail && (
+            <div
+              className="card"
+              style={{
+                padding: "12px 16px",
+                marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                {detail.number != null && (
+                  <span className="chip chip-gold" style={{ fontSize: 11, flexShrink: 0 }}>
+                    حلقة {detail.number}
+                  </span>
+                )}
+                <EditableTitle value={detail.title} onSave={saveTitle} fontSize={16} maxWidth={420} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-muted)" }}>
+                  <Icon name="zap" size={12} /> المرحلة
+                </span>
+                <StageQuickSelect stages={pipelineStages} currentKey={detail.pipeline_stage} onChange={saveStage} size="sm" />
+              </div>
+            </div>
+          )}
+
           <div className="tabs-scroll-wrap" style={{ marginBottom: 16 }}>
             <Tabs
               tabs={TABS.map((t) => ({

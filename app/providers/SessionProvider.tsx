@@ -13,6 +13,10 @@ interface SessionContextValue {
   toggleTheme: () => void;
   sidebarCollapsed: boolean;
   toggleSidebarCollapsed: () => void;
+  /** حقيبة تفضيلات إضافية حرة الشكل (حالة طي الأقسام، إلخ) — مُحمَّلة من user_settings.extra */
+  extra: Record<string, unknown>;
+  /** يدمج patch مع extra الحالي محلياً وفي قاعدة البيانات (لا يستبدل extra بالكامل، حتى لا تُفقد مفاتيح أخرى محفوظة فيه) */
+  updateExtra: (patch: Record<string, unknown>) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -29,7 +33,7 @@ export default function SessionProvider({
   profile,
   company,
   initialTheme,
-  initialSidebarCollapsed = false,
+  initialExtra = {},
   children,
 }: {
   userId: string;
@@ -37,11 +41,11 @@ export default function SessionProvider({
   profile: Profile;
   company: Company | null;
   initialTheme: "dark" | "light";
-  initialSidebarCollapsed?: boolean;
+  initialExtra?: Record<string, unknown>;
   children: React.ReactNode;
 }) {
   const [theme, setTheme] = useState<"dark" | "light">(initialTheme);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed);
+  const [extra, setExtra] = useState<Record<string, unknown>>(initialExtra);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "dark" ? false : true);
@@ -57,19 +61,26 @@ export default function SessionProvider({
       .then(() => {});
   };
 
-  const toggleSidebarCollapsed = () => {
-    const next = !sidebarCollapsed;
-    setSidebarCollapsed(next);
-    const supabase = createClient();
-    supabase
-      .from("user_settings")
-      .upsert({ user_id: userId, extra: { sidebar_collapsed: next } }, { onConflict: "user_id" })
-      .then(() => {});
+  // يدمج مع extra الحالي (بدل استبداله بالكامل) حتى لا تُفقد مفاتيح أخرى محفوظة فيه
+  // (مثال: تبديل طي الشريط الجانبي لا يجب أن يمحو حالة طي أقسام صفحة المشروع، والعكس)
+  const updateExtra = (patch: Record<string, unknown>) => {
+    setExtra((prev) => {
+      const next = { ...prev, ...patch };
+      const supabase = createClient();
+      supabase
+        .from("user_settings")
+        .upsert({ user_id: userId, extra: next }, { onConflict: "user_id" })
+        .then(() => {});
+      return next;
+    });
   };
+
+  const sidebarCollapsed = Boolean(extra.sidebar_collapsed);
+  const toggleSidebarCollapsed = () => updateExtra({ sidebar_collapsed: !sidebarCollapsed });
 
   return (
     <SessionContext.Provider
-      value={{ userId, email, profile, company, theme, toggleTheme, sidebarCollapsed, toggleSidebarCollapsed }}
+      value={{ userId, email, profile, company, theme, toggleTheme, sidebarCollapsed, toggleSidebarCollapsed, extra, updateExtra }}
     >
       {children}
     </SessionContext.Provider>
