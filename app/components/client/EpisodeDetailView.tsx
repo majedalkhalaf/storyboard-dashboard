@@ -48,8 +48,10 @@ export default function EpisodeDetailView({
       {/* رأس الحلقة */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
         {episode.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={episode.cover_image_url} alt={episode.title} style={{ width: "100%", height: 180, objectFit: "cover" }} />
+          <div style={{ background: "#000", display: "flex", justifyContent: "center", maxHeight: 300, overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={episode.cover_image_url} alt={episode.title} style={{ width: "100%", maxHeight: 300, objectFit: "contain" }} />
+          </div>
         )}
         <div style={{ padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>

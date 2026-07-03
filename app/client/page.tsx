@@ -3,6 +3,7 @@ import { requireClient } from "@/app/components/client/guards";
 import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
 import ClientDashboard, { type ActivityItem, type OtherProjectRow } from "@/app/components/client/ClientDashboard";
+import { currentPipelineStageKey } from "@/app/components/client/pipeline";
 import type { Company, CompanyPipelineStage, Episode, Note, Project, ProjectFile } from "@/app/lib/types";
 
 interface ProjectClientRow {
@@ -70,24 +71,7 @@ export default async function ClientDashboardPage() {
   const episodesTotal = episodes.length;
   const episodesCompleted = episodes.filter((e) => e.status === "delivered" || e.status === "approved").length;
 
-  // المرحلة الحالية = أبكر مرحلة لم تُسلَّم/تُعتمد بعد بين حلقات المشروع (أين "تعلّقت"
-  // معظم الحلقات فعلياً) — إن اكتملت كل الحلقات فالمرحلة الأخيرة في القائمة.
-  let currentStageKey: string | null = null;
-  if (pipelineStages.length > 0 && episodes.length > 0) {
-    const order = new Map(pipelineStages.map((s, i) => [s.key, i]));
-    const pending = episodes.filter((e) => e.status !== "delivered" && e.status !== "approved");
-    const source = pending.length > 0 ? pending : episodes;
-    let minIndex = Infinity;
-    let key = pipelineStages[0].key;
-    for (const e of source) {
-      const idx = order.get(e.pipeline_stage) ?? 0;
-      if (idx < minIndex) {
-        minIndex = idx;
-        key = e.pipeline_stage;
-      }
-    }
-    currentStageKey = key;
-  }
+  const currentStageKey = currentPipelineStageKey(episodes, pipelineStages);
 
   let recentFiles: ProjectFile[] = [];
   if (canClient(permissions, "files")) {

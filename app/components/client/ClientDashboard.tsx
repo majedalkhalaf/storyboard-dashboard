@@ -3,6 +3,7 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
 import BrandingInjector from "@/app/components/client/BrandingInjector";
+import ProjectStageTimeline from "@/app/components/client/ProjectStageTimeline";
 import { relativeTime, formatDate, fileIconName, formatBytes, projectStatusMeta } from "@/app/components/client/utils";
 import type { Company, CompanyPipelineStage, Note, Project, ProjectFile } from "@/app/lib/types";
 
@@ -55,7 +56,6 @@ export default function ClientDashboard({
   otherProjects: OtherProjectRow[];
 }) {
   const status = projectStatusMeta(project.status);
-  const currentIndex = pipelineStages.findIndex((s) => s.key === currentStageKey);
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -156,30 +156,7 @@ export default function ClientDashboard({
           {pipelineStages.length > 0 && (
             <div className="card" style={{ padding: 20 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>مراحل المشروع</h3>
-              <div style={{ display: "flex", overflowX: "auto", gap: 4 }}>
-                {pipelineStages.map((s, i) => {
-                  const done = currentIndex >= 0 && i < currentIndex;
-                  const active = i === currentIndex;
-                  return (
-                    <div key={s.key} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 110 }}>
-                      <div
-                        className="card"
-                        style={{
-                          flex: 1,
-                          padding: "10px 8px",
-                          textAlign: "center",
-                          borderColor: active ? "var(--gold)" : done ? "var(--success)" : "var(--border)",
-                          background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-card)",
-                        }}
-                      >
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: active ? "var(--gold)" : done ? "var(--success)" : "var(--text-secondary)" }}>{s.label}</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>{done ? "مكتملة" : active ? "قيد التنفيذ" : "لم تبدأ"}</div>
-                      </div>
-                      {i < pipelineStages.length - 1 && <div style={{ width: 12, height: 2, background: done ? "var(--success)" : "var(--border)", flexShrink: 0 }} />}
-                    </div>
-                  );
-                })}
-              </div>
+              <ProjectStageTimeline stages={pipelineStages} currentStageKey={currentStageKey} />
             </div>
           )}
 
