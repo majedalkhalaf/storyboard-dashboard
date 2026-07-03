@@ -1,6 +1,7 @@
 import { createClient } from "@/app/lib/supabase/server";
 import type { Contract, Expense, FinancialCategory, Invoice, Payment, Project } from "@/app/lib/types";
 import { computeFinancialHealth, type FinancialHealth } from "@/app/lib/chart-colors";
+export { pctChange } from "@/app/lib/pct-change";
 
 export interface FinanceProjectRow {
   id: string;
@@ -234,9 +235,4 @@ export async function getFinanceDashboardData(companyId: string): Promise<Financ
     projectHealthCounts,
     projects: projectRowsOut.sort((a, b) => b.invoiced - a.invoiced),
   };
-}
-
-export function pctChange(current: number, previous: number): number | null {
-  if (previous === 0) return current === 0 ? 0 : null;
-  return ((current - previous) / Math.abs(previous)) * 100;
 }

@@ -7,6 +7,7 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { EXPENSE_CATEGORIES } from "@/app/lib/constants";
 import { todayIso } from "@/app/components/finance/format";
+import { logActivity } from "@/app/lib/activity";
 import Icon from "@/app/components/ui/Icon";
 
 interface ProjectRow {
@@ -87,6 +88,12 @@ export default function AddExpenseButton({
       setError(err.message);
       return;
     }
+    await logActivity(supabase, {
+      companyId,
+      projectId: projectId || null,
+      action: "expense_added",
+      details: { title: title.trim(), amount: Number(amount) },
+    });
     setOpen(false);
     reset();
     router.refresh();

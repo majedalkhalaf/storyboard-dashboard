@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import { PAYMENT_STATUSES, PAYMENT_METHODS } from "@/app/lib/constants";
 import { fmtMoney, fmtDate, todayIso } from "@/app/components/finance/format";
+import { logActivity } from "@/app/lib/activity";
 import Icon from "@/app/components/ui/Icon";
 import type { PaymentStatus } from "@/app/lib/types";
 
@@ -154,6 +155,7 @@ export default function PaymentsClient({
       setError(err.message);
       return;
     }
+    await logActivity(supabase, { companyId, projectId, action: "payment_added", details: { amount: Number(amount), status } });
     closeModal();
     router.refresh();
   };
@@ -161,6 +163,7 @@ export default function PaymentsClient({
   const markPaid = async (id: string) => {
     setUpdatingId(id);
     const supabase = createClient();
+    const target = initialPayments.find((p) => p.id === id);
     const { error: err } = await supabase
       .from("payments")
       .update({ status: "paid", paid_date: todayIso() })
@@ -169,6 +172,9 @@ export default function PaymentsClient({
     if (err) {
       setError(err.message);
       return;
+    }
+    if (target) {
+      await logActivity(supabase, { companyId, projectId: target.project_id, action: "payment_marked_paid", details: { amount: Number(target.amount) } });
     }
     router.refresh();
   };

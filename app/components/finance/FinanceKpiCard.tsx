@@ -1,5 +1,5 @@
 import Icon, { type IconName } from "@/app/components/ui/Icon";
-import { pctChange } from "@/app/lib/finance-dashboard";
+import { pctChange } from "@/app/lib/pct-change";
 
 export default function FinanceKpiCard({
   icon,

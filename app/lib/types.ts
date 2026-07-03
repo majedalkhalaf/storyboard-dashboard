@@ -396,6 +396,8 @@ export interface Payment {
   created_at: string;
   updated_at: string;
   bank_account_id: string | null;
+  reference_number: string | null;
+  notes: string | null;
 }
 
 export interface Contract {
@@ -441,6 +443,8 @@ export interface Expense {
   created_at: string;
   vendor_id: string | null;
   category_id: string | null;
+  attachment_url: string | null;
+  payment_method: string | null;
 }
 
 export interface FinancialCategory {
