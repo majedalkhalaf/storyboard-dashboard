@@ -9,18 +9,12 @@ import { isInternalAdmin } from "@/app/lib/permissions";
 import { logActivity } from "@/app/lib/activity";
 import { extractVideoMetadata, uploadFile, RESUMABLE_UPLOAD_THRESHOLD, type UploadController } from "@/app/lib/storage-upload";
 import { buildFilePath, safeStorageKey } from "@/app/lib/storage-path";
-import { compressVideo } from "@/app/lib/video-compress";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanEta, humanFileSize, humanSpeed, inferCategory, relativeTime } from "./utils";
 
 // عدد الرفعات المتوازية بحد أقصى — رفع كل الملفات دفعة واحدة قد يُغرق النطاق الترددي
 // نفسه فيبطئ الجميع، لذا نُحدّد سقفاً معقولاً بدل التسلسل الكامل (رفع واحد تلو الآخر).
 const MAX_CONCURRENT_UPLOADS = 3;
-
-// تقدير — وليس رقماً مضموناً مقروءاً من إعدادات Supabase فعلياً — لأقصى حجم رفع في
-// الخطط المجانية (Free tier ≈ 50MB لكل ملف). الفيديوهات الأكبر تُضغط تلقائياً محلياً
-// قبل محاولة الرفع بدل الفشل المباشر برسالة "تجاوز الحد الأقصى".
-const LIKELY_UPLOAD_LIMIT = 50 * 1024 * 1024;
 
 // تصنيفات الملفات كما هي فعلياً في قاعدة البيانات (لا تصنيفات وهمية جديدة) — تُستخدم هنا وفي AssetsTab.tsx
 export const FILE_CATEGORY_LABEL: Record<FileCategory, string> = {
@@ -121,7 +115,7 @@ export function FilePreviewModal({
 
 type ViewMode = "grid" | "list";
 type SortMode = "date_desc" | "date_asc" | "name" | "size";
-type QueueStatus = "queued" | "compressing" | "uploading" | "paused" | "success" | "error" | "cancelled";
+type QueueStatus = "queued" | "uploading" | "paused" | "success" | "error" | "cancelled";
 
 interface QueueItem {
   id: string;
@@ -131,8 +125,6 @@ interface QueueItem {
   total: number;
   speedBps: number;
   error?: string;
-  compressProgress?: number;
-  wasCompressed?: boolean;
 }
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -295,59 +287,16 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     controllersRef.current.set(item.id, controller);
   }
 
-  // فيديو أكبر من الحد المرجّح للرفع (تجربتنا أن هذا يفشل بخطأ "413 Maximum size
-  // exceeded" على الخطط المجانية) يُضغط تلقائياً داخل المتصفح أولاً (ffmpeg.wasm، بلا
-  // أي خادم) قبل محاولة رفعه — بدل فشل الرفع مباشرة. لا إعادة ضغط لملف ضُغط مسبقاً
-  // (wasCompressed) حتى لو ظل حجمه بعد الضغط أكبر من الحد (فيديو طويل جداً مثلاً)،
-  // فيظهر عندها خطأ الرفع الحقيقي بدل حلقة ضغط لا تنتهي.
-  async function compressThenUpload(item: QueueItem) {
-    if (startedIdsRef.current.has(item.id)) return;
-    startedIdsRef.current.add(item.id);
-    setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "compressing", compressProgress: 0 } : q)));
-    try {
-      const result = await compressVideo(item.file, (ratio) => {
-        // لا تحديث تقدّم بعد إلغاء العنصر (لا يوجد إلغاء حقيقي لعملية ffmpeg الجارية،
-        // لذا نتجاهل نتيجتها بمجرد أن يُصبح العنصر "ملغى")
-        setQueue((prev) => prev.map((q) => (q.id === item.id && q.status === "compressing" ? { ...q, compressProgress: ratio } : q)));
-      });
-      startedIdsRef.current.delete(item.id);
-      setQueue((prev) =>
-        prev.map((q) =>
-          q.id === item.id && q.status === "compressing"
-            ? { ...q, file: result.file, total: result.file.size, loaded: 0, status: "queued", wasCompressed: true }
-            : q
-        )
-      );
-    } catch {
-      startedIdsRef.current.delete(item.id);
-      setQueue((prev) =>
-        prev.map((q) =>
-          q.id === item.id && q.status === "compressing"
-            ? { ...q, status: "error", error: "تعذّر ضغط الفيديو داخل المتصفح — جرّب ضغطه ببرنامج خارجي، أو ارفعه كما هو إن كانت خطتك تسمح بحجمه" }
-            : q
-        )
-      );
-    }
-  }
-
-  // معالج الطابور: يبدأ رفع (أو ضغط ثم رفع) الملفات "قيد الانتظار" تباعاً حتى سقف
-  // الرفعات المتزامنة — يُعاد تشغيله تلقائياً في كل تغيير على الطابور (اكتمال/فشل/
-  // إلغاء عنصر يُخلي مكاناً لغيره)
+  // معالج الطابور: يبدأ رفع الملفات "قيد الانتظار" تباعاً حتى سقف الرفعات المتزامنة —
+  // يُعاد تشغيله تلقائياً في كل تغيير على الطابور (اكتمال/فشل/إلغاء عنصر يُخلي مكاناً لغيره)
   useEffect(() => {
-    const activeCount = queue.filter((q) => q.status === "uploading" || q.status === "compressing").length;
+    const activeCount = queue.filter((q) => q.status === "uploading").length;
     const availableSlots = MAX_CONCURRENT_UPLOADS - activeCount;
     if (availableSlots <= 0) return;
     queue
       .filter((q) => q.status === "queued")
       .slice(0, availableSlots)
-      .forEach((item) => {
-        const category = forceCategory ?? inferCategory(item.file.type, item.file.name);
-        if (category === "video" && item.file.size > LIKELY_UPLOAD_LIMIT && !item.wasCompressed) {
-          compressThenUpload(item);
-        } else {
-          startUpload(item);
-        }
-      });
+      .forEach(startUpload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue]);
 
@@ -726,20 +675,17 @@ function UploadQueueRow({
   onDismiss: () => void;
 }) {
   const percent = item.total > 0 ? Math.round((item.loaded / item.total) * 100) : 0;
-  const compressPercent = Math.round((item.compressProgress ?? 0) * 100);
   const isLarge = item.total > RESUMABLE_UPLOAD_THRESHOLD;
   const remaining = item.total - item.loaded;
-  const displayPercent = item.status === "compressing" ? compressPercent : item.status === "success" ? 100 : percent;
+  const displayPercent = item.status === "success" ? 100 : percent;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, gap: 8 }}>
         <span style={{ wordBreak: "break-word", flex: 1 }}>{item.file.name}</span>
-        {item.status !== "compressing" && (
-          <span style={{ color: "var(--text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
-            {humanFileSize(item.loaded)} / {humanFileSize(item.total)}
-          </span>
-        )}
+        <span style={{ color: "var(--text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
+          {humanFileSize(item.loaded)} / {humanFileSize(item.total)}
+        </span>
         {item.status === "uploading" && (
           <span style={{ color: "var(--text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
             {humanSpeed(item.speedBps)} · متبقٍ {humanEta(remaining, item.speedBps)}
@@ -753,7 +699,6 @@ function UploadQueueRow({
           }}
         >
           {item.status === "queued" && "بالانتظار"}
-          {item.status === "compressing" && `جارٍ ضغط الفيديو... ${compressPercent}%`}
           {item.status === "uploading" && `${percent}%`}
           {item.status === "paused" && "متوقّف مؤقتاً"}
           {item.status === "success" && "تم"}
@@ -770,7 +715,7 @@ function UploadQueueRow({
               <Icon name="play" size={13} />
             </button>
           )}
-          {(item.status === "uploading" || item.status === "paused" || item.status === "queued" || item.status === "compressing") && (
+          {(item.status === "uploading" || item.status === "paused" || item.status === "queued") && (
             <button className="btn-ghost" title="إلغاء" style={{ padding: 5, borderRadius: 6, color: "#ef4444" }} onClick={onCancel}>
               <Icon name="close" size={13} />
             </button>
@@ -792,7 +737,7 @@ function UploadQueueRow({
           className="progress-fill"
           style={{
             width: `${displayPercent}%`,
-            background: item.status === "error" ? "#ef4444" : item.status === "paused" ? "var(--text-muted)" : item.status === "compressing" ? "var(--gold-light, var(--gold))" : undefined,
+            background: item.status === "error" ? "#ef4444" : item.status === "paused" ? "var(--text-muted)" : undefined,
           }}
         />
       </div>
