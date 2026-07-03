@@ -53,7 +53,7 @@ export default async function ClientProjectsPage() {
                 <div style={{ height: 140, background: "var(--bg-hover)", position: "relative" }}>
                   {project.cover_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={project.cover_image_url} alt={project.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={project.cover_image_url} alt={project.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
                     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Icon name="video" size={30} className="text-muted" />

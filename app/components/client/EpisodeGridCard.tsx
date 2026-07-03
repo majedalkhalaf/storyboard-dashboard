@@ -38,7 +38,7 @@ export default function EpisodeGridCard({
         <div style={{ background: "#000", maxHeight: 160, overflow: "hidden", display: "flex", justifyContent: "center", position: "relative" }}>
           {episode.cover_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={episode.cover_image_url} alt={episode.title} style={{ width: "100%", maxHeight: 160, objectFit: "contain" }} />
+            <img src={episode.cover_image_url} alt={episode.title} loading="lazy" style={{ width: "100%", maxHeight: 160, objectFit: "contain" }} />
           ) : (
             <div style={{ width: "100%", height: 130, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Icon name="video" size={30} className="nav-icon" />

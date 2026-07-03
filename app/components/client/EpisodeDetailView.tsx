@@ -469,7 +469,7 @@ function StoryboardTab({ scenes }: { scenes: StoryboardScene[] }) {
             <div style={{ background: "#000", display: "flex", justifyContent: "center", alignItems: "center", height: 130, overflow: "hidden" }}>
               {scene.cover_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={scene.cover_image_url} alt={scene.title} style={{ maxWidth: "100%", maxHeight: 130, objectFit: "contain" }} />
+                <img src={scene.cover_image_url} alt={scene.title} loading="lazy" style={{ maxWidth: "100%", maxHeight: 130, objectFit: "contain" }} />
               ) : (
                 <Icon name="image" size={26} className="text-muted" />
               )}

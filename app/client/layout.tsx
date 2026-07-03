@@ -43,36 +43,43 @@ export default async function ClientLayout({ children }: { children: React.React
   // شعار/اسم الشركة يظهر بأعلى القائمة الجانبية فقط إن كان العميل مرتبطاً بشركة
   // واحدة حالياً — عميل يتابع مشاريع من أكثر من شركة يبقى على الهوية العامة
   // المحايدة هنا، وتظهر هوية كل شركة داخل صفحات مشاريعها هي تحديداً (BrandingInjector).
+  // تُحسب هذه الدفعة بالتوازي مع دفعة النشاطات أدناه (Promise.all في الأسفل)
+  // بدل انتظارها بالكامل أولاً — لا يعتمد أحدهما على نتيجة الآخر.
   const companyIds = new Set(rows.map((r) => r.project!.company_id));
-  let brandCompany: { name: string; logo_url: string | null } | null = null;
-  let supportCompany: { name: string; phone: string | null; email: string | null } | null = null;
-  let projectManager: ProjectManagerInfo | null = null;
-  if (companyIds.size === 1) {
-    const [companyId] = companyIds;
-    const { data: company } = await supabase.from("companies").select("name, logo_url, phone, email").eq("id", companyId).maybeSingle();
-    if (company) {
-      brandCompany = { name: company.name, logo_url: company.logo_url };
-      supportCompany = { name: company.name, phone: company.phone, email: company.email };
-    }
 
-    // "مدير المشروع" — لا يوجد حقل مسؤول معيّن في مخطط المشاريع حالياً، فأقرب
-    // بيانات حقيقية موثوقة هي مُنشئ أحدث مشروع نشط (created_by)، تُجلب عبر
-    // عميل الخدمة لأن العميل لا يملك صلاحية RLS لقراءة ملفات الفريق الداخلي.
-    const creatorId = rows[0]?.project?.created_by;
-    if (creatorId) {
-      const admin = createAdminClient();
-      const { data: profile } = await admin.from("profiles").select("full_name, avatar_url, phone, email").eq("id", creatorId).maybeSingle();
-      if (profile?.full_name) {
-        projectManager = { name: profile.full_name, avatarUrl: profile.avatar_url, phone: profile.phone, email: profile.email };
+  async function loadBrandingAndManager() {
+    let brandCompany: { name: string; logo_url: string | null } | null = null;
+    let supportCompany: { name: string; phone: string | null; email: string | null } | null = null;
+    let projectManager: ProjectManagerInfo | null = null;
+    if (companyIds.size === 1) {
+      const [companyId] = companyIds;
+      const { data: company } = await supabase.from("companies").select("name, logo_url, phone, email").eq("id", companyId).maybeSingle();
+      if (company) {
+        brandCompany = { name: company.name, logo_url: company.logo_url };
+        supportCompany = { name: company.name, phone: company.phone, email: company.email };
+      }
+
+      // "مدير المشروع" — لا يوجد حقل مسؤول معيّن في مخطط المشاريع حالياً، فأقرب
+      // بيانات حقيقية موثوقة هي مُنشئ أحدث مشروع نشط (created_by)، تُجلب عبر
+      // عميل الخدمة لأن العميل لا يملك صلاحية RLS لقراءة ملفات الفريق الداخلي.
+      const creatorId = rows[0]?.project?.created_by;
+      if (creatorId) {
+        const admin = createAdminClient();
+        const { data: profile } = await admin.from("profiles").select("full_name, avatar_url, phone, email").eq("id", creatorId).maybeSingle();
+        if (profile?.full_name) {
+          projectManager = { name: profile.full_name, avatarUrl: profile.avatar_url, phone: profile.phone, email: profile.email };
+        }
       }
     }
+    return { brandCompany, supportCompany, projectManager };
   }
 
   // نشاطات مُجمَّعة عبر كل المشاريع النشطة (وليس مشروعاً واحداً فقط) — تُبنى من
   // بيانات يملك العميل أصلاً صلاحية رؤيتها (ملفات/ملاحظات/حلقات مُسلَّمة)، بحدٍّ
   // أقصى لعدد المشاريع المفحوصة تفادياً لبطء التنقّل بين صفحات البوابة.
   const scannedProjects = rows.slice(0, 5);
-  const activityLists = await Promise.all(
+  async function loadActivity() {
+    return Promise.all(
     scannedProjects.map(async ({ permissions, project }) => {
       const items: ActivityRailItem[] = [];
 
@@ -125,7 +132,10 @@ export default async function ClientLayout({ children }: { children: React.React
       await Promise.all([loadFiles(), loadNotes(), loadEpisodes()]);
       return items;
     })
-  );
+    );
+  }
+
+  const [{ brandCompany, supportCompany, projectManager }, activityLists] = await Promise.all([loadBrandingAndManager(), loadActivity()]);
 
   const activity = activityLists
     .flat()

@@ -256,7 +256,7 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
               }}
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={card.cover_image_url} alt={card.name} style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain" }} />
+            <img src={card.cover_image_url} alt={card.name} loading="lazy" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain" }} />
           </>
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -322,7 +322,7 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto" }}>
             {card.managerAvatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.managerAvatarUrl} alt={card.managerName} style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
+              <img src={card.managerAvatarUrl} alt={card.managerName} loading="lazy" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
             ) : (
               <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--bg-hover)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="user" size={12} className="nav-icon" />

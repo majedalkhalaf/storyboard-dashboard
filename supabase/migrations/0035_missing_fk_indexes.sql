@@ -1,0 +1,82 @@
+-- إصلاح أداء: 75 مفتاحاً أجنبياً (foreign key) بلا فهرس مغطٍّ — يشمل بالضبط
+-- الأعمدة الأكثر استخداماً في كل سياسة RLS تقريباً (company_id) وفي أكثر
+-- الجداول ازدحاماً ببوابة العميل والتنقل الداخلي (files, notes, episodes,
+-- episode_stages, notifications, invoices, payments, project_clients،
+-- approvals...)، بدون فهرس عليها فكل استعلام RLS-مُصفَّى بـ company_id/
+-- project_id/episode_id كان يفحص الجدول بالكامل (Sequential Scan) بدل
+-- الوصول المباشر عبر الفهرس (Index Scan).
+create index if not exists idx_activity_logs_actor_id on public.activity_logs(actor_id);
+create index if not exists idx_activity_logs_episode_id on public.activity_logs(episode_id);
+create index if not exists idx_approvals_client_id on public.approvals(client_id);
+create index if not exists idx_approvals_company_id on public.approvals(company_id);
+create index if not exists idx_approvals_project_id on public.approvals(project_id);
+create index if not exists idx_approvals_revoked_by on public.approvals(revoked_by);
+create index if not exists idx_bank_accounts_company_id on public.bank_accounts(company_id);
+create index if not exists idx_bank_transactions_company_id on public.bank_transactions(company_id);
+create index if not exists idx_bank_transactions_created_by on public.bank_transactions(created_by);
+create index if not exists idx_bank_transactions_related_expense_id on public.bank_transactions(related_expense_id);
+create index if not exists idx_bank_transactions_related_payment_id on public.bank_transactions(related_payment_id);
+create index if not exists idx_client_invite_drafts_company_id on public.client_invite_drafts(company_id);
+create index if not exists idx_client_invite_drafts_created_by on public.client_invite_drafts(created_by);
+create index if not exists idx_clients_created_by on public.clients(created_by);
+create index if not exists idx_company_email_senders_created_by on public.company_email_senders(created_by);
+create index if not exists idx_company_invites_company_id on public.company_invites(company_id);
+create index if not exists idx_company_invites_invited_by on public.company_invites(invited_by);
+create index if not exists idx_company_whatsapp_config_created_by on public.company_whatsapp_config(created_by);
+create index if not exists idx_contracts_client_id on public.contracts(client_id);
+create index if not exists idx_contracts_company_id on public.contracts(company_id);
+create index if not exists idx_contracts_created_by on public.contracts(created_by);
+create index if not exists idx_contracts_project_id on public.contracts(project_id);
+create index if not exists idx_episode_script_versions_company_id on public.episode_script_versions(company_id);
+create index if not exists idx_episode_script_versions_created_by on public.episode_script_versions(created_by);
+create index if not exists idx_episode_stages_assigned_to on public.episode_stages(assigned_to);
+create index if not exists idx_episode_stages_company_id on public.episode_stages(company_id);
+create index if not exists idx_episode_stages_updated_by on public.episode_stages(updated_by);
+create index if not exists idx_episodes_assigned_to on public.episodes(assigned_to);
+create index if not exists idx_episodes_company_id on public.episodes(company_id);
+create index if not exists idx_episodes_created_by on public.episodes(created_by);
+create index if not exists idx_equipment_company_id on public.equipment(company_id);
+create index if not exists idx_expenses_category_id on public.expenses(category_id);
+create index if not exists idx_expenses_company_id on public.expenses(company_id);
+create index if not exists idx_expenses_created_by on public.expenses(created_by);
+create index if not exists idx_expenses_project_id on public.expenses(project_id);
+create index if not exists idx_expenses_vendor_id on public.expenses(vendor_id);
+create index if not exists idx_files_company_id on public.files(company_id);
+create index if not exists idx_files_uploaded_by on public.files(uploaded_by);
+create index if not exists idx_financial_categories_company_id on public.financial_categories(company_id);
+create index if not exists idx_invitations_client_id on public.invitations(client_id);
+create index if not exists idx_invitations_invited_by on public.invitations(invited_by);
+create index if not exists idx_invoices_client_id on public.invoices(client_id);
+create index if not exists idx_invoices_company_id on public.invoices(company_id);
+create index if not exists idx_invoices_created_by on public.invoices(created_by);
+create index if not exists idx_notes_author_id on public.notes(author_id);
+create index if not exists idx_notes_company_id on public.notes(company_id);
+create index if not exists idx_notes_parent_note_id on public.notes(parent_note_id);
+create index if not exists idx_notifications_company_id on public.notifications(company_id);
+create index if not exists idx_notifications_episode_id on public.notifications(episode_id);
+create index if not exists idx_notifications_project_id on public.notifications(project_id);
+create index if not exists idx_payments_bank_account_id on public.payments(bank_account_id);
+create index if not exists idx_payments_company_id on public.payments(company_id);
+create index if not exists idx_payments_invoice_id on public.payments(invoice_id);
+create index if not exists idx_profiles_company_id on public.profiles(company_id);
+create index if not exists idx_project_clients_client_id on public.project_clients(client_id);
+create index if not exists idx_project_clients_company_id on public.project_clients(company_id);
+create index if not exists idx_project_clients_invited_by on public.project_clients(invited_by);
+create index if not exists idx_project_favorites_company_id on public.project_favorites(company_id);
+create index if not exists idx_project_presentations_company_id on public.project_presentations(company_id);
+create index if not exists idx_project_presentations_created_by on public.project_presentations(created_by);
+create index if not exists idx_project_services_company_id on public.project_services(company_id);
+create index if not exists idx_project_templates_company_id on public.project_templates(company_id);
+create index if not exists idx_project_templates_created_by on public.project_templates(created_by);
+create index if not exists idx_projects_created_by on public.projects(created_by);
+create index if not exists idx_proposals_client_id on public.proposals(client_id);
+create index if not exists idx_proposals_company_id on public.proposals(company_id);
+create index if not exists idx_proposals_created_by on public.proposals(created_by);
+create index if not exists idx_proposals_project_id on public.proposals(project_id);
+create index if not exists idx_storyboard_scene_cast_company_id on public.storyboard_scene_cast(company_id);
+create index if not exists idx_storyboard_scene_equipment_company_id on public.storyboard_scene_equipment(company_id);
+create index if not exists idx_storyboard_scene_equipment_equipment_id on public.storyboard_scene_equipment(equipment_id);
+create index if not exists idx_storyboard_scenes_company_id on public.storyboard_scenes(company_id);
+create index if not exists idx_storyboard_scenes_created_by on public.storyboard_scenes(created_by);
+create index if not exists idx_vendors_company_id on public.vendors(company_id);
+create index if not exists idx_vendors_created_by on public.vendors(created_by);
