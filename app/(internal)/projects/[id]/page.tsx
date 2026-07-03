@@ -4,7 +4,7 @@ import { getCurrentSession } from "@/app/lib/supabase/session";
 import { getEpisodeGallery } from "@/app/lib/episode-gallery";
 import ProjectDetailView from "@/app/components/projects/ProjectDetailView";
 import type { ProjectClientRow } from "@/app/components/projects/ClientsTab";
-import type { ClientPermissions, Project, ProjectClientStatus, ProjectServiceItem } from "@/app/lib/types";
+import type { ClientPermissions, ClientRecord, Project, ProjectClientStatus, ProjectServiceItem } from "@/app/lib/types";
 
 export default async function ProjectDetailPage({
   params,
@@ -28,13 +28,14 @@ export default async function ProjectDetailPage({
     clientName = client?.name ?? null;
   }
 
-  const [{ data: services }, { data: projectClients }, gallery] = await Promise.all([
+  const [{ data: services }, { data: projectClients }, { data: companyClients }, gallery] = await Promise.all([
     supabase.from("project_services").select("*").eq("project_id", id).order("created_at"),
     supabase
       .from("project_clients")
       .select("id, invited_email, status, permissions, client:clients(name)")
       .eq("project_id", id)
       .order("invited_at", { ascending: false }),
+    supabase.from("clients").select("id, name, email, phone").eq("company_id", companyId).order("name"),
     getEpisodeGallery(companyId, id),
   ]);
 
@@ -59,6 +60,7 @@ export default async function ProjectDetailPage({
       services={(services ?? []) as ProjectServiceItem[]}
       gallery={gallery}
       projectClients={clients}
+      companyClients={(companyClients ?? []) as Pick<ClientRecord, "id" | "name" | "email" | "phone">[]}
       initialEpisodeId={initialEpisodeId}
     />
   );

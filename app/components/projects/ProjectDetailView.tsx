@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Project, ProjectServiceItem } from "@/app/lib/types";
+import type { ClientRecord, Project, ProjectServiceItem } from "@/app/lib/types";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { ProjectClientRow } from "./ClientsTab";
 import ProjectHeaderBar from "./ProjectHeaderBar";
@@ -17,11 +17,12 @@ interface Props {
   services: ProjectServiceItem[];
   gallery: EpisodeGalleryItem[];
   projectClients: ProjectClientRow[];
+  companyClients: Pick<ClientRecord, "id" | "name" | "email" | "phone">[];
   initialEpisodeId: string | null;
 }
 
 export default function ProjectDetailView(props: Props) {
-  const { project: initialProject, clientName, services, gallery, projectClients, initialEpisodeId } = props;
+  const { project: initialProject, clientName, services, gallery, projectClients, companyClients, initialEpisodeId } = props;
   const router = useRouter();
 
   const [project, setProject] = useState(initialProject);
@@ -62,10 +63,12 @@ export default function ProjectDetailView(props: Props) {
           project={project}
           services={services}
           projectClients={projectClients}
+          companyClients={companyClients}
           initialTab={settingsTab}
           onClose={() => setSettingsTab(null)}
           onProjectChanged={patchProject}
           onClientsChanged={() => router.refresh()}
+          onSaved={() => router.refresh()}
         />
       )}
 
