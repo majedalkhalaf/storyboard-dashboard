@@ -53,7 +53,7 @@ export async function fetchEpisodeDetail(episodeId: string, companyId: string): 
     supabase.from("episode_stages").select("*").eq("episode_id", episodeId).order("sort_order"),
     supabase
       .from("approvals")
-      .select("id, note, approved_at, revoked_at, client:clients(name)")
+      .select("id, note, approved_at, revoked_at, client:profiles!client_id(full_name)")
       .eq("episode_id", episodeId)
       .order("approved_at", { ascending: false }),
     supabase
@@ -80,7 +80,7 @@ export async function fetchEpisodeDetail(episodeId: string, companyId: string): 
 
   const approvals: ApprovalRow[] = (approvalRows ?? []).map((a) => ({
     id: a.id,
-    approver_name: one<{ name: string }>(a.client as never)?.name ?? null,
+    approver_name: one<{ full_name: string | null }>(a.client as never)?.full_name ?? null,
     note: a.note,
     approved_at: a.approved_at,
     revoked_at: a.revoked_at,

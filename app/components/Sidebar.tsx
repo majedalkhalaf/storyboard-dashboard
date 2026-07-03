@@ -42,11 +42,10 @@ export default function Sidebar() {
     const supabase = createClient();
     supabase
       .from("files")
-      .select("total:size_bytes.sum()")
+      .select("size_bytes")
       .eq("company_id", company.id)
-      .single()
       .then(({ data }) => {
-        if (!cancelled) setUsedBytes(Number((data as { total: number | null } | null)?.total ?? 0));
+        if (!cancelled) setUsedBytes((data ?? []).reduce((sum, f) => sum + (f.size_bytes ?? 0), 0));
       });
     return () => {
       cancelled = true;

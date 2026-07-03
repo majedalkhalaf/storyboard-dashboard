@@ -81,6 +81,11 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
   const [services, setServices] = useState<PickedService[]>([]);
 
   function pickCover(file: File | null) {
+    if (file && file.size > 20 * 1024 * 1024) {
+      setError("حجم صورة الغلاف كبير جداً (الحد الأقصى 20 ميجابايت)");
+      return;
+    }
+    setError(null);
     setCoverFile(file);
     setCoverPreview(file ? URL.createObjectURL(file) : null);
   }
@@ -156,7 +161,8 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
     if (coverFile) {
       const path = `${companyId}/covers/${crypto.randomUUID()}-${coverFile.name}`;
       const { error: upErr } = await supabase.storage.from("public-assets").upload(path, coverFile, { upsert: false });
-      if (!upErr) coverUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
+      if (upErr) throw new Error(`تعذّر رفع صورة الغلاف: ${upErr.message}`);
+      coverUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
     }
 
     // 3) إنشاء المشروع

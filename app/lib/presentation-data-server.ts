@@ -47,7 +47,7 @@ export async function fetchPresentationData(
     supabase.from("project_services").select("category, label").eq("project_id", projectId),
     supabase
       .from("episodes")
-      .select("id, number, title, description, cover_image_url, status, progress, duration_seconds, script, scenario, location")
+      .select("id, number, title, description, cover_image_url, status, progress, duration_seconds, script, scenario")
       .eq("project_id", projectId)
       .order("sort_order"),
   ]);
@@ -152,7 +152,7 @@ export async function fetchPresentationData(
   }));
 
   const locations = Array.from(
-    new Set([project.location, ...(episodes ?? []).map((e) => e.location), ...(scenes ?? []).map((s) => s.location)].filter((v): v is string => Boolean(v)))
+    new Set([project.location, ...(scenes ?? []).map((s) => s.location)].filter((v): v is string => Boolean(v)))
   );
 
   const equipmentNames = Array.from(

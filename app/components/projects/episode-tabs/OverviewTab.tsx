@@ -21,6 +21,7 @@ export default function OverviewTab({
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(episode.description ?? "");
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   async function save() {
@@ -33,11 +34,20 @@ export default function OverviewTab({
 
   async function uploadCover(file: File | null) {
     if (!file) return;
+    setCoverError(null);
+    if (file.size > 20 * 1024 * 1024) {
+      setCoverError("حجم الصورة كبير جداً (الحد الأقصى 20 ميجابايت)");
+      if (coverInputRef.current) coverInputRef.current.value = "";
+      return;
+    }
     setUploadingCover(true);
     try {
       const path = `${companyId}/covers/${crypto.randomUUID()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
-      if (upErr) return;
+      if (upErr) {
+        setCoverError(upErr.message || "تعذّر رفع الصورة");
+        return;
+      }
       const url = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
       await supabase.from("episodes").update({ cover_image_url: url }).eq("id", episode.id);
       onChanged({ cover_image_url: url });
@@ -100,6 +110,7 @@ export default function OverviewTab({
                 <Icon name="trash" size={13} /> إزالة الصورة
               </button>
             )}
+            {coverError && <p style={{ fontSize: 12, color: "#ef4444" }}>{coverError}</p>}
           </div>
         </div>
       </div>
