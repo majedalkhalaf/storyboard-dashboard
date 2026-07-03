@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
+import { isInternalAdmin } from "@/app/lib/permissions";
 import { NOTE_STATUSES } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { NoteStatus } from "@/app/lib/types";
@@ -147,9 +148,57 @@ export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullD
     onChanged();
   }
 
+  // ── تعديل/حذف ملاحظة (تعديل: صاحبها فقط — حذف: صاحبها أو مدير الشركة) ──
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function startEdit(note: NoteWithAuthor) {
+    setEditingId(note.id);
+    setEditDraft(note.body);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft("");
+  }
+
+  async function saveEdit(note: NoteWithAuthor) {
+    const next = editDraft.trim();
+    if (!next || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      await supabase.from("notes").update({ body: next }).eq("id", note.id);
+      await logActivity(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, action: "note_updated", details: {} });
+      setEditingId(null);
+      setEditDraft("");
+      onChanged();
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteNote(note: NoteWithAuthor) {
+    if (!confirm("حذف هذه الملاحظة؟ سيُحذف أي ردود عليها أيضاً — لا يمكن التراجع.")) return;
+    setDeletingId(note.id);
+    try {
+      await supabase.from("notes").delete().eq("id", note.id);
+      await logActivity(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, action: "note_deleted", details: {} });
+      onChanged();
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function NoteBlock({ note, isReply }: { note: NoteWithAuthor; isReply?: boolean }) {
     const status = NOTE_STATUSES.find((s) => s.value === note.status);
     const resolved = note.status === "done";
+    const isOwn = note.author_id === userId;
+    const canEdit = isOwn;
+    const canDelete = isOwn || isInternalAdmin(profile.role);
+    const isEditing = editingId === note.id;
+    const isDeleting = deletingId === note.id;
     return (
       <div className="card" style={{ padding: 14, marginInlineStart: isReply ? 28 : 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
@@ -174,7 +223,28 @@ export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullD
           </div>
         </div>
 
-        <p style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{note.body}</p>
+        {isEditing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <textarea
+              className="input-field"
+              rows={3}
+              autoFocus
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
+              style={{ resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-gold" style={{ padding: "5px 12px", fontSize: 12 }} disabled={savingEdit || !editDraft.trim()} onClick={() => saveEdit(note)}>
+                <Icon name="check" size={13} /> حفظ
+              </button>
+              <button className="btn btn-outline" style={{ padding: "5px 12px", fontSize: 12 }} disabled={savingEdit} onClick={cancelEdit}>
+                <Icon name="close" size={13} /> إلغاء
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{note.body}</p>
+        )}
 
         {note.mentions.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
@@ -200,18 +270,41 @@ export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullD
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          {!isReply && (
-            <button
-              type="button"
-              className="btn-ghost"
-              style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-              onClick={() => setReplyOpenId(replyOpenId === note.id ? null : note.id)}
-            >
-              <Icon name="message" size={13} /> رد
-            </button>
-          )}
-        </div>
+        {!isEditing && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            {!isReply && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                onClick={() => setReplyOpenId(replyOpenId === note.id ? null : note.id)}
+              >
+                <Icon name="message" size={13} /> رد
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                onClick={() => startEdit(note)}
+              >
+                <Icon name="edit" size={13} /> تعديل
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={isDeleting}
+                style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, color: "var(--danger)", cursor: isDeleting ? "wait" : "pointer" }}
+                onClick={() => deleteNote(note)}
+              >
+                <Icon name="trash" size={13} /> حذف
+              </button>
+            )}
+          </div>
+        )}
 
         {!isReply && replyOpenId === note.id && (
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>

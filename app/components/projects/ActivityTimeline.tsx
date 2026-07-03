@@ -23,6 +23,8 @@ const ACTION_LABELS: Record<string, string> = {
   episode_stage_updated: "حدّث مرحلة تنفيذ",
   approval_revoked: "أعاد فتح حلقة للمراجعة",
   note_added: "أضاف ملاحظة",
+  note_updated: "عدّل ملاحظة",
+  note_deleted: "حذف ملاحظة",
   video_comment_added: "أضاف تعليقاً على الفيديو",
   episode_script_version_saved: "حفظ نسخة من السكربت/السيناريو",
 };
