@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { playNotificationSound } from "@/app/lib/notification-sound";
 import type { AppNotification } from "@/app/lib/types";
 
 export default function NotificationsBell() {
@@ -33,7 +34,10 @@ export default function NotificationsBell() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload) => setItems((prev) => [payload.new as AppNotification, ...prev])
+        (payload) => {
+          setItems((prev) => [payload.new as AppNotification, ...prev]);
+          playNotificationSound();
+        }
       )
       .subscribe();
 

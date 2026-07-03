@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
+import ApprovalPanel from "@/app/components/episodes/ApprovalPanel";
 import { formatDate, relativeTime } from "./utils";
 
 // الحالات التي يجب أن يبقى فيها الفريق قادراً على "إرسال الحلقة للعميل
@@ -92,6 +93,13 @@ export default function EpisodeSidebar({ episode, clientName }: { episode: Episo
           </div>
         )}
       </div>
+
+      {episode.approvals.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 10 }}>الاعتماد</h3>
+          <ApprovalPanel projectId={episode.project_id} episodeId={episode.id} episodeStatus={currentStatus} approvals={episode.approvals} />
+        </div>
+      )}
 
       <div className="card" style={{ padding: 16 }}>
         <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 12 }}>ملخص سريع</h3>

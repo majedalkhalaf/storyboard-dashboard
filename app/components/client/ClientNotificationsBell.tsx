@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { projectHashtag } from "@/app/components/client/utils";
+import { playNotificationSound } from "@/app/lib/notification-sound";
 import type { AppNotification } from "@/app/lib/types";
 
 interface ClientNotification extends AppNotification {
@@ -55,6 +56,7 @@ export default function ClientNotificationsBell() {
             if (data) project = data;
           }
           setItems((prev) => [{ ...inserted, project }, ...prev]);
+          playNotificationSound();
         }
       )
       .subscribe();

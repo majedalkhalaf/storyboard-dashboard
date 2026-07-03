@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime, projectHashtag } from "@/app/components/client/utils";
+import { playNotificationSound } from "@/app/lib/notification-sound";
 import type { AppNotification } from "@/app/lib/types";
 
 const PAGE_SIZE = 30;
@@ -57,6 +58,7 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
           if (data) project = data;
         }
         setItems((prev) => [{ ...inserted, project }, ...prev]);
+        playNotificationSound();
       })
       .subscribe();
 
