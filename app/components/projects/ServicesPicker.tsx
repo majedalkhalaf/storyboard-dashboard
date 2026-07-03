@@ -117,6 +117,7 @@ export default function ServicesPicker({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
+                    e.stopPropagation();
                     addCustom(group.category);
                   }
                 }}

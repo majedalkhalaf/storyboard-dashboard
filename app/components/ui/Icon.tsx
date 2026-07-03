@@ -80,6 +80,14 @@ import {
   BadgeCheck,
   FileCheck2,
   AlertTriangle,
+  Mic,
+  Megaphone,
+  Home,
+  SquarePlay,
+  Sparkles,
+  Palette,
+  Wand2,
+  Minus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -163,6 +171,14 @@ export const ICONS = {
   badgeCheck: BadgeCheck,
   fileCheck: FileCheck2,
   warning: AlertTriangle,
+  mic: Mic,
+  megaphone: Megaphone,
+  home: Home,
+  youtube: SquarePlay,
+  sparkles: Sparkles,
+  palette: Palette,
+  wand: Wand2,
+  minus: Minus,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

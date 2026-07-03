@@ -103,6 +103,7 @@ export interface Project {
   budget: number | null;
   location: string | null;
   storage_link: string | null;
+  description: string | null;
   notes: string | null;
   progress: number;
   archived: boolean;
