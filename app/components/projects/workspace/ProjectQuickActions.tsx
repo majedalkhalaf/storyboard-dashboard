@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import ClientInviteModal from "@/app/components/projects/ClientInviteModal";
@@ -24,6 +25,12 @@ interface ActionDef {
 // لإرضاء نوع EpisodeGalleryItem الذي يحتاجه exportProjectZip.
 const NEUTRAL_STAGE_BADGE: StageBadge = { label: "", color: "#6B7280" };
 
+function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+  const copy = { ...obj };
+  for (const k of keys) delete copy[k];
+  return copy;
+}
+
 export default function ProjectQuickActions({
   projectId,
   projectName,
@@ -35,11 +42,13 @@ export default function ProjectQuickActions({
   onArchive?: () => void;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const { company } = useSession();
   const companyId = company!.id;
 
   const [showInvite, setShowInvite] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   const actions: ActionDef[] = [
     { icon: "eye", label: "فتح المشروع", href: `/projects/${projectId}` },
@@ -116,6 +125,47 @@ export default function ProjectQuickActions({
     }
   }
 
+  // تكرار كامل: صف المشروع نفسه + كل حلقاته + مراحل كل حلقة (episode_stages) —
+  // لا تُنسخ الملفات/الملاحظات/الفواتير/الاعتمادات لأنها بيانات خاصة بنسخة
+  // العمل الفعلية وليست "قالباً" يصح تكراره، وتُعاد كل الحلقات المُكرَّرة إلى
+  // حالة "لم يبدأ" ونسبة إنجاز 0% بدل نسخ تقدّم عمل لم يحدث فعلاً في النسخة الجديدة.
+  async function duplicateProject() {
+    if (!confirm(`تكرار المشروع "${projectName}" بكل حلقاته ومراحلها؟`)) return;
+    setDuplicating(true);
+    try {
+      const { data: original } = await supabase.from("projects").select("*").eq("id", projectId).single();
+      if (!original) return;
+      const rest = omit(original, ["id", "created_at", "updated_at"]);
+      const { data: inserted, error } = await supabase
+        .from("projects")
+        .insert({ ...rest, name: `${original.name} (نسخة)`, status: "planning", progress: 0, code: null })
+        .select("id")
+        .single();
+      if (error || !inserted) return;
+
+      const { data: episodes } = await supabase.from("episodes").select("*").eq("project_id", projectId).order("sort_order");
+      for (const ep of episodes ?? []) {
+        const epRest = omit(ep, ["id", "created_at", "updated_at"]);
+        const { data: newEp } = await supabase
+          .from("episodes")
+          .insert({ ...epRest, project_id: inserted.id, status: "not_started", progress: 0 })
+          .select("id")
+          .single();
+        if (!newEp) continue;
+        const { data: stages } = await supabase.from("episode_stages").select("*").eq("episode_id", ep.id);
+        if (stages && stages.length > 0) {
+          const clones = stages.map((s) => ({ ...omit(s, ["id", "created_at", "updated_at"]), episode_id: newEp.id, status: "pending", progress: 0, started_at: null, completed_at: null }));
+          await supabase.from("episode_stages").insert(clones);
+        }
+      }
+
+      await logActivity(supabase, { companyId, projectId: inserted.id, action: "project_duplicated", details: { from: projectId, name: original.name } });
+      router.push(`/projects/${inserted.id}`);
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 2, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
@@ -156,6 +206,20 @@ export default function ProjectQuickActions({
         >
           <ZipExportButton label="تصدير المشروع ZIP" icon="archive" run={runProjectExport} size="sm" />
         </div>
+
+        <button
+          title="تكرار المشروع"
+          disabled={duplicating}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            duplicateProject();
+          }}
+          className="btn-ghost"
+          style={{ padding: 7, borderRadius: 8, color: "var(--text-muted)", cursor: duplicating ? "wait" : "pointer" }}
+        >
+          <Icon name="copy" size={15} />
+        </button>
 
         <button
           title="أرشفة المشروع"

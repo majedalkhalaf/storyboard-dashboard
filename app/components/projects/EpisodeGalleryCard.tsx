@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import StageQuickSelect from "./StageQuickSelect";
@@ -16,6 +17,12 @@ import type { CompanyPipelineStage } from "@/app/lib/types";
 import { formatDuration, relativeTime } from "./utils";
 
 const iconBtnStyle: React.CSSProperties = { padding: "5px 6px", borderRadius: 7 };
+
+function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+  const copy = { ...obj };
+  for (const k of keys) delete copy[k];
+  return copy;
+}
 
 export default function EpisodeGalleryCard({
   episode,
@@ -43,6 +50,7 @@ export default function EpisodeGalleryCard({
   dimmed: boolean;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const { company } = useSession();
   const companyId = company!.id;
 
@@ -50,6 +58,7 @@ export default function EpisodeGalleryCard({
   const [editingNumber, setEditingNumber] = useState(false);
   const [numberDraft, setNumberDraft] = useState(String(episode.number ?? ""));
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   async function uploadCover(file: File | null) {
@@ -90,6 +99,36 @@ export default function EpisodeGalleryCard({
     const label = pipelineStages.find((s) => s.key === key)?.label ?? key;
     onChanged({ pipeline_stage: key });
     await updateEpisodePipelineStage(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, stageKey: key, stageLabel: label });
+  }
+
+  // تكرار الحلقة نفسها + مراحلها (episode_stages) داخل المشروع نفسه — لا تُنسخ
+  // الملفات/الملاحظات/نسخ السكربت/الاعتمادات لأنها بيانات خاصة بنسخة العمل
+  // الفعلية، وتعود الحلقة الجديدة لحالة "لم يبدأ" ونسبة إنجاز 0%.
+  async function duplicateEpisode() {
+    setDuplicating(true);
+    try {
+      const { data: original } = await supabase.from("episodes").select("*").eq("id", episode.id).single();
+      if (!original) return;
+      const { count } = await supabase.from("episodes").select("id", { count: "exact", head: true }).eq("project_id", episode.project_id);
+      const rest = omit(original, ["id", "created_at", "updated_at"]);
+      const { data: inserted, error } = await supabase
+        .from("episodes")
+        .insert({ ...rest, title: `${original.title} (نسخة)`, status: "not_started", progress: 0, number: null, sort_order: count ?? 0 })
+        .select("id")
+        .single();
+      if (error || !inserted) return;
+
+      const { data: stages } = await supabase.from("episode_stages").select("*").eq("episode_id", episode.id);
+      if (stages && stages.length > 0) {
+        const clones = stages.map((s) => ({ ...omit(s, ["id", "created_at", "updated_at"]), episode_id: inserted.id, status: "pending", progress: 0, started_at: null, completed_at: null }));
+        await supabase.from("episode_stages").insert(clones);
+      }
+
+      await logActivity(supabase, { companyId, projectId: episode.project_id, episodeId: inserted.id, action: "episode_duplicated", details: { from: episode.id, title: original.title } });
+      router.refresh();
+    } finally {
+      setDuplicating(false);
+    }
   }
 
   async function deleteEpisode() {
@@ -359,6 +398,9 @@ export default function EpisodeGalleryCard({
             size="sm"
             run={(onProgress) => exportEpisodeZip(supabase, companyId, episode.id, onProgress)}
           />
+          <button className="btn-ghost" title="تكرار الحلقة" disabled={duplicating} onClick={duplicateEpisode} style={{ ...iconBtnStyle, cursor: duplicating ? "wait" : "pointer" }}>
+            <Icon name="copy" size={13} />
+          </button>
           <button
             className="btn-ghost"
             title="حذف الحلقة"
