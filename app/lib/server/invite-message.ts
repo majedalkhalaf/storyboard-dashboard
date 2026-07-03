@@ -8,12 +8,14 @@ export function buildInviteMessage(params: {
   tempPassword: string | null;
   hasExistingAccount: boolean;
   customMessage?: string | null;
+  companyName?: string | null;
 }): string {
-  const { clientName, projectName, loginUrl, email, tempPassword, hasExistingAccount, customMessage } = params;
+  const { clientName, projectName, loginUrl, email, tempPassword, hasExistingAccount, customMessage, companyName } = params;
+  const via = companyName ? `فريق ${companyName}` : "نظام إدارة الإنتاج";
   if (hasExistingAccount || !tempPassword) {
     return [
       `مرحباً ${clientName}،`,
-      `تمت إضافتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+      `تمت إضافتك لمتابعة مشروع "${projectName}" عبر ${via}.`,
       ...(customMessage ? [``, customMessage] : []),
       ``,
       `رابط الدخول: ${loginUrl}`,
@@ -23,7 +25,7 @@ export function buildInviteMessage(params: {
   }
   return [
     `مرحباً ${clientName}،`,
-    `تمت دعوتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+    `تمت دعوتك لمتابعة مشروع "${projectName}" عبر ${via}.`,
     ...(customMessage ? [``, customMessage] : []),
     ``,
     `رابط الدخول: ${loginUrl}`,

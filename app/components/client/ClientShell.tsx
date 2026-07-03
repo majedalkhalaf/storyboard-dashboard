@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/client", label: "مشاريعي", icon: "projects" },
+  { href: "/client", label: "الرئيسية", icon: "dashboard" },
   { href: "/client/settings", label: "الإعدادات", icon: "settings" },
 ];
 
@@ -23,7 +23,13 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export default function ClientShell({ children }: { children: React.ReactNode }) {
+export default function ClientShell({
+  children,
+  brandCompany,
+}: {
+  children: React.ReactNode;
+  brandCompany?: { name: string; logo_url: string | null } | null;
+}) {
   const { theme, profile } = useSession();
   const pathname = usePathname();
 
@@ -49,28 +55,37 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         }}
       >
         <div className="logo-wrap" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 8px 20px" }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 900,
-              color: "#0A0A0B",
-              flexShrink: 0,
-            }}
-          >
-            {(profile.full_name || "ع").charAt(0)}
-          </div>
+          {brandCompany?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={brandCompany.logo_url}
+              alt={brandCompany.name}
+              style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 900,
+                color: "#0A0A0B",
+                flexShrink: 0,
+              }}
+            >
+              {(brandCompany?.name || profile.full_name || "ع").charAt(0)}
+            </div>
+          )}
           <div>
             <div className="logo-title" style={{ fontWeight: 800, fontSize: 14 }}>
-              بوابة العميل
+              {brandCompany?.name || "بوابة العميل"}
             </div>
             <div className="logo-sub" style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              متابعة مشاريعك
+              {brandCompany ? "بوابة العميل" : "متابعة مشاريعك"}
             </div>
           </div>
         </div>

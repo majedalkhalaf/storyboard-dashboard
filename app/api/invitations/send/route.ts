@@ -93,6 +93,8 @@ export async function POST(request: Request) {
       .single();
     if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
 
+    const { data: companyRow } = await supabase.from("companies").select("name").eq("id", profile.company_id).maybeSingle();
+
     const admin = createAdminClient();
     const origin = new URL(request.url).origin;
 
@@ -165,6 +167,7 @@ export async function POST(request: Request) {
       tempPassword,
       hasExistingAccount,
       customMessage: customMessage?.trim() || null,
+      companyName: companyRow?.name ?? null,
     });
 
     // بغض النظر عن قناة الإرسال المفضّلة: تُتاح دائماً كل القنوات الممكنة في آنٍ

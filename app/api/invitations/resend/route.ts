@@ -38,9 +38,10 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!pc) return NextResponse.json({ error: "العميل غير موجود" }, { status: 404 });
 
-    const [{ data: project }, { data: clientRecord }] = await Promise.all([
+    const [{ data: project }, { data: clientRecord }, { data: companyRow }] = await Promise.all([
       admin.from("projects").select("name").eq("id", pc.project_id).single(),
       pc.client_id ? admin.from("clients").select("name, phone").eq("id", pc.client_id).maybeSingle() : Promise.resolve({ data: null }),
+      admin.from("companies").select("name").eq("id", profile.company_id).maybeSingle(),
     ]);
     const clientName = clientRecord?.name ?? pc.invited_email;
     const phone = clientRecord?.phone ?? null;
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       email: pc.invited_email,
       tempPassword,
       hasExistingAccount: !tempPassword,
+      companyName: companyRow?.name ?? null,
     });
 
     const { emailSent, emailError, whatsappLink, whatsappSentAutomatically } = await dispatchInviteMessage({
