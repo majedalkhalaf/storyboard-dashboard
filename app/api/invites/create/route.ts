@@ -3,11 +3,14 @@ import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { notifyUser } from "@/app/lib/server/notify";
 import { DEFAULT_CLIENT_PERMISSIONS } from "@/app/lib/constants";
-import type { ClientPermissions } from "@/app/lib/types";
+import type { ClientAccessType, ClientPermissions } from "@/app/lib/types";
 
-// يُستدعى من نافذة "دعوة عميل" داخل مشروع (ClientInviteModal). ينشئ حساب Supabase
-// Auth للعميل عبر service_role إن لم يكن موجوداً (يرسل Supabase بريد الدعوة تلقائياً)،
-// ثم يربطه بالمشروع في project_clients بالصلاحيات المحددة.
+// يُستدعى من نافذة "دعوة عميل" داخل مشروع (ClientInviteModal، معالج 3 خطوات). ينشئ
+// حساب Supabase Auth للعميل عبر service_role إن لم يكن موجوداً، ثم يربطه بالمشروع
+// في project_clients بالصلاحيات المحددة. طريقة الإرسال تحدد كيف يُنشأ الحساب:
+// "email" يستخدم inviteUserByEmail (يرسل بريد Supabase الحقيقي تلقائياً)، بينما
+// "link" يستخدم generateLink (ينشئ الحساب ويُعيد رابطاً جاهزاً دون إرسال أي بريد،
+// لينسخه المستخدم ويُرسله يدوياً عبر أي قناة — لا يوجد تكامل واتساب/SMS حقيقي هنا).
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -22,12 +25,28 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { projectId, email, clientName, phone, permissions } = body as {
+    const {
+      projectId,
+      email,
+      clientName,
+      phone,
+      jobTitle,
+      clientCompanyName,
+      permissions,
+      deliveryMethod,
+      durationDays,
+      accessType,
+    } = body as {
       projectId: string;
       email: string;
       clientName: string;
       phone?: string;
+      jobTitle?: string;
+      clientCompanyName?: string;
       permissions?: Partial<ClientPermissions>;
+      deliveryMethod?: "email" | "link";
+      durationDays?: number | null;
+      accessType?: ClientAccessType;
     };
 
     if (!projectId || !email || !clientName) {
@@ -43,25 +62,49 @@ export async function POST(request: Request) {
     if (!project) return NextResponse.json({ error: "المشروع غير موجود" }, { status: 404 });
 
     const admin = createAdminClient();
+    const origin = new URL(request.url).origin;
 
     const { data: clientRecord } = await admin
       .from("clients")
       .upsert(
-        { company_id: profile.company_id, name: clientName, email, phone: phone ?? null, created_by: user.id },
+        {
+          company_id: profile.company_id,
+          name: clientName,
+          email,
+          phone: phone ?? null,
+          job_title: jobTitle ?? null,
+          client_company_name: clientCompanyName ?? null,
+          created_by: user.id,
+        },
         { onConflict: "company_id,email", ignoreDuplicates: false }
       )
       .select("id")
       .single();
 
     let clientUserId: string | null = null;
+    let inviteLink: string | null = null;
     const { data: existingProfile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
 
     if (existingProfile) {
       clientUserId = existingProfile.id;
+      // العميل يملك حساباً بالفعل ويستطيع الدخول بكلمة مروره الحالية — لا حاجة لدعوة جديدة
+      inviteLink = `${origin}/login`;
+    } else if (deliveryMethod === "link") {
+      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: "invite",
+        email,
+        options: { data: { role: "client", full_name: clientName }, redirectTo: `${origin}/auth/callback` },
+      });
+      if (linkError || !linkData.user) {
+        return NextResponse.json({ error: linkError?.message || "تعذّر إنشاء رابط الدعوة" }, { status: 500 });
+      }
+      clientUserId = linkData.user.id;
+      inviteLink = linkData.properties?.action_link ?? null;
+      await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
     } else {
       const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { role: "client", full_name: clientName },
-        redirectTo: `${new URL(request.url).origin}/auth/callback`,
+        redirectTo: `${origin}/auth/callback`,
       });
       if (inviteError || !invited.user) {
         return NextResponse.json({ error: inviteError?.message || "تعذّر إرسال دعوة البريد الإلكتروني" }, { status: 500 });
@@ -69,6 +112,8 @@ export async function POST(request: Request) {
       clientUserId = invited.user.id;
       await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
     }
+
+    const expiresAt = durationDays ? new Date(Date.now() + durationDays * 86400000).toISOString() : null;
 
     const { data: projectClient, error: pcError } = await admin
       .from("project_clients")
@@ -83,6 +128,8 @@ export async function POST(request: Request) {
           permissions: { ...DEFAULT_CLIENT_PERMISSIONS, ...(permissions ?? {}) },
           invited_by: user.id,
           activated_at: new Date().toISOString(),
+          expires_at: expiresAt,
+          access_type: accessType ?? "unlimited",
         },
         { onConflict: "project_id,client_user_id" }
       )
@@ -93,7 +140,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "تعذّر ربط العميل بالمشروع" }, { status: 500 });
     }
 
-    if (clientUserId) {
+    if (clientUserId && deliveryMethod !== "link") {
       await notifyUser({
         userId: clientUserId,
         companyId: profile.company_id,
@@ -104,7 +151,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, projectClientId: projectClient.id });
+    return NextResponse.json({ success: true, projectClientId: projectClient.id, inviteLink });
   } catch (err) {
     // أي خطأ غير متوقع (مثل غياب SUPABASE_SERVICE_ROLE_KEY من متغيرات البيئة) كان
     // يوقف الدالة بلا استجابة JSON صالحة، فيظهر للمستخدم خطأ "Unexpected end of JSON

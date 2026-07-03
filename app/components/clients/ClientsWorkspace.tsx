@@ -77,6 +77,8 @@ export default function ClientsWorkspace({
       created_by: null,
       created_at: "",
       updated_at: "",
+      job_title: null,
+      client_company_name: null,
     });
     setShowForm(true);
   }

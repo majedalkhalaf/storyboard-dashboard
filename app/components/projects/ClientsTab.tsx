@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { CLIENT_PERMISSION_LABELS } from "@/app/lib/constants";
-import type { ClientPermissions, ProjectClientStatus } from "@/app/lib/types";
+import type { ClientInviteDraft, ClientPermissions, ProjectClientStatus } from "@/app/lib/types";
+import { relativeTime } from "./utils";
 import ClientInviteModal from "./ClientInviteModal";
 
 export interface ProjectClientRow {
@@ -27,6 +28,39 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
   const [rows, setRows] = useState<ProjectClientRow[]>(initialClients);
   const [showInvite, setShowInvite] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<ClientInviteDraft[]>([]);
+  const [resumeDraft, setResumeDraft] = useState<ClientInviteDraft | null>(null);
+
+  async function reloadDrafts() {
+    const { data } = await supabase
+      .from("client_invite_drafts")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("updated_at", { ascending: false });
+    setDrafts((data ?? []) as ClientInviteDraft[]);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل المسودات عند تركيب التبويب لهذا المشروع، النمط القياسي في هذا المشروع
+    reloadDrafts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- تُجلب مرة واحدة عند تحميل التبويب لهذا المشروع
+  }, [projectId]);
+
+  async function deleteDraft(draftId: string) {
+    if (!confirm("حذف هذه المسودة نهائياً؟")) return;
+    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+    await supabase.from("client_invite_drafts").delete().eq("id", draftId);
+  }
+
+  function resumeDraftFlow(draft: ClientInviteDraft) {
+    setResumeDraft(draft);
+    setShowInvite(true);
+  }
+
+  function closeInvite() {
+    setShowInvite(false);
+    setResumeDraft(null);
+  }
 
   async function reload() {
     const { data } = await supabase
@@ -64,6 +98,32 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
           <Icon name="userPlus" size={16} /> دعوة عميل
         </button>
       </div>
+
+      {drafts.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>المسودات</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {drafts.map((d) => (
+              <div key={d.id} className="card" style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{d.client_name || d.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                    {d.email} · آخر تعديل {relativeTime(d.updated_at)}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => resumeDraftFlow(d)}>
+                    <Icon name="edit" size={13} /> متابعة
+                  </button>
+                  <button className="btn-ghost" style={{ padding: "6px 8px", color: "var(--danger)" }} onClick={() => deleteDraft(d.id)}>
+                    <Icon name="trash" size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="empty-state card">
@@ -117,7 +177,18 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
         </div>
       )}
 
-      {showInvite && <ClientInviteModal projectId={projectId} onClose={() => setShowInvite(false)} onInvited={reload} />}
+      {showInvite && (
+        <ClientInviteModal
+          projectId={projectId}
+          draft={resumeDraft ?? undefined}
+          onClose={closeInvite}
+          onInvited={() => {
+            reload();
+            reloadDrafts();
+          }}
+          onDraftSaved={reloadDrafts}
+        />
+      )}
     </div>
   );
 }

@@ -118,6 +118,8 @@ export interface ClientRecord {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  job_title: string | null;
+  client_company_name: string | null;
 }
 
 export interface Project {
@@ -547,6 +549,8 @@ export interface ClientPermissions {
 
 export type ProjectClientStatus = "invited" | "active" | "disabled" | "revoked";
 
+export type ClientAccessType = "unlimited" | "single_use" | "until_project_end" | "until_date";
+
 export interface ProjectClient {
   id: string;
   company_id: string;
@@ -560,6 +564,34 @@ export interface ProjectClient {
   invited_by: string | null;
   invited_at: string;
   activated_at: string | null;
+  expires_at: string | null;
+  access_type: ClientAccessType;
+}
+
+// بيانات معالج دعوة العميل الحرة (لا تحتاج أعمدة مستقلة) — تُحفظ وتُقرأ كما هي عند
+// حفظ/استكمال مسودة، وتُستخدم أيضاً كشكل موحّد للحمولة المُرسلة لـ /api/invites/create.
+export interface ClientInviteWizardData {
+  phone?: string;
+  jobTitle?: string;
+  clientCompanyName?: string;
+  inviteType: "view_only" | "client" | "manager" | "custom";
+  permissions: ClientPermissions;
+  durationDays: number | null; // null = دائم
+  accessType: ClientAccessType;
+  expiresAt?: string | null;
+  deliveryMethod: "email" | "link";
+}
+
+export interface ClientInviteDraft {
+  id: string;
+  company_id: string;
+  project_id: string;
+  created_by: string | null;
+  client_name: string;
+  email: string;
+  data: ClientInviteWizardData;
+  created_at: string;
+  updated_at: string;
 }
 
 export type EquipmentStatus = "available" | "in_use" | "maintenance";

@@ -3,8 +3,11 @@
 import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { CLIENT_PERMISSION_LABELS, DEFAULT_CLIENT_PERMISSIONS } from "@/app/lib/constants";
-import type { ClientPermissions } from "@/app/lib/types";
+import type { ClientInviteDraft, ClientPermissions } from "@/app/lib/types";
 
+// TODO: هذا الإصدار البسيط (نموذج واحد) في طريقه للاستبدال بمعالج من 3 خطوات —
+// props مسودة (draft/onDraftSaved) مقبولة هنا كعقد ثابت لواجهة الاستدعاء من
+// ClientsTab.tsx فقط، دون استخدام فعلي بعد.
 export default function ClientInviteModal({
   projectId,
   onClose,
@@ -13,6 +16,8 @@ export default function ClientInviteModal({
   projectId: string;
   onClose: () => void;
   onInvited: () => void;
+  draft?: ClientInviteDraft;
+  onDraftSaved?: () => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
