@@ -58,8 +58,10 @@ export default function ApproveEpisode({
 
   if (approved) return badge;
 
-  // لا نعرض زر الاعتماد إلا إذا كانت الحلقة جاهزة والعميل يملك الصلاحية
-  if (!canApprove || status !== "ready_for_approval") {
+  // الزر يظهر على كل بطاقة حلقة طالما لم تُعتمد/تُسلَّم بعد والعميل يملك
+  // صلاحية الاعتماد — بلا اشتراط أن يضعها الفريق الداخلي "جاهزة للاعتماد"
+  // أولاً، بناءً على طلب صريح ومتكرر بأن يظهر الزر مباشرة على كل بطاقة.
+  if (!canApprove || status === "approved" || status === "delivered") {
     if (status === "approved" || status === "delivered") return badge;
     return null;
   }
