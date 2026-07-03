@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<string, string> = {
   approval_revoked: "أعاد فتح حلقة للمراجعة",
   note_added: "أضاف ملاحظة",
   video_comment_added: "أضاف تعليقاً على الفيديو",
+  episode_script_version_saved: "حفظ نسخة من السكربت/السيناريو",
 };
 
 function describe(item: ActivityItem): string {
