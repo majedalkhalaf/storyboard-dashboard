@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { formatDate } from "@/app/components/client/utils";
 import type { EpisodeStatus } from "@/app/lib/types";
 
 // عنصر اعتماد الحلقة. يعرض:
-// - شارة خضراء "تم الاعتماد" إن وُجد اعتماد فعّال.
-// - زر "اعتماد الحلقة" (يفتح نافذة تأكيد) إن كانت الحلقة جاهزة للاعتماد ولدى العميل الصلاحية.
+// - شارة خضراء "تم الاعتماد النهائي" (مع التاريخ) إن وُجد اعتماد فعّال.
+// - زر "اعتماد الحلقة"/"اعتماد نهائي" (يفتح نافذة تأكيد) إن كانت الحلقة جاهزة للاعتماد ولدى العميل الصلاحية.
 // - لا شيء في الحالات الأخرى.
-// العميل لا يستطيع إلغاء الاعتماد بعد إتمامه.
+// العميل لا يستطيع إلغاء الاعتماد بعد إتمامه — فقط مدير المشروع من لوحة الفريق الداخلية.
 export default function ApproveEpisode({
   episodeId,
   projectId,
@@ -17,6 +18,7 @@ export default function ApproveEpisode({
   currentUserId,
   status,
   alreadyApproved,
+  approvedAt,
   canApprove,
   variant = "detail",
 }: {
@@ -26,10 +28,12 @@ export default function ApproveEpisode({
   currentUserId: string;
   status: EpisodeStatus;
   alreadyApproved: boolean;
+  approvedAt?: string | null;
   canApprove: boolean;
-  variant?: "detail" | "card";
+  variant?: "detail" | "card" | "hero";
 }) {
   const [approved, setApproved] = useState(alreadyApproved);
+  const [approvedDate, setApprovedDate] = useState<string | null>(approvedAt ?? null);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,10 +42,17 @@ export default function ApproveEpisode({
   const badge = (
     <span
       className="chip"
-      style={{ background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.4)", color: "#1DB954", fontWeight: 700 }}
+      style={{
+        background: "rgba(29,185,84,0.12)",
+        borderColor: "rgba(29,185,84,0.4)",
+        color: "#1DB954",
+        fontWeight: 700,
+        padding: variant === "hero" ? "8px 14px" : undefined,
+        fontSize: variant === "hero" ? 13 : undefined,
+      }}
     >
-      <Icon name="checkCircle" size={14} />
-      تم الاعتماد
+      <Icon name="checkCircle" size={variant === "hero" ? 16 : 14} />
+      تم الاعتماد النهائي{approvedDate ? ` — ${formatDate(approvedDate)}` : ""}
     </span>
   );
 
@@ -70,6 +81,7 @@ export default function ApproveEpisode({
       setError("تعذّر تسجيل الاعتماد، حاول مرة أخرى.");
       return;
     }
+    setApprovedDate(new Date().toISOString());
     setApproved(true);
     setOpen(false);
   }
@@ -77,16 +89,22 @@ export default function ApproveEpisode({
   return (
     <>
       <button
-        className="btn btn-gold"
+        className={variant === "hero" ? "btn" : "btn btn-gold"}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setOpen(true);
         }}
-        style={variant === "card" ? { fontSize: 13, padding: "8px 12px" } : { justifyContent: "center" }}
+        style={
+          variant === "card"
+            ? { fontSize: 13, padding: "8px 12px" }
+            : variant === "hero"
+              ? { justifyContent: "center", background: "#1DB954", color: "#06210f", fontWeight: 800, fontSize: 14, padding: "10px 20px" }
+              : { justifyContent: "center" }
+        }
       >
         <Icon name="checkCircle" size={variant === "card" ? 15 : 18} />
-        {variant === "card" ? "بانتظار اعتمادك" : "اعتماد الحلقة"}
+        {variant === "card" ? "بانتظار اعتمادك" : variant === "hero" ? "اعتماد نهائي" : "اعتماد الحلقة"}
       </button>
 
       {open && (
@@ -94,10 +112,11 @@ export default function ApproveEpisode({
           <div className="modal-content" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <Icon name="checkCircle" size={22} className="nav-icon" />
-              <h3 style={{ fontSize: 18, fontWeight: 800 }}>تأكيد اعتماد الحلقة</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 800 }}>هل أنت متأكد من اعتماد هذه الحلقة اعتماداً نهائياً؟</h3>
             </div>
             <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 16, lineHeight: 1.7 }}>
-              باعتمادك لهذه الحلقة فأنت تؤكد رضاك عن العمل المُنجز. لا يمكن التراجع عن الاعتماد بعد تأكيده.
+              بعد الاعتماد النهائي لن تتمكن من طلب أي تعديلات على هذه الحلقة، وستُعتبر معتمدة بشكل نهائي. لن يتمكن فريق العمل من
+              تعديل محتواها إلا إذا قام مدير المشروع بإلغاء الاعتماد.
             </p>
             <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>ملاحظة (اختياري)</label>
             <textarea
@@ -118,8 +137,8 @@ export default function ApproveEpisode({
               <button className="btn btn-ghost" onClick={() => setOpen(false)} disabled={busy}>
                 إلغاء
               </button>
-              <button className="btn btn-gold" onClick={confirmApproval} disabled={busy}>
-                {busy ? "جارٍ الاعتماد..." : "تأكيد الاعتماد"}
+              <button className="btn" style={{ background: "#1DB954", color: "#06210f", fontWeight: 800 }} onClick={confirmApproval} disabled={busy}>
+                {busy ? "جارٍ الاعتماد..." : "اعتماد نهائي"}
               </button>
             </div>
           </div>

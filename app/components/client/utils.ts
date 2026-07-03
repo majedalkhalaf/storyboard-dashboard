@@ -28,6 +28,14 @@ export function relativeTime(dateStr: string | null | undefined): string {
   return `قبل ${Math.round(month / 12)} سنة`;
 }
 
+// عدد الأيام المتبقية حتى تاريخ معيّن (سالب إن مضى) — null إن لم يوجد تاريخ
+export function daysUntil(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null;
+  const target = new Date(dateStr).getTime();
+  if (Number.isNaN(target)) return null;
+  return Math.ceil((target - Date.now()) / 86400000);
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr);

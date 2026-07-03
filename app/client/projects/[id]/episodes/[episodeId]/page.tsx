@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireClient } from "@/app/components/client/guards";
 import EpisodeDetailView from "@/app/components/client/EpisodeDetailView";
 import BrandingInjector from "@/app/components/client/BrandingInjector";
+import { daysUntil } from "@/app/components/client/utils";
 import Icon from "@/app/components/ui/Icon";
 import { canClient } from "@/app/lib/permissions";
-import type { Episode, EpisodeStage, Note, Project, ProjectClient, ProjectFile } from "@/app/lib/types";
+import type { Episode, EpisodeStage, Note, Project, ProjectClient, ProjectFile, StoryboardScene } from "@/app/lib/types";
 
 export default async function ClientEpisodePage({
   params,
@@ -35,7 +37,11 @@ export default async function ClientEpisodePage({
   if (!project) return <Unauthorized />;
   const proj = project as Project;
 
-  const { data: companyData } = await supabase.from("companies").select("*").eq("id", proj.company_id).maybeSingle();
+  const [{ data: companyData }, { data: clientRow }] = await Promise.all([
+    supabase.from("companies").select("*").eq("id", proj.company_id).maybeSingle(),
+    proj.client_id ? supabase.from("clients").select("name").eq("id", proj.client_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const clientName = clientRow?.name ?? null;
 
   const { data: episodeRow } = await supabase
     .from("episodes")
@@ -58,9 +64,26 @@ export default async function ClientEpisodePage({
   }
 
   let stages: EpisodeStage[] = [];
+  let stageAssigneeNames: Record<string, string> = {};
   if (canClient(permissions, "execution_phases")) {
     const { data } = await supabase.from("episode_stages").select("*").eq("episode_id", episodeId).order("sort_order");
     stages = (data ?? []) as EpisodeStage[];
+
+    // اسم المسؤول عن كل مرحلة (عضو فريق داخلي) — سياسة profiles الحالية تسمح
+    // لزملاء الشركة فقط برؤية بعضهم، فلا يصل العميل له مباشرة عبر جلسته، لذا
+    // يُجلب هنا فقط بمفتاح الخادم service_role (اسم فقط، بلا أي بيانات حساسة).
+    const assigneeIds = [...new Set(stages.map((s) => s.assigned_to).filter((v): v is string => Boolean(v)))];
+    if (assigneeIds.length > 0) {
+      const admin = createAdminClient();
+      const { data: assignees } = await admin.from("profiles").select("id, full_name").in("id", assigneeIds);
+      stageAssigneeNames = Object.fromEntries((assignees ?? []).map((a) => [a.id, a.full_name || "عضو الفريق"]));
+    }
+  }
+
+  let storyboardScenes: StoryboardScene[] = [];
+  if (canClient(permissions, "storyboard")) {
+    const { data } = await supabase.from("storyboard_scenes").select("*").eq("episode_id", episodeId).order("sort_order");
+    storyboardScenes = (data ?? []) as StoryboardScene[];
   }
 
   const { data: noteRows } = await supabase
@@ -72,23 +95,32 @@ export default async function ClientEpisodePage({
 
   const { data: approvalRow } = await supabase
     .from("approvals")
-    .select("id")
+    .select("approved_at, note")
     .eq("episode_id", episodeId)
     .is("revoked_at", null)
     .maybeSingle();
+
+  const daysToDelivery = daysUntil(episode.delivery_date);
 
   return (
     <>
       <BrandingInjector color={companyData?.primary_color} />
       <EpisodeDetailView
         episode={episode}
+        projectName={proj.name}
+        clientName={clientName}
         projectId={id}
         companyId={proj.company_id}
         permissions={permissions}
         files={files}
         stages={stages}
+        stageAssigneeNames={stageAssigneeNames}
+        storyboardScenes={storyboardScenes}
         notes={notes}
         alreadyApproved={Boolean(approvalRow)}
+        approvedAt={approvalRow?.approved_at ?? null}
+        approvalNote={approvalRow?.note ?? null}
+        daysToDelivery={daysToDelivery}
         userId={session.userId}
         userName={session.profile.full_name}
       />
