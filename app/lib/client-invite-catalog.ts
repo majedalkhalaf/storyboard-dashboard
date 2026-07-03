@@ -85,16 +85,17 @@ export const CLIENT_ACCESS_TYPES: { value: ClientAccessType; label: string }[] =
   { value: "until_date", label: "حتى تاريخ محدد" },
 ];
 
-export type ClientDeliveryMethod = "email" | "link" | "whatsapp";
+export type ClientDeliveryMethod = "email" | "link" | "whatsapp" | "sms";
 
-// لا يوجد تكامل واتساب بزنس API حقيقي في هذا النظام (لا حساب Meta Business ولا رقم
-// معتمد) — لذا "واتساب" هنا ليست إرسالاً تلقائياً خلفياً، بل تنشئ حساباً حقيقياً بكلمة
-// مرور مؤقتة، ثم تفتح رابط wa.me برسالة جاهزة داخل واتساب ويب/التطبيق كي يضغط
-// المستخدم "إرسال" بنفسه من الجلسة المسجّل بها فعلياً. "نسخ الرابط" يبقى للحالات
-// الأخرى (SMS أو أي قناة يدوية بلا رسالة جاهزة).
+// "واتساب": إن أعدّت الشركة بيانات Meta WhatsApp Cloud API حقيقية (إعدادات > قنوات
+// إرسال الدعوات) يُرسل تلقائياً فعلياً عبر Graph API الرسمي. بلا ذلك، يبقى حلاً يدوياً
+// (حساب بكلمة مرور مؤقتة + رابط wa.me جاهز يفتحه المستخدم بنفسه) — الحالتان مفصح
+// عنهما بوضوح في شاشة النجاح. "SMS": لا يوجد مزوّد SMS معتمد بعد، فهي دائماً قناة
+// يدوية (حساب + كلمة مرور مؤقتة + رسالة جاهزة تُنسخ يدوياً)، وليست ادّعاء إرسال تلقائي.
 export const CLIENT_DELIVERY_METHODS: { value: ClientDeliveryMethod; label: string; description: string; icon: IconName }[] = [
-  { value: "email", label: "البريد الإلكتروني", description: "يُرسل بريد دعوة حقيقي فوراً عبر Supabase", icon: "mail" },
-  { value: "whatsapp", label: "واتساب", description: "حساب بكلمة مرور مؤقتة + رسالة جاهزة تُفتح في واتساب لإرسالها يدوياً", icon: "phone" },
+  { value: "email", label: "البريد الإلكتروني", description: "يُرسل بريد دعوة حقيقي فوراً عبر الشركة أو Supabase", icon: "mail" },
+  { value: "whatsapp", label: "واتساب", description: "إرسال تلقائي حقيقي إن أُعِدّ واتساب بزنس API، أو رابط جاهز يدوياً", icon: "phone" },
+  { value: "sms", label: "رسالة نصية (SMS)", description: "حساب بكلمة مرور مؤقتة + رسالة جاهزة تُنسخ يدوياً", icon: "message" },
   { value: "link", label: "نسخ الرابط", description: "لإرساله يدوياً عبر أي قناة أخرى", icon: "link" },
 ];
 

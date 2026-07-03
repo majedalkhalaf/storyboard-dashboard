@@ -583,7 +583,7 @@ export interface ClientInviteWizardData {
   durationDays: number | null; // null = دائم
   accessType: ClientAccessType;
   expiresAt?: string | null;
-  deliveryMethod: "email" | "link" | "whatsapp";
+  deliveryMethod: "email" | "link" | "whatsapp" | "sms";
   senderId?: string | null;
   senderNumberId?: string | null;
 }
@@ -624,6 +624,49 @@ export interface CompanySenderNumber {
   is_default: boolean;
   notes: string | null;
   created_at: string;
+}
+
+export type InvitationDeliveryMethod = "email" | "link" | "whatsapp" | "sms";
+export type InvitationStatus = "pending" | "sent" | "failed" | "opened" | "accepted" | "expired" | "cancelled";
+
+export interface Invitation {
+  id: string;
+  company_id: string;
+  project_id: string;
+  client_id: string | null;
+  client_user_id: string | null;
+  email: string;
+  phone: string | null;
+  delivery_method: InvitationDeliveryMethod;
+  token: string;
+  destination_url: string;
+  status: InvitationStatus;
+  error_message: string | null;
+  retry_count: number;
+  invited_by: string | null;
+  sent_at: string | null;
+  opened_at: string | null;
+  accepted_at: string | null;
+  expires_at: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  device: string | null;
+  browser: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// أبداً لا يشمل access_token — سرّ حقيقي، لا يُعاد للمتصفح إطلاقاً (نفس نمط
+// CompanyEmailSenderPublic/smtp_password).
+export interface CompanyWhatsappConfigPublic {
+  id: string;
+  company_id: string;
+  label: string;
+  phone_number_id: string;
+  business_phone_display: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export type EquipmentStatus = "available" | "in_use" | "maintenance";

@@ -41,6 +41,11 @@ export default function ChangePasswordPage() {
     }
 
     await supabase.from("profiles").update({ must_change_password: false }).eq("id", userId);
+    if (forced) {
+      // "قبول" حقيقي للدعوة (قناة واتساب/SMS بكلمة مرور مؤقتة) — أول تغيير فعلي لكلمة
+      // المرور الإجبارية، وليس مجرد فتح صفحة. لا يمنع تسجيل الدخول إن فشل هذا التسجيل.
+      fetch("/api/invitations/mark-accepted", { method: "POST" }).catch(() => {});
+    }
 
     router.push("/client");
     router.refresh();
