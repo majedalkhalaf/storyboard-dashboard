@@ -9,6 +9,7 @@ import ProjectHeaderBar from "./ProjectHeaderBar";
 import ProjectSettingsDrawer from "./ProjectSettingsDrawer";
 import EpisodeWorkspace from "./EpisodeWorkspace";
 import EpisodeFormModal from "@/app/components/episodes/EpisodeFormModal";
+import PresentationBuilderModal from "./presentation/PresentationBuilderModal";
 
 interface Props {
   project: Project;
@@ -26,6 +27,7 @@ export default function ProjectDetailView(props: Props) {
   const [project, setProject] = useState(initialProject);
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"info" | "clients" | null>(null);
+  const [showPresentation, setShowPresentation] = useState(false);
 
   function patchProject(patch: Partial<Project>) {
     setProject((p) => ({ ...p, ...patch }));
@@ -39,6 +41,7 @@ export default function ProjectDetailView(props: Props) {
         gallery={gallery}
         onNewEpisode={() => setShowEpisodeModal(true)}
         onOpenSettings={(t) => setSettingsTab(t)}
+        onOpenPresentation={() => setShowPresentation(true)}
         onProjectChanged={patchProject}
       />
 
@@ -65,6 +68,8 @@ export default function ProjectDetailView(props: Props) {
           onClientsChanged={() => router.refresh()}
         />
       )}
+
+      {showPresentation && <PresentationBuilderModal projectId={project.id} onClose={() => setShowPresentation(false)} />}
     </div>
   );
 }

@@ -18,6 +18,7 @@ export default function ProjectHeaderBar({
   gallery,
   onNewEpisode,
   onOpenSettings,
+  onOpenPresentation,
   onProjectChanged,
 }: {
   project: Project;
@@ -25,6 +26,7 @@ export default function ProjectHeaderBar({
   gallery: EpisodeGalleryItem[];
   onNewEpisode: () => void;
   onOpenSettings: (tab: "info" | "clients") => void;
+  onOpenPresentation: () => void;
   onProjectChanged: (patch: Partial<Project>) => void;
 }) {
   const supabase = createClient();
@@ -173,6 +175,9 @@ export default function ProjectHeaderBar({
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn btn-gold" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onNewEpisode}>
             <Icon name="plus" size={14} /> حلقة جديدة
+          </button>
+          <button className="btn btn-outline" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onOpenPresentation}>
+            <Icon name="proposals" size={14} /> العرض الفني
           </button>
           <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="تصدير قائمة الحلقات" onClick={exportEpisodes}>
             <Icon name="export" size={14} />

@@ -45,6 +45,18 @@ export type ContractStatus = "draft" | "sent" | "pending_signature" | "signed" |
 export type ProposalStatus = "draft" | "sent" | "accepted" | "rejected";
 export type ProposalType = "technical" | "financial" | "final" | "pricing" | "investor" | "general";
 
+// نصوص افتراضية على مستوى الشركة (تُستخدم كقيمة مبدئية لأي عرض تقديمي جديد)
+export interface PresentationDefaultTexts {
+  welcome_message?: string;
+  company_bio?: string;
+  company_values?: string;
+  company_vision?: string;
+  ceo_message?: string;
+  faq?: { question: string; answer: string }[];
+  terms?: string;
+  thanks_message?: string;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -63,6 +75,7 @@ export interface Company {
   social_links: Record<string, string>;
   stamp_url: string | null;
   signature_url: string | null;
+  presentation_defaults: PresentationDefaultTexts;
   created_at: string;
   updated_at: string;
 }
@@ -496,4 +509,48 @@ export interface ProjectFavorite {
   project_id: string;
   user_id: string;
   created_at: string;
+}
+
+// ── Presentation Builder ──
+export type PresentationTemplate =
+  | "minimal"
+  | "luxury"
+  | "dark"
+  | "corporate"
+  | "creative"
+  | "podcast"
+  | "real_estate"
+  | "agency"
+  | "cinema"
+  | "startup";
+
+export interface PresentationSectionConfig {
+  key: string;
+  enabled: boolean;
+}
+
+// نصوص قابلة للتعديل خاصة بهذا المشروع تحديداً (تُبدَأ من presentation_defaults الشركة ثم تُعدَّل هنا)
+export interface PresentationTexts extends PresentationDefaultTexts {
+  project_message?: string;
+  why_problem?: string;
+  why_opportunity?: string;
+  why_value?: string;
+  objectives?: string[];
+  audience?: string;
+  creative_idea?: string;
+  shooting_style?: string;
+}
+
+export interface ProjectPresentation {
+  id: string;
+  company_id: string;
+  project_id: string;
+  template: PresentationTemplate;
+  sections: PresentationSectionConfig[];
+  texts: PresentationTexts;
+  share_token: string | null;
+  share_enabled: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
