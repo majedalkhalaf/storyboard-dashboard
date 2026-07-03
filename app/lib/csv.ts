@@ -52,3 +52,56 @@ export function downloadCsv(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * تحليل نص CSV بسيط إلى صفوف Record<string,string> بالاعتماد على السطر الأول كرؤوس أعمدة.
+ * يدعم القيم المحاطة بعلامات اقتباس (فواصل/أسطر جديدة داخل الحقل) — يكفي للاستيراد اليدوي
+ * من Excel/Google Sheets، وليس محلّلاً كاملاً لكل حالات معيار CSV.
+ */
+export function parseCsv(text: string): Record<string, string>[] {
+  const rows: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let inQuotes = false;
+  const clean = text.replace(/^﻿/, "");
+
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (inQuotes) {
+      if (ch === '"' && clean[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && clean[i + 1] === "\n") i++;
+      row.push(field);
+      rows.push(row);
+      field = "";
+      row = [];
+    } else {
+      field += ch;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  const nonEmpty = rows.filter((r) => r.some((c) => c.trim() !== ""));
+  if (nonEmpty.length < 2) return [];
+  const headers = nonEmpty[0].map((h) => h.trim());
+  return nonEmpty.slice(1).map((r) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => (obj[h] = (r[i] ?? "").trim()));
+    return obj;
+  });
+}

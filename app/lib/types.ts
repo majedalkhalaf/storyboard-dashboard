@@ -80,6 +80,9 @@ export interface Profile {
   updated_at: string;
 }
 
+export type ClientType = "company" | "individual" | "agency";
+export type ClientCrmStatus = "active" | "paused" | "completed" | "awaiting_reply";
+
 export interface ClientRecord {
   id: string;
   company_id: string;
@@ -87,6 +90,12 @@ export interface ClientRecord {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  client_type: ClientType;
+  city: string | null;
+  logo_url: string | null;
+  contact_name: string | null;
+  assigned_to: string | null;
+  status: ClientCrmStatus;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -343,6 +352,7 @@ export interface Contract {
   client_id: string | null;
   title: string;
   content: Record<string, unknown>;
+  amount: number | null;
   status: ContractStatus;
   version: number;
   pdf_url: string | null;

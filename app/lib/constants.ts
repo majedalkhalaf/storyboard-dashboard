@@ -11,6 +11,8 @@ import type {
   ProposalType,
   StoryboardSceneStatus,
   StoryboardCastRole,
+  ClientType,
+  ClientCrmStatus,
 } from "./types";
 
 export const PROJECT_TYPES: { value: string; label: string }[] = [
@@ -314,4 +316,20 @@ export const DIRECTOR_NOTES_FIELDS: { key: string; label: string }[] = [
   { key: "music_type", label: "نوع الموسيقى" },
   { key: "effects", label: "المؤثرات" },
   { key: "transition", label: "طريقة الانتقال" },
+];
+
+// ── العملاء (CRM) ──
+export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
+  company: "شركة",
+  individual: "فرد",
+  agency: "وكالة",
+};
+
+// ملاحظة: "بانتظار الرد" هنا سماوي بدل البنفسجي — نفس قرار عدم استخدام البنفسجي إطلاقاً
+// المطبَّق سابقاً على شارات الحلقات ومشاهد Storyboard.
+export const CLIENT_CRM_STATUSES: { value: ClientCrmStatus; label: string; color: string }[] = [
+  { value: "active", label: "نشط", color: "#22C55E" },
+  { value: "paused", label: "متوقف", color: "#F59E0B" },
+  { value: "completed", label: "مكتمل", color: "#3B82F6" },
+  { value: "awaiting_reply", label: "بانتظار الرد", color: "#06B6D4" },
 ];

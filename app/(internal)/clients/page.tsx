@@ -1,31 +1,25 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
-import ClientsClient from "@/app/components/clients/ClientsClient";
-import type { ClientRecord } from "@/app/lib/types";
+import { getClientsDirectory } from "@/app/lib/clients-directory";
+import ClientsWorkspace from "@/app/components/clients/ClientsWorkspace";
 
 export default async function ClientsPage() {
   const session = await getCurrentSession();
   const supabase = await createClient();
   const companyId = session!.company!.id;
 
-  const [{ data: clients }, { data: links }] = await Promise.all([
-    supabase.from("clients").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
-    supabase.from("project_clients").select("client_id, status").eq("company_id", companyId),
+  const [{ clients, stats }, { data: teamMembers }] = await Promise.all([
+    getClientsDirectory(companyId),
+    supabase.from("profiles").select("id, full_name").eq("company_id", companyId).neq("role", "client").order("full_name"),
   ]);
 
-  const activeCounts: Record<string, number> = {};
-  for (const link of links ?? []) {
-    if (link.status === "active" && link.client_id) {
-      activeCounts[link.client_id] = (activeCounts[link.client_id] ?? 0) + 1;
-    }
-  }
-
   return (
-    <ClientsClient
-      initialClients={(clients as ClientRecord[]) ?? []}
-      activeCounts={activeCounts}
+    <ClientsWorkspace
+      initialRows={clients}
+      stats={stats}
       companyId={companyId}
       userId={session!.userId}
+      teamMembers={teamMembers ?? []}
     />
   );
 }
