@@ -461,6 +461,10 @@ body {
 /* ════════════════════════════════════
    MOBILE  (≤ 767px)
 ════════════════════════════════════ */
+@media (max-width: 900px) {
+  .finance-charts-grid { grid-template-columns: 1fr !important; }
+}
+
 @media (max-width: 767px) {
   /* Hide desktop sidebar completely */
   aside.desktop-sidebar { display: none !important; }

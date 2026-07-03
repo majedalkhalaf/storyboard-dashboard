@@ -137,6 +137,7 @@ export interface Project {
   archived: boolean;
   created_at: string;
   updated_at: string;
+  code: string | null;
 }
 
 export interface ProjectServiceItem {
@@ -388,6 +389,7 @@ export interface Payment {
   receipt_url: string | null;
   created_at: string;
   updated_at: string;
+  bank_account_id: string | null;
 }
 
 export interface Contract {
@@ -429,6 +431,64 @@ export interface Expense {
   amount: number;
   category: string | null;
   expense_date: string;
+  created_by: string | null;
+  created_at: string;
+  vendor_id: string | null;
+  category_id: string | null;
+}
+
+export interface FinancialCategory {
+  id: string;
+  company_id: string;
+  name: string;
+  type: "income" | "expense";
+  color: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface Vendor {
+  id: string;
+  company_id: string;
+  name: string;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  category: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BankAccount {
+  id: string;
+  company_id: string;
+  name: string;
+  bank_name: string | null;
+  account_number: string | null;
+  iban: string | null;
+  currency: string;
+  opening_balance: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BankTransactionType = "deposit" | "withdrawal" | "transfer_in" | "transfer_out";
+
+export interface BankTransaction {
+  id: string;
+  company_id: string;
+  bank_account_id: string;
+  type: BankTransactionType;
+  amount: number;
+  transaction_date: string;
+  reference: string | null;
+  description: string | null;
+  related_payment_id: string | null;
+  related_expense_id: string | null;
+  reconciled: boolean;
   created_by: string | null;
   created_at: string;
 }
