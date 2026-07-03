@@ -14,12 +14,27 @@ interface ProjectRow {
   name: string;
 }
 
+interface VendorRow {
+  id: string;
+  name: string;
+}
+
+interface CategoryRow {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+}
+
 export default function AddExpenseButton({
   companyId,
   projects,
+  vendors = [],
+  categories = [],
 }: {
   companyId: string;
   projects: ProjectRow[];
+  vendors?: VendorRow[];
+  categories?: CategoryRow[];
 }) {
   const { profile, userId } = useSession();
   const router = useRouter();
@@ -32,6 +47,8 @@ export default function AddExpenseButton({
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0].value);
   const [projectId, setProjectId] = useState("");
   const [expenseDate, setExpenseDate] = useState(todayIso());
+  const [vendorId, setVendorId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
   if (!isInternalAdmin(profile.role)) return null;
 
@@ -41,6 +58,8 @@ export default function AddExpenseButton({
     setCategory(EXPENSE_CATEGORIES[0].value);
     setProjectId("");
     setExpenseDate(todayIso());
+    setVendorId("");
+    setCategoryId("");
     setError(null);
   };
 
@@ -60,6 +79,8 @@ export default function AddExpenseButton({
       category,
       expense_date: expenseDate,
       created_by: userId,
+      vendor_id: vendorId || null,
+      category_id: categoryId || null,
     });
     setSaving(false);
     if (err) {
@@ -127,6 +148,34 @@ export default function AddExpenseButton({
                   ))}
                 </select>
               </label>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                  المورد (اختياري)
+                  <select className="input-field" style={{ marginTop: 6 }} value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+                    <option value="">— بدون مورد —</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                  التصنيف المالي (الجديد)
+                  <select className="input-field" style={{ marginTop: 6 }} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    <option value="">— بدون تصنيف —</option>
+                    {categories
+                      .filter((c) => c.type === "expense")
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
 
               <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                 المشروع (اختياري)

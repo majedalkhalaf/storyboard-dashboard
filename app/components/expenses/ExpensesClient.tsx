@@ -24,6 +24,17 @@ interface ProjectRow {
   name: string;
 }
 
+interface VendorRow {
+  id: string;
+  name: string;
+}
+
+interface CategoryRow {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+}
+
 const GENERAL_VALUE = "__general__";
 
 function CategoryChip({ category }: { category: string | null }) {
@@ -35,10 +46,14 @@ export default function ExpensesClient({
   companyId,
   initialExpenses,
   projects,
+  vendors = [],
+  categories = [],
 }: {
   companyId: string;
   initialExpenses: ExpenseRow[];
   projects: ProjectRow[];
+  vendors?: VendorRow[];
+  categories?: CategoryRow[];
 }) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
@@ -70,7 +85,7 @@ export default function ExpensesClient({
             {initialExpenses.length} مصروف
           </p>
         </div>
-        <AddExpenseButton companyId={companyId} projects={projects} />
+        <AddExpenseButton companyId={companyId} projects={projects} vendors={vendors} categories={categories} />
       </div>
 
       <div
