@@ -1,14 +1,36 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
+import { createClient } from "@/app/lib/supabase/client";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 import { formatDate, relativeTime } from "./utils";
 
+// الحالات التي يجب أن يبقى فيها الفريق قادراً على "إرسال الحلقة للعميل
+// للاعتماد" — أي حالة قبل ready_for_approval نفسها؛ بعدها ينتقل التحكم
+// لبوابة العميل (اعتماد) أو يبقى الفريق بانتظار رده.
+const SENDABLE_STATUSES = new Set(["not_started", "in_progress", "in_review"]);
+
 export default function EpisodeSidebar({ episode, clientName }: { episode: EpisodeFullDetail; clientName: string | null }) {
-  const status = EPISODE_STATUSES.find((s) => s.value === episode.status);
+  const router = useRouter();
+  const [sending, setSending] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(episode.status);
+  const status = EPISODE_STATUSES.find((s) => s.value === currentStatus);
   const activeApproval = episode.approvals.find((a) => !a.revoked_at);
   const activeStage = [...episode.stages].reverse().find((s) => s.status === "in_progress") ?? [...episode.stages].reverse().find((s) => s.status === "completed");
+
+  async function sendToClient() {
+    setSending(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("episodes").update({ status: "ready_for_approval" }).eq("id", episode.id);
+    setSending(false);
+    if (!error) {
+      setCurrentStatus("ready_for_approval");
+      router.refresh();
+    }
+  }
 
   const rows: { icon: "checkCircle" | "video" | "user" | "clients" | "calendar" | "clock" | "fileCheck" | "attachment" | "message" | "shield"; label: string; value: string }[] = [
     { icon: "checkCircle", label: "الحالة", value: status?.label ?? "—" },
@@ -58,6 +80,17 @@ export default function EpisodeSidebar({ episode, clientName }: { episode: Episo
             </div>
           ))}
         </div>
+
+        {SENDABLE_STATUSES.has(currentStatus) && (
+          <button className="btn btn-gold" style={{ width: "100%", justifyContent: "center", marginTop: 14 }} disabled={sending} onClick={sendToClient}>
+            <Icon name="send" size={14} /> {sending ? "جارٍ الإرسال..." : "إرسال الحلقة للعميل للاعتماد"}
+          </button>
+        )}
+        {currentStatus === "ready_for_approval" && (
+          <div style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="clock" size={13} /> بانتظار اعتماد العميل
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ padding: 16 }}>
