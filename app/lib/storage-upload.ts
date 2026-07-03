@@ -22,13 +22,21 @@ export async function uploadFileWithProgress(
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`;
 
+  // يجب إرسال الملف بصيغة multipart/form-data تماماً كما تفعل storage-js نفسها للمتصفح
+  // (body.append('', file))، وليس كـ raw body بترويسة Content-Type لنوع الملف — خادم
+  // التخزين يرفض الطلب بعد اكتمال الإرسال بالكامل إن لم يكن بصيغة multipart الصحيحة،
+  // وهو ما كان يظهر كشريط تقدّم يصل 100% ثم يتحوّل للأحمر ويختفي دون حفظ الملف فعلياً.
+  const form = new FormData();
+  form.append("cacheControl", "3600");
+  form.append("", file);
+
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     xhr.setRequestHeader("apikey", anonKey);
     xhr.setRequestHeader("x-upsert", "false");
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    // لا نضبط Content-Type يدوياً هنا — يجب أن يضبطه المتصفح تلقائياً بنفسه ليشمل الـ boundary الصحيح لـ multipart
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
@@ -38,6 +46,6 @@ export async function uploadFileWithProgress(
       else resolve({ error: `فشل الرفع (${xhr.status})` });
     };
     xhr.onerror = () => resolve({ error: "فشل الاتصال أثناء الرفع" });
-    xhr.send(file);
+    xhr.send(form);
   });
 }
