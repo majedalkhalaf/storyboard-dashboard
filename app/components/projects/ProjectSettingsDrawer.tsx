@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { PROJECT_TYPES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientRecord, Project, ProjectServiceItem } from "@/app/lib/types";
 import ClientsTab, { type ProjectClientRow } from "./ClientsTab";
 import ServicesPicker, { type PickedService } from "./ServicesPicker";
@@ -68,7 +69,7 @@ export default function ProjectSettingsDrawer({
     }
     setCoverUploading(true);
     try {
-      const path = `${companyId}/covers/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/covers/${safeStorageKey(file.name)}`;
       const { error: upErr } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
       if (upErr) {
         setCoverError(upErr.message || "تعذّر رفع الصورة");

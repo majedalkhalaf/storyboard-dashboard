@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ProjectFile } from "@/app/lib/types";
 import type { StoryboardSceneFullDetail } from "@/app/lib/storyboard-detail";
 import { FILE_CATEGORY_ICON, humanFileSize, inferCategory, relativeTime } from "../utils";
@@ -35,7 +36,7 @@ export default function SceneAttachmentsSection({
     setUploading(true);
     try {
       for (const file of Array.from(fileList)) {
-        const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+        const path = `${companyId}/${projectId}/${safeStorageKey(file.name)}`;
         const { error: upErr } = await supabase.storage.from("project-files").upload(path, file, { upsert: false });
         if (upErr) continue;
         await supabase.from("files").insert({

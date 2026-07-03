@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { inferCategory } from "@/app/components/projects/utils";
+import { safeStorageKey } from "@/app/lib/storage-path";
 
 interface ProjectOption {
   id: string;
@@ -55,7 +56,7 @@ export default function UploadFileModal({
     setError(null);
     try {
       // نفس مخطط المسار المستخدم في FilesPanel.tsx تماماً — لا نخترع مخططاً جديداً
-      const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/${projectId}/${safeStorageKey(file.name)}`;
       const { error: upErr } = await supabase.storage.from("project-files").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
 

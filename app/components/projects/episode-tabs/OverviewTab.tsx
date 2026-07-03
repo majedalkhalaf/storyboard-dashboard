@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { STAGE_STATUSES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 import { formatDate } from "../utils";
 
@@ -42,7 +43,7 @@ export default function OverviewTab({
     }
     setUploadingCover(true);
     try {
-      const path = `${companyId}/covers/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/covers/${safeStorageKey(file.name)}`;
       const { error: upErr } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
       if (upErr) {
         setCoverError(upErr.message || "تعذّر رفع الصورة");

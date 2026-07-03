@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import Modal, { Field } from "@/app/components/settings/Modal";
 import { createClient } from "@/app/lib/supabase/client";
 import { CLIENT_CRM_STATUSES, CLIENT_TYPE_LABELS } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientCrmStatus, ClientRecord, ClientType } from "@/app/lib/types";
 
 export default function ClientFormModal({
@@ -54,7 +55,7 @@ export default function ClientFormModal({
     try {
       let logoUrl = editing?.logo_url ?? null;
       if (logoFile) {
-        const path = `${companyId}/clients/${crypto.randomUUID()}-${logoFile.name}`;
+        const path = `${companyId}/clients/${safeStorageKey(logoFile.name)}`;
         const { error: upErr } = await supabase.storage.from("public-assets").upload(path, logoFile, { upsert: false });
         if (!upErr) logoUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
       }

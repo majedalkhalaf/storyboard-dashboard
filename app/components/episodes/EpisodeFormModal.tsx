@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { DEFAULT_EPISODE_STAGES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 
 export default function EpisodeFormModal({
   projectId,
@@ -53,7 +54,7 @@ export default function EpisodeFormModal({
     try {
       let coverUrl: string | null = null;
       if (coverFile) {
-        const path = `${companyId}/covers/${crypto.randomUUID()}-${coverFile.name}`;
+        const path = `${companyId}/covers/${safeStorageKey(coverFile.name)}`;
         const { error: upErr } = await supabase.storage.from("public-assets").upload(path, coverFile, { upsert: false });
         if (upErr) throw new Error(`تعذّر رفع صورة الغلاف: ${upErr.message}`);
         coverUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;

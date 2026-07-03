@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { STORYBOARD_SCENE_STATUSES, SHOT_TYPES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { StoryboardSceneStatus } from "@/app/lib/types";
 import type { StoryboardSceneFullDetail } from "@/app/lib/storyboard-detail";
 import type { TeamMemberOption } from "@/app/lib/episode-detail";
@@ -62,7 +63,7 @@ export default function SceneDetailPanel({
     if (!file) return;
     setUploadingCover(true);
     try {
-      const path = `${companyId}/storyboard/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/storyboard/${safeStorageKey(file.name)}`;
       const { error } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false });
       if (!error) {
         const url = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;

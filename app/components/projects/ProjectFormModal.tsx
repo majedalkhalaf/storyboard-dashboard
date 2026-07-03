@@ -8,6 +8,7 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { PROJECT_TYPES, DEFAULT_EPISODE_STAGES } from "@/app/lib/constants";
 import { inferCategory, humanFileSize } from "@/app/components/projects/utils";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientRecord } from "@/app/lib/types";
 import ServicesPicker, { type PickedService } from "./ServicesPicker";
 
@@ -159,7 +160,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
     // 2) صورة الغلاف (اختياري)
     let coverUrl: string | null = null;
     if (coverFile) {
-      const path = `${companyId}/covers/${crypto.randomUUID()}-${coverFile.name}`;
+      const path = `${companyId}/covers/${safeStorageKey(coverFile.name)}`;
       const { error: upErr } = await supabase.storage.from("public-assets").upload(path, coverFile, { upsert: false });
       if (upErr) throw new Error(`تعذّر رفع صورة الغلاف: ${upErr.message}`);
       coverUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
@@ -236,7 +237,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
 
     // 6) رفع الملفات الأولية (اختياري) — بعد إنشاء المشروع لأن files تحتاج project_id
     for (const file of initialFiles) {
-      const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/${projectId}/${safeStorageKey(file.name)}`;
       const { error: fUpErr } = await supabase.storage.from("project-files").upload(path, file, { upsert: false });
       if (fUpErr) continue;
       await supabase.from("files").insert({

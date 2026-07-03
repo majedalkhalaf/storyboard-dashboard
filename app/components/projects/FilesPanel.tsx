@@ -7,6 +7,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { uploadFileWithProgress } from "@/app/lib/storage-upload";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanFileSize, inferCategory, relativeTime } from "./utils";
 
@@ -174,7 +175,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     setUploadItems(filesToUpload.map((f) => ({ name: f.name, percent: 0 })));
 
     async function uploadOne(file: File, index: number) {
-      const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+      const path = `${companyId}/${projectId}/${safeStorageKey(file.name)}`;
       const { error } = await uploadFileWithProgress(supabase, "project-files", path, file, (percent) => {
         setUploadItems((prev) => prev.map((it, i) => (i === index ? { ...it, percent } : it)));
       });
@@ -225,7 +226,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     if (!target || !newFile) return;
     setReplacingId(target.id);
     try {
-      const newPath = `${companyId}/${projectId}/${crypto.randomUUID()}-${newFile.name}`;
+      const newPath = `${companyId}/${projectId}/${safeStorageKey(newFile.name)}`;
       const { error: upErr } = await supabase.storage.from("project-files").upload(newPath, newFile, { upsert: false });
       if (upErr) return;
       const category = forceCategory ?? inferCategory(newFile.type, newFile.name);

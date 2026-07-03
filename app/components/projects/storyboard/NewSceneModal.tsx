@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { SHOT_TYPES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 
 // إنشاء سريع — الحد الأدنى من الحقول (عنوان/رقم/نوع لقطة/مكان/غلاف)، وباقي التفاصيل
 // (كاميرا/إخراج/طاقم/معدات...) تُملأ لاحقاً من لوحة تفاصيل المشهد. نفس فلسفة
@@ -48,7 +49,7 @@ export default function NewSceneModal({
     try {
       let coverUrl: string | null = null;
       if (coverFile) {
-        const path = `${companyId}/storyboard/${crypto.randomUUID()}-${coverFile.name}`;
+        const path = `${companyId}/storyboard/${safeStorageKey(coverFile.name)}`;
         const { error: upErr } = await supabase.storage.from("public-assets").upload(path, coverFile, { upsert: false });
         if (!upErr) coverUrl = supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
       }

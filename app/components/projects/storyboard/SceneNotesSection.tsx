@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { NOTE_STATUSES } from "@/app/lib/constants";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { NoteStatus } from "@/app/lib/types";
 import type { NoteWithAuthor, TeamMemberOption } from "@/app/lib/episode-detail";
 import type { StoryboardSceneFullDetail } from "@/app/lib/storyboard-detail";
@@ -76,7 +77,7 @@ export default function SceneNotesSection({
     setUploading(true);
     try {
       for (const file of Array.from(fileList)) {
-        const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+        const path = `${companyId}/${projectId}/${safeStorageKey(file.name)}`;
         const { error: upErr } = await supabase.storage.from("project-files").upload(path, file, { upsert: false });
         if (upErr) continue;
         // المجلّد خاص (bucket خاص) — لا يوجد رابط عام دائم، لذا نستخدم رابطاً موقّتاً طويل الأمد (30 يوماً)
