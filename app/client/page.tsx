@@ -4,6 +4,7 @@ import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
 import ClientDashboard, { type ActivityItem, type OtherProjectRow } from "@/app/components/client/ClientDashboard";
 import { currentPipelineStageKey } from "@/app/components/client/pipeline";
+import { STORYBOARD_SCENE_STATUSES } from "@/app/lib/constants";
 import type { Company, CompanyPipelineStage, Episode, Note, Project, ProjectFile } from "@/app/lib/types";
 
 interface ProjectClientRow {
@@ -74,15 +75,33 @@ export default async function ClientDashboardPage() {
   const currentStageKey = currentPipelineStageKey(episodes, pipelineStages);
 
   let recentFiles: ProjectFile[] = [];
+  let recentImages: ProjectFile[] = [];
   if (canClient(permissions, "files")) {
-    const { data: fileRows } = await supabase
-      .from("files")
-      .select("*")
-      .eq("project_id", project.id)
-      .eq("client_visible", true)
-      .order("created_at", { ascending: false })
-      .limit(4);
+    const [{ data: fileRows }, { data: imageRows }] = await Promise.all([
+      supabase.from("files").select("*").eq("project_id", project.id).eq("client_visible", true).order("created_at", { ascending: false }).limit(4),
+      supabase.from("files").select("*").eq("project_id", project.id).eq("client_visible", true).eq("category", "image").order("created_at", { ascending: false }).limit(6),
+    ]);
     recentFiles = (fileRows ?? []) as ProjectFile[];
+    recentImages = (imageRows ?? []) as ProjectFile[];
+  }
+
+  // توزيع حالات مشاهد الستوري بورد عبر كل حلقات المشروع — لرسم بياني حقيقي
+  // بدل رقم وهمي، ومحمي بنفس صلاحية "storyboard" المستخدمة في صفحة الحلقة.
+  let storyboardStatusCounts: { label: string; color: string; count: number }[] = [];
+  if (canClient(permissions, "storyboard") && episodes.length > 0) {
+    const { data: sceneRows } = await supabase
+      .from("storyboard_scenes")
+      .select("status")
+      .in(
+        "episode_id",
+        episodes.map((e) => e.id)
+      );
+    const counts = new Map<string, number>();
+    for (const row of sceneRows ?? []) {
+      const s = (row as { status: string }).status;
+      counts.set(s, (counts.get(s) ?? 0) + 1);
+    }
+    storyboardStatusCounts = STORYBOARD_SCENE_STATUSES.filter((s) => counts.has(s.value)).map((s) => ({ label: s.label, color: s.color, count: counts.get(s.value)! }));
   }
 
   const { data: noteRows } = await supabase
@@ -165,6 +184,8 @@ export default async function ClientDashboardPage() {
       pipelineStages={pipelineStages}
       currentStageKey={currentStageKey}
       recentFiles={recentFiles}
+      recentImages={recentImages}
+      storyboardStatusCounts={storyboardStatusCounts}
       recentNotes={recentNotes}
       activity={activity}
       otherProjects={otherProjects}

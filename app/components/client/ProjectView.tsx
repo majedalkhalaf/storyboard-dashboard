@@ -133,7 +133,7 @@ export default function ProjectView({
   }
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto", overflowX: "hidden" }}>
       <div style={{ marginBottom: 8 }}>
         <Link href="/client" className="btn btn-ghost" style={{ padding: "4px 8px", marginBottom: 10, fontSize: 13 }}>
           <Icon name="arrowRight" size={16} />
@@ -213,7 +213,7 @@ export default function ProjectView({
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
           {/* بطاقات الإحصائيات */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
@@ -295,7 +295,7 @@ export default function ProjectView({
         </div>
 
         {/* القائمة الجانبية */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
             <PerformanceRing percent={project.progress ?? 0} label="تقدم المشروع" size={116} />
             <div style={{ width: "100%" }}>

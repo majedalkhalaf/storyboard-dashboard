@@ -36,6 +36,8 @@ export default function ClientDashboard({
   pipelineStages,
   currentStageKey,
   recentFiles,
+  recentImages,
+  storyboardStatusCounts,
   recentNotes,
   activity,
   otherProjects,
@@ -51,6 +53,8 @@ export default function ClientDashboard({
   pipelineStages: CompanyPipelineStage[];
   currentStageKey: string | null;
   recentFiles: ProjectFile[];
+  recentImages: ProjectFile[];
+  storyboardStatusCounts: { label: string; color: string; count: number }[];
   recentNotes: Note[];
   activity: ActivityItem[];
   otherProjects: OtherProjectRow[];
@@ -58,7 +62,7 @@ export default function ClientDashboard({
   const status = projectStatusMeta(project.status);
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto", overflowX: "hidden" }}>
       <BrandingInjector color={company?.primary_color} />
 
       <div style={{ marginBottom: 22 }}>
@@ -70,7 +74,7 @@ export default function ClientDashboard({
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20, alignItems: "stretch", marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20, alignItems: "stretch", marginBottom: 20, minWidth: 0 }}>
         {/* بطاقة المشروع الرئيسية */}
         <div className="card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ height: 130, background: "var(--bg-hover)", position: "relative" }}>
@@ -127,9 +131,9 @@ export default function ClientDashboard({
         <StatCard label="الحلقات المكتملة" value={episodesTotal ? `${episodesCompleted} من ${episodesTotal}` : "—"} icon="checkCircle" color="var(--success)" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2.2fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2.2fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         {/* النشاطات والمستجدات */}
-        <div className="card" style={{ padding: 20 }}>
+        <div className="card" style={{ padding: 20, minWidth: 0 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>النشاطات والمستجدات</h3>
           {activity.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>لا يوجد نشاط بعد</p>
@@ -151,7 +155,7 @@ export default function ClientDashboard({
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
           {/* مراحل المشروع */}
           {pipelineStages.length > 0 && (
             <div className="card" style={{ padding: 20 }}>
@@ -184,6 +188,48 @@ export default function ClientDashboard({
               </div>
             )}
           </div>
+
+          {/* آخر الصور المرفوعة ضمن الحلقات + توزيع الستوري بورد */}
+          {(recentImages.length > 0 || storyboardStatusCounts.length > 0) && (
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>آخر الصور والستوري بورد</h3>
+              {recentImages.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: storyboardStatusCounts.length > 0 ? 18 : 0 }}>
+                  {recentImages.map((img) => (
+                    <div key={img.id} style={{ aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "var(--bg-hover)" }}>
+                      {img.external_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img.external_url} alt={img.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Icon name="image" size={16} className="text-muted" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {storyboardStatusCounts.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {storyboardStatusCounts.map((s) => {
+                    const total = storyboardStatusCounts.reduce((sum, x) => sum + x.count, 0);
+                    const pct = total ? Math.round((s.count / total) * 100) : 0;
+                    return (
+                      <div key={s.label}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
+                          <span>{s.label}</span>
+                          <span style={{ fontWeight: 700 }}>{s.count}</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: `${pct}%`, background: s.color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* الملاحظات الأخيرة */}
           <div className="card" style={{ padding: 20 }}>

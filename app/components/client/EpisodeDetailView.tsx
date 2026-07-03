@@ -123,7 +123,7 @@ export default function EpisodeDetailView({
   }, [files, notes, stages, stageAssigneeNames, alreadyApproved, approvedAt, approvalNote]);
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto", overflowX: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
         <Link href={`/client/projects/${projectId}`} className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 13 }}>
           <Icon name="arrowRight" size={16} />
@@ -197,7 +197,7 @@ export default function EpisodeDetailView({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
           {/* بطاقات الإحصائيات */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
