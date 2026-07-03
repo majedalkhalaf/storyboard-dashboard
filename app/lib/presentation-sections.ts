@@ -45,6 +45,38 @@ export interface PresentationStageSummary {
   latestEnd: string | null;
 }
 
+// مراحل حلقة واحدة بالتفصيل (تُستخدم في قسم "مراحل التنفيذ التفصيلية")
+export interface PresentationEpisodeStageEntry {
+  key: string;
+  label: string;
+  status: string;
+}
+
+// مشهد Storyboard واحد مسطّح عبر كل حلقات المشروع (لقسم "Storyboard")
+export interface PresentationStoryboardScene {
+  id: string;
+  episodeId: string;
+  episodeTitle: string;
+  number: number | null;
+  title: string;
+  cover_image_url: string | null;
+  shot_type: string | null;
+}
+
+// صورة معرض واحدة برابط مُحلَّل جاهز للعرض مباشرة (لقسم "معرض الصور")
+export interface PresentationGalleryImage {
+  id: string;
+  name: string;
+  url: string;
+}
+
+// رابط مرجعي واحد (ملفات بتصنيف "link") لقسم "المراجع"
+export interface PresentationReferenceLink {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface PresentationData {
   companyId: string;
   projectId: string;
@@ -70,6 +102,12 @@ export interface PresentationData {
   fileCounts: PresentationFileGroups;
   referenceLinksCount: number;
   updatedAt: string;
+  // حقول إضافية تراكمية (additive) لدعم أقسام تحتاج تفاصيل أدق من الملخصات أعلاه —
+  // لا تُغيّر أي حقل موجود، فقط تضيف بيانات جديدة اختيارية الاستخدام لكل قسم.
+  stagesByEpisode: Record<string, PresentationEpisodeStageEntry[]>;
+  storyboardScenes: PresentationStoryboardScene[];
+  galleryImages: PresentationGalleryImage[];
+  referenceLinks: PresentationReferenceLink[];
 }
 
 export interface PresentationSectionDef {

@@ -1,6 +1,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_EPISODE_STAGES, SERVICES_CATALOG } from "@/app/lib/constants";
-import type { PresentationData, PresentationEpisodeSummary, PresentationStageSummary } from "@/app/lib/presentation-sections";
+import type {
+  PresentationData,
+  PresentationEpisodeSummary,
+  PresentationEpisodeStageEntry,
+  PresentationStageSummary,
+  PresentationStoryboardScene,
+  PresentationGalleryImage,
+  PresentationReferenceLink,
+} from "@/app/lib/presentation-sections";
+
+// نفس اسم الـ bucket المستخدم في app/components/projects/FilesPanel.tsx's resolveFileUrl —
+// مُكرَّر هنا محلياً (بدل الاستيراد من ملف "use client") لأن هذه الدالة تعمل على السيرفر
+// فقط وتحتاج نسخة صغيرة ومستقلة لا تُقحم مكوّن عميل داخل مسار السيرفر.
+async function resolveStorageUrl(
+  supabase: SupabaseClient,
+  file: { storage_path: string | null; external_url: string | null }
+): Promise<string | null> {
+  if (file.external_url) return file.external_url;
+  if (!file.storage_path) return null;
+  const { data } = await supabase.storage.from("project-files").createSignedUrl(file.storage_path, 300);
+  return data?.signedUrl ?? null;
+}
 
 // يقبل أي عميل Supabase جاهز (عميل السيرفر المعتاد المقيّد بـRLS للاستخدام داخل النظام،
 // أو عميل service_role لصفحة المشاركة العامة /present/[token]) — نفس منطق التجميع في الحالتين.
@@ -37,9 +58,15 @@ export async function fetchPresentationData(
     episodeIds.length
       ? supabase.from("episode_stages").select("episode_id, key, status, started_at, completed_at, assigned_to").in("episode_id", episodeIds)
       : Promise.resolve({ data: [] }),
-    episodeIds.length ? supabase.from("storyboard_scenes").select("id, episode_id, location").in("episode_id", episodeIds) : Promise.resolve({ data: [] }),
+    episodeIds.length
+      ? supabase
+          .from("storyboard_scenes")
+          .select("id, episode_id, location, number, title, cover_image_url, shot_type, sort_order")
+          .in("episode_id", episodeIds)
+          .order("sort_order")
+      : Promise.resolve({ data: [] }),
     supabase.from("episodes").select("assigned_to").eq("project_id", projectId).not("assigned_to", "is", null),
-    supabase.from("files").select("category").eq("project_id", projectId),
+    supabase.from("files").select("id, name, category, storage_path, external_url").eq("project_id", projectId),
   ]);
 
   const sceneIds = (scenes ?? []).map((s) => s.id);
@@ -100,6 +127,30 @@ export async function fetchPresentationData(
     };
   }).filter((s) => s.episodesTotal > 0);
 
+  // مراحل كل حلقة بالتفصيل (بالمفتاح + التسمية + الحالة، مرتّبة بترتيب DEFAULT_EPISODE_STAGES
+  // القياسي) — تُستخدم في قسم "مراحل التنفيذ التفصيلية" حين يُراد أدق من الملخص الإجمالي أعلاه.
+  const stageOrderByKey: Record<string, number> = Object.fromEntries(DEFAULT_EPISODE_STAGES.map((s, i) => [s.key, i]));
+  const stageLabelByKey: Record<string, string> = Object.fromEntries(DEFAULT_EPISODE_STAGES.map((s) => [s.key, s.label]));
+  const stagesByEpisodeDetailed: Record<string, PresentationEpisodeStageEntry[]> = {};
+  for (const [episodeId, entries] of Object.entries(stagesByEpisode)) {
+    stagesByEpisodeDetailed[episodeId] = [...entries]
+      .sort((a, b) => (stageOrderByKey[a.key] ?? 0) - (stageOrderByKey[b.key] ?? 0))
+      .map((e) => ({ key: e.key, label: stageLabelByKey[e.key] ?? e.key, status: e.status }));
+  }
+
+  // قائمة مشاهد Storyboard مسطّحة عبر كل حلقات المشروع (لقسم "Storyboard") — محدودة بعدد
+  // معقول حتى لا تتضخم شريحة العرض الواحدة.
+  const episodeTitleById: Record<string, string> = Object.fromEntries((episodes ?? []).map((e) => [e.id, e.title]));
+  const storyboardScenes: PresentationStoryboardScene[] = (scenes ?? []).slice(0, 20).map((s) => ({
+    id: s.id,
+    episodeId: s.episode_id,
+    episodeTitle: episodeTitleById[s.episode_id] ?? "",
+    number: s.number,
+    title: s.title,
+    cover_image_url: s.cover_image_url,
+    shot_type: s.shot_type,
+  }));
+
   const locations = Array.from(
     new Set([project.location, ...(episodes ?? []).map((e) => e.location), ...(scenes ?? []).map((s) => s.location)].filter((v): v is string => Boolean(v)))
   );
@@ -119,6 +170,23 @@ export async function fetchPresentationData(
   for (const f of files ?? []) {
     if (f.category in fileCounts) fileCounts[f.category as keyof typeof fileCounts] += 1;
   }
+
+  // عيّنة صور فعلية (لقسم "معرض الصور") — روابط مُحلَّلة مسبقاً (موقّعة أو عامة) حتى يبقى
+  // مكوّن العرض نفسه (GallerySection) بلا أي اتصال Supabase، مجرد <img> عادية.
+  const imageFiles = (files ?? []).filter((f) => f.category === "image").slice(0, 12);
+  const galleryImages: PresentationGalleryImage[] = (
+    await Promise.all(
+      imageFiles.map(async (f) => {
+        const url = await resolveStorageUrl(supabase, f);
+        return url ? { id: f.id, name: f.name, url } : null;
+      })
+    )
+  ).filter((v): v is PresentationGalleryImage => Boolean(v));
+
+  // روابط مرجعية (ملفات بتصنيف "link") لقسم "المراجع" — لا تحتاج تحليل رابط موقّع، فقط external_url مباشرة.
+  const referenceLinks: PresentationReferenceLink[] = (files ?? [])
+    .filter((f) => f.category === "link" && f.external_url)
+    .map((f) => ({ id: f.id, name: f.name, url: f.external_url as string }));
 
   const servicesResolved = (services ?? []).map((s) => ({
     category: s.category,
@@ -150,6 +218,10 @@ export async function fetchPresentationData(
     fileCounts,
     referenceLinksCount: fileCounts.link,
     updatedAt: project.updated_at,
+    stagesByEpisode: stagesByEpisodeDetailed,
+    storyboardScenes,
+    galleryImages,
+    referenceLinks,
   };
 }
 

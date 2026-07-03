@@ -9,7 +9,7 @@ export interface SectionProps {
   theme: PresentationTheme;
 }
 
-function Slide({ theme, children, style }: { theme: PresentationTheme; children: React.ReactNode; style?: React.CSSProperties }) {
+export function Slide({ theme, children, style }: { theme: PresentationTheme; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div
       style={{
@@ -29,7 +29,7 @@ function Slide({ theme, children, style }: { theme: PresentationTheme; children:
   );
 }
 
-function SlideTitle({ theme, children }: { theme: PresentationTheme; children: React.ReactNode }) {
+export function SlideTitle({ theme, children }: { theme: PresentationTheme; children: React.ReactNode }) {
   return <h2 style={{ fontSize: 28, fontWeight: 800, color: theme.accent, marginBottom: 20 }}>{children}</h2>;
 }
 
