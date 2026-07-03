@@ -108,6 +108,19 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     finance = { projectValue, paid, remaining: Math.max(projectValue - paid, 0) };
   }
 
+  let lastPayment: Payment | null = null;
+  if (canClient(permissions, "payments")) {
+    const { data } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("project_id", id)
+      .eq("status", "paid")
+      .order("paid_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastPayment = (data ?? null) as Payment | null;
+  }
+
   return (
     <>
       <BrandingInjector color={company?.primary_color} />
@@ -126,6 +139,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         notes={notes}
         totalNotesCount={totalNotesCount}
         finance={finance}
+        lastPayment={lastPayment}
         userId={session.userId}
         userName={session.profile.full_name}
       />

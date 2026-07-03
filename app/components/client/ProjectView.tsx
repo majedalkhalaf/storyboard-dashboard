@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Icon from "@/app/components/ui/Icon";
+import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import ProjectStageTimeline from "@/app/components/client/ProjectStageTimeline";
 import StatCard from "@/app/components/dashboard/StatCard";
+import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
+import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
-import type { ClientPermissions, Company, CompanyPipelineStage, Episode, Note, Project, ProjectFile } from "@/app/lib/types";
+import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
+import type { ClientPermissions, Company, CompanyPipelineStage, Episode, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 interface FinanceSummary {
   projectValue: number;
@@ -22,6 +26,25 @@ interface FinanceSummary {
 type TabKey = "overview" | "episodes" | "files" | "notes";
 type EpisodeFilter = "all" | "completed" | "in_progress" | "overdue";
 type EpisodeSort = "newest" | "number" | "progress";
+
+// يستمع لأي تعديل حي على حلقات/ملاحظات/ملفات هذا المشروع ويعيد جلب بيانات
+// الصفحة من الخادم فوراً — نفس النمط المستخدم في صفحة الحلقة.
+function useProjectRealtimeRefresh(projectId: string) {
+  const router = useRouter();
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`client-project:${projectId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "episodes", filter: `project_id=eq.${projectId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: `project_id=eq.${projectId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "files", filter: `project_id=eq.${projectId}` }, () => router.refresh())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router مستقر عبر عمر المكوّن
+  }, [projectId]);
+}
 
 export default function ProjectView({
   project,
@@ -38,6 +61,7 @@ export default function ProjectView({
   notes,
   totalNotesCount,
   finance,
+  lastPayment,
   userId,
   userName,
 }: {
@@ -55,27 +79,58 @@ export default function ProjectView({
   notes: Note[];
   totalNotesCount: number;
   finance: FinanceSummary | null;
+  lastPayment: Payment | null;
   userId: string;
   userName: string | null;
 }) {
+  useProjectRealtimeRefresh(project.id);
   const approvedSet = new Set(approvedEpisodeIds);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
+  const showPayments = canClient(permissions, "payments");
   const showEpisodes = canClient(permissions, "episodes");
   const showFiles = canClient(permissions, "files");
+  const canDownloadProject = canClient(permissions, "download_project");
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
-    { key: "overview", label: "نظرة عامة", show: true },
     { key: "episodes", label: "الحلقات", show: showEpisodes },
+    { key: "overview", label: "نظرة عامة", show: true },
     { key: "files", label: "الملفات", show: showFiles },
     { key: "notes", label: "الملاحظات", show: true },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
-  const [active, setActive] = useState<TabKey>("overview");
+  const [active, setActive] = useState<TabKey>(showEpisodes ? "episodes" : "overview");
 
   const episodesCompleted = episodes.filter((e) => e.status === "delivered" || e.status === "approved").length;
   const episodesInProgress = episodes.filter((e) => e.status === "in_progress" || e.status === "in_review" || e.status === "ready_for_approval").length;
   const episodesRemaining = episodes.length - episodesCompleted;
+
+  const openNotes = notes.filter((n) => n.status !== "done" && n.status !== "closed" && n.status !== "rejected");
+  const closedNotes = notes.filter((n) => n.status === "done" || n.status === "closed");
+
+  const activity = useMemo(() => buildProjectActivity(files, notes, episodes), [files, notes, episodes]);
+
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
+
+  async function handleExportZip() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const supabase = createClient();
+      const { data: allFiles } = await supabase.from("files").select("*").eq("project_id", project.id).eq("client_visible", true);
+      const rows = (allFiles ?? []) as ProjectFile[];
+      const projectFiles = rows.filter((f) => !f.episode_id);
+      const episodeFilesByEpisode: Record<string, ProjectFile[]> = {};
+      for (const f of rows) {
+        if (f.episode_id) (episodeFilesByEpisode[f.episode_id] ??= []).push(f);
+      }
+      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, setExportProgress);
+    } finally {
+      setExporting(false);
+      setExportProgress(null);
+    }
+  }
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -86,37 +141,35 @@ export default function ProjectView({
         </Link>
       </div>
 
-      {/* رأس المشروع */}
+      {/* رأس المشروع — الصورة والمحتوى جنباً إلى جنب */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
-        {project.cover_image_url && (
-          <div style={{ background: "#000", display: "flex", justifyContent: "center", maxHeight: 340, overflow: "hidden" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={project.cover_image_url} alt={project.name} style={{ width: "100%", maxHeight: 340, objectFit: "contain" }} />
-          </div>
-        )}
-        <div style={{ padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-                <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>{project.name}</h1>
-                <StatusChip label={status.label} color={status.color} />
-              </div>
-              {project.description && <p style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 10, maxWidth: 560 }}>{project.description}</p>}
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-muted)" }}>
-                {clientName && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <Icon name="user" size={13} /> {clientName}
-                  </span>
-                )}
-                {project.delivery_date && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <Icon name="calendar" size={13} /> التسليم المتوقع: {formatDate(project.delivery_date)}
-                  </span>
-                )}
-              </div>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {project.cover_image_url && (
+            <div style={{ flex: "1 1 320px", background: "#000", display: "flex", justifyContent: "center", alignItems: "center", minHeight: 220, maxHeight: 320, overflow: "hidden" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={project.cover_image_url} alt={project.name} style={{ maxWidth: "100%", maxHeight: 320, width: "auto", height: "auto", objectFit: "contain" }} />
+            </div>
+          )}
+          <div style={{ flex: "1.4 1 380px", padding: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+              <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>{project.name}</h1>
+              <StatusChip label={status.label} color={status.color} />
+            </div>
+            {project.description && <p style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 10, maxWidth: 560 }}>{project.description}</p>}
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16 }}>
+              {clientName && (
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="user" size={13} /> {clientName}
+                </span>
+              )}
+              {project.delivery_date && (
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="calendar" size={13} /> التسليم المتوقع: {formatDate(project.delivery_date)}
+                </span>
+              )}
             </div>
 
-            <div style={{ minWidth: 200 }}>
+            <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginBottom: 5 }}>
                 <span>نسبة الإنجاز</span>
                 <span style={{ fontWeight: 800, color: "var(--gold)" }}>{project.progress ?? 0}%</span>
@@ -124,20 +177,41 @@ export default function ProjectView({
               <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${project.progress ?? 0}%` }} />
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={() => setActive("notes")}>
-                  <Icon name="message" size={14} /> إرسال ملاحظة
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={() => setActive("notes")}>
+                <Icon name="message" size={14} /> إرسال ملاحظة
+              </button>
+              {showFiles && (
+                <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={() => setActive("files")}>
+                  <Icon name="files" size={14} /> الملفات
                 </button>
-                {showFiles && (
-                  <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={() => setActive("files")}>
-                    <Icon name="files" size={14} /> الملفات
-                  </button>
-                )}
-              </div>
+              )}
+              {canDownloadProject && (
+                <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={handleExportZip} disabled={exporting}>
+                  <Icon name="archive" size={14} /> {exporting ? `${exportProgress?.stage ?? "جارٍ التحميل..."} ${exportProgress?.percent ?? 0}%` : "تحميل المشروع (ZIP)"}
+                </button>
+              )}
+              <button
+                className="btn btn-outline"
+                style={{ fontSize: 12.5 }}
+                onClick={() => downloadClientQuickReport(project, episodes, notes, showFinance ? finance : null, showPayments ? lastPayment : null)}
+              >
+                <Icon name="fileCheck" size={14} /> تقرير سريع
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* تقدم المشروع — رسم بياني تفصيلي لتوزيع الحلقات على المراحل */}
+      {showEpisodes && pipelineStages.length > 0 && episodes.length > 0 && (
+        <div className="card" style={{ padding: 20, marginBottom: 18 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>تقدم المشروع حسب المرحلة</h3>
+          <StageDistributionChart stages={pipelineStages} episodes={episodes} />
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
@@ -222,13 +296,70 @@ export default function ProjectView({
 
         {/* القائمة الجانبية */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="card" style={{ padding: 18 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>ملخص المشروع</h3>
-            {project.code && <InfoRow icon="tasks" label="كود المشروع" value={project.code} />}
-            {project.type && <InfoRow icon="video" label="نوع المشروع" value={project.type} />}
-            {clientName && <InfoRow icon="user" label="العميل" value={clientName} />}
-            <InfoRow icon="barChart" label="نسبة الإنجاز" value={`${project.progress ?? 0}%`} />
+          <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+            <PerformanceRing percent={project.progress ?? 0} label="تقدم المشروع" size={116} />
+            <div style={{ width: "100%" }}>
+              {project.code && <InfoRow icon="tasks" label="كود المشروع" value={project.code} />}
+              {project.type && <InfoRow icon="video" label="نوع المشروع" value={project.type} />}
+              {clientName && <InfoRow icon="user" label="العميل" value={clientName} />}
+            </div>
           </div>
+
+          {/* النشاطات والمستجدات */}
+          <div className="card" style={{ padding: 18 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 12 }}>النشاطات والمستجدات</h3>
+            {activity.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>لا يوجد نشاط بعد</p>
+            ) : (
+              activity.slice(0, 6).map((a) => (
+                <div key={a.id} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ color: a.color, background: `${a.color}1a`, borderRadius: 7, padding: 5, display: "inline-flex", flexShrink: 0, height: "fit-content" }}>
+                    <Icon name={a.icon} size={12} />
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 600 }}>{a.title}</div>
+                    <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 1 }}>{relativeTime(a.at)}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* الملاحظات — جارية ومنجزة */}
+          <div className="card" style={{ padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800 }}>الملاحظات</h3>
+              <button className="btn-ghost" style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }} onClick={() => setActive("notes")}>
+                عرض الكل
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <span className="chip" style={{ color: "#F59E0B", borderColor: "#F59E0B" }}>
+                {openNotes.length} جارية
+              </span>
+              <span className="chip" style={{ color: "var(--success)", borderColor: "var(--success)" }}>
+                {closedNotes.length} منجزة
+              </span>
+            </div>
+            {notes.slice(0, 3).map((n) => (
+              <div key={n.id} style={{ fontSize: 11.5, color: "var(--text-secondary)", padding: "6px 0", borderTop: "1px solid var(--border)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {n.body}
+              </div>
+            ))}
+          </div>
+
+          {/* تنقل سريع للحسابات */}
+          {showPayments && (
+            <button type="button" className="card" style={{ padding: 18, display: "block", width: "100%", textAlign: "start", cursor: "pointer" }} onClick={() => setActive("overview")}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800 }}>الحسابات</h3>
+                <Icon name="arrowLeft" size={14} className="text-muted" />
+              </div>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4 }}>
+                {lastPayment?.paid_date ? `آخر دفعة: ${formatDate(lastPayment.paid_date)} — ${formatCurrency(lastPayment.amount)}` : "لا توجد دفعات مسجّلة بعد"}
+              </p>
+            </button>
+          )}
 
           {company && (company.email || company.phone || company.website) && (
             <div className="card" style={{ padding: 18 }}>
@@ -434,6 +565,53 @@ function FinanceRow({ label, value, color }: { label: string; value: string; col
     <div style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--border)", fontSize: 14 }}>
       <span style={{ color: "var(--text-secondary)" }}>{label}</span>
       <span style={{ fontWeight: 800, color }}>{value}</span>
+    </div>
+  );
+}
+
+interface ProjectActivityItem {
+  id: string;
+  title: string;
+  icon: IconName;
+  color: string;
+  at: string;
+}
+
+// نشاطات آمنة للعميل مبنية من بيانات يملك أصلاً صلاحية رؤيتها (ملفات/ملاحظات/
+// حلقات) — وليس من جدول activity_logs الداخلي الذي لا سياسة RLS تتيح للعميل قراءته.
+function buildProjectActivity(files: ProjectFile[], notes: Note[], episodes: Episode[]): ProjectActivityItem[] {
+  return [
+    ...files.map((f) => ({ id: `file-${f.id}`, title: `تم رفع ملف: ${f.name}`, icon: "fileUp" as const, color: "#3987e5", at: f.created_at })),
+    ...notes.map((n) => ({ id: `note-${n.id}`, title: "ملاحظة جديدة من فريق العمل", icon: "message" as const, color: "#F59E0B", at: n.created_at })),
+    ...episodes
+      .filter((e) => e.status === "delivered" || e.status === "approved")
+      .map((e) => ({ id: `episode-${e.id}`, title: `${e.status === "delivered" ? "تم تسليم" : "تم اعتماد"} حلقة "${e.title}"`, icon: "checkCircle" as const, color: "var(--success)", at: e.updated_at })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+}
+
+// توزيع الحلقات على مراحل الشركة الفعلية — نسبة الحلقات الواصلة كل مرحلة أو
+// تجاوزتها، وليس عدداً وهمياً.
+function StageDistributionChart({ stages, episodes }: { stages: CompanyPipelineStage[]; episodes: Episode[] }) {
+  const order = new Map(stages.map((s, i) => [s.key, i]));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {stages.map((stage, i) => {
+        const reached = episodes.filter((e) => (order.get(e.pipeline_stage) ?? 0) >= i).length;
+        const pct = episodes.length ? Math.round((reached / episodes.length) * 100) : 0;
+        return (
+          <div key={stage.key}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
+              <span>{stage.label}</span>
+              <span style={{ fontWeight: 700 }}>
+                {reached} من {episodes.length} ({pct}%)
+              </span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${pct}%`, background: stage.color }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
