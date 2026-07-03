@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/client";
 import { logActivity } from "@/app/lib/activity";
 import Icon from "@/app/components/ui/Icon";
@@ -58,13 +59,18 @@ export default function InviteChannelsClient({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div>
-        <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>
-          قنوات إرسال الدعوات
-        </h1>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-          إدارة عناوين البريد المُرسِل منها دعوات العملاء عبر SMTP، والأرقام المرجعية المستخدمة عند نسخ رابط الدعوة يدوياً
-        </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>
+            قنوات إرسال الدعوات
+          </h1>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+            إدارة عناوين البريد المُرسِل منها دعوات العملاء عبر SMTP، والأرقام المرجعية المستخدمة عند نسخ رابط الدعوة يدوياً
+          </p>
+        </div>
+        <Link href="/settings/invitations" className="btn btn-outline">
+          <Icon name="clock" size={16} /> سجل الدعوات
+        </Link>
       </div>
 
       <EmailSendersSection />

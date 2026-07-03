@@ -76,6 +76,7 @@ export const SIDEBAR_NAV: SidebarEntry[] = [
       { href: "/account", label: "إعدادات الحساب", icon: "user" },
       { href: "/settings", label: "الشركة والهوية البصرية", icon: "company" },
       { href: "/settings/invite-channels", label: "قنوات إرسال الدعوات", icon: "mail", adminOnly: true },
+      { href: "/settings/invitations", label: "سجل الدعوات", icon: "clock", adminOnly: true },
       { href: "/team", label: "الفريق والصلاحيات", icon: "team", adminOnly: true },
       { href: "/equipment", label: "المعدات", icon: "equipment" },
       { href: "/templates", label: "القوالب", icon: "templates" },
