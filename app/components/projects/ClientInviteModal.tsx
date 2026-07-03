@@ -54,6 +54,25 @@ export default function ClientInviteModal({
   const { userId, company } = useSession();
   const companyId = company!.id;
 
+  const [view, setView] = useState<"new" | "manage">("new");
+  const [projectName, setProjectName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("projects")
+      .select("name")
+      .eq("id", projectId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled) setProjectName((data as { name: string } | null)?.name ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- يُجلب مرة واحدة فقط لكل مشروع تُفتح نافذته
+  }, [projectId]);
+
   const [step, setStep] = useState(1);
   const [touched, setTouched] = useState(false);
 
@@ -123,8 +142,8 @@ export default function ClientInviteModal({
   const [copied, setCopied] = useState(false);
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
   const [whatsappSentAutomatically, setWhatsappSentAutomatically] = useState(false);
-  const [smsMessage, setSmsMessage] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
 
   const canNext1 = name.trim() !== "" && email.trim() !== "";
   const hasUnsavedInput = Boolean(name.trim() || email.trim() || phone.trim() || jobTitle.trim() || clientCompanyName.trim());
@@ -283,8 +302,8 @@ export default function ClientInviteModal({
       setUsedFallbackMailer(Boolean(json.usedFallbackMailer));
       setWhatsappLink((json.whatsappLink as string | null) ?? null);
       setWhatsappSentAutomatically(Boolean(json.whatsappSentAutomatically));
-      setSmsMessage((json.smsMessage as string | null) ?? null);
       setTempPassword((json.tempPassword as string | null) ?? null);
+      setInviteMessage((json.inviteMessage as string | null) ?? null);
 
       // تُعرض شاشة نجاح موحّدة لكل طرق الإرسال — تحمل رابطاً فعلياً لنسخه في حالة
       // "نسخ الرابط"، زر فتح واتساب برسالة جاهزة في حالة "واتساب"، أو (في حالة البريد)
@@ -306,6 +325,28 @@ export default function ClientInviteModal({
     });
   }
 
+  // يعيد المعالج لحالة إدخال جديدة بلا إغلاق النافذة — يُبقي إعدادات الخطوة 3
+  // (مدة الدعوة/الصلاحية/طريقة الإرسال) كما هي لأنها غالباً نفسها للعميل التالي،
+  // ويمسح فقط هوية العميل والصلاحيات ونتيجة الإرسال السابقة.
+  function resetForAnotherInvite() {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setJobTitle("");
+    setClientCompanyName("");
+    setInviteType("client");
+    setPermissions({ ...DEFAULT_CLIENT_PERMISSIONS });
+    setSentLink(undefined);
+    setUsedFallbackMailer(false);
+    setWhatsappLink(null);
+    setWhatsappSentAutomatically(false);
+    setTempPassword(null);
+    setInviteMessage(null);
+    setError(null);
+    setTouched(false);
+    setStep(1);
+  }
+
   const busy = saving || savingDraft;
   const selectedCount = permissionCountOf(permissions);
   const selectedSenderNumber = senderNumbers?.find((n) => n.id === senderNumberId) ?? null;
@@ -319,21 +360,57 @@ export default function ClientInviteModal({
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "22px 24px 0" }}>
           <div>
-            <h2 style={{ fontSize: 19, fontWeight: 800 }}>دعوة عميل جديد</h2>
-            <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>معالج من 3 خطوات لضبط وصول العميل للمشروع</p>
+            <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 19, fontWeight: 800 }}>
+              <Icon name="userPlus" size={18} className="text-muted" /> دعوة عميل لهذا المشروع
+            </h2>
+            <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>
+              {projectName ? `العميل سيرى فقط مشروع "${projectName}" — ولا يستطيع رؤية أي مشروع آخر.` : "معالج من 3 خطوات لضبط وصول العميل للمشروع"}
+            </p>
           </div>
           <button className="btn-ghost" style={{ padding: 6, borderRadius: 8 }} onClick={requestClose} disabled={busy}>
             <Icon name="close" size={18} />
           </button>
         </div>
 
-        {sentLink === undefined && (
-          <div style={{ padding: "18px 24px 0" }}>
-            <StepIndicator step={step} />
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 4, padding: "16px 24px 0", borderBottom: "1px solid var(--border)" }}>
+          {(
+            [
+              { key: "new" as const, label: "دعوة جديدة" },
+              { key: "manage" as const, label: "إدارة الدعوات" },
+            ] satisfies { key: "new" | "manage"; label: string }[]
+          ).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setView(t.key)}
+              className="btn-ghost"
+              style={{
+                padding: "8px 14px",
+                borderRadius: 0,
+                borderBottom: view === t.key ? "2px solid var(--gold)" : "2px solid transparent",
+                color: view === t.key ? "var(--gold)" : "var(--text-secondary)",
+                fontWeight: view === t.key ? 700 : 500,
+                fontSize: 13.5,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        <div style={{ display: "flex", flex: 1, minHeight: 0, marginTop: 18 }}>
+        {view === "manage" ? (
+          <div style={{ padding: 24, overflowY: "auto", flex: 1, minHeight: 0 }}>
+            <ManageInvitationsTab projectId={projectId} />
+          </div>
+        ) : (
+          <>
+            {sentLink === undefined && (
+              <div style={{ padding: "18px 24px 0" }}>
+                <StepIndicator step={step} />
+              </div>
+            )}
+
+            <div style={{ display: "flex", flex: 1, minHeight: 0, marginTop: 18 }}>
           {/* لوحة الملخص الحي — تظهر يمينًا طوال الخطوات الثلاث (dir=rtl) */}
           <div
             style={{
@@ -378,8 +455,10 @@ export default function ClientInviteModal({
                 senderNumber={selectedSenderNumber}
                 whatsappLink={whatsappLink}
                 whatsappSentAutomatically={whatsappSentAutomatically}
-                smsMessage={smsMessage}
+                inviteMessage={inviteMessage}
                 tempPassword={tempPassword}
+                email={email}
+                projectName={projectName}
               />
             ) : (
               <>
@@ -434,7 +513,7 @@ export default function ClientInviteModal({
         </div>
 
         {/* شريط الإجراءات */}
-        {sentLink === undefined && (
+        {sentLink === undefined ? (
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "16px 24px 22px", borderTop: "1px solid var(--border)", marginTop: 10 }}>
             <button type="button" className="btn btn-ghost" onClick={requestClose} disabled={busy}>
               إلغاء
@@ -459,6 +538,17 @@ export default function ClientInviteModal({
               )}
             </div>
           </div>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 24px 22px", borderTop: "1px solid var(--border)", marginTop: 10 }}>
+            <button type="button" className="btn btn-outline" onClick={resetForAnotherInvite}>
+              <Icon name="userPlus" size={16} /> دعوة عميل آخر
+            </button>
+            <button type="button" className="btn btn-gold" onClick={onClose}>
+              تم
+            </button>
+          </div>
+        )}
+          </>
         )}
       </div>
     </div>
@@ -501,6 +591,139 @@ function StepIndicator({ step }: { step: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+const INVITATION_STATUS_META: Record<string, { label: string; color: string }> = {
+  pending: { label: "قيد الإرسال", color: "#F59E0B" },
+  sent: { label: "أُرسلت", color: "#3987e5" },
+  opened: { label: "فُتحت", color: "#8B93A1" },
+  accepted: { label: "قُبلت", color: "#1DB954" },
+  failed: { label: "فشلت", color: "#EF4444" },
+  expired: { label: "منتهية", color: "#F59E0B" },
+  cancelled: { label: "ملغاة", color: "#6B7280" },
+};
+
+const INVITATION_METHOD_LABELS: Record<string, string> = {
+  email: "البريد الإلكتروني",
+  link: "رابط",
+  whatsapp: "واتساب",
+  sms: "رسالة نصية",
+};
+
+interface InvitationRow {
+  id: string;
+  email: string;
+  delivery_method: string;
+  status: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  accepted_at: string | null;
+  retry_count: number;
+  error_message: string | null;
+}
+
+// تعرض دعوات هذا المشروع فقط (وليس كل الشركة كما في /settings/invitations) — استعلام
+// مباشر من عميل المتصفح لأن سياسة RLS الوحيدة على invitations تسمح لمديري الشركة
+// بالقراءة مباشرة، ونافذة الدعوة أصلاً لا تُفتح إلا لمستخدم إداري.
+function ManageInvitationsTab({ projectId }: { projectId: string }) {
+  const supabase = createClient();
+  const [rows, setRows] = useState<InvitationRow[] | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryMessage, setRetryMessage] = useState<{ id: string; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("invitations")
+      .select("id, email, delivery_method, status, sent_at, opened_at, accepted_at, retry_count, error_message")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+    setRows((data as InvitationRow[] | null) ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- تُجلب عند فتح التبويب فقط
+  }, [projectId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل أولي لسجل دعوات هذا المشروع عند فتح التبويب
+    load();
+  }, [load]);
+
+  async function retry(id: string) {
+    setRetryingId(id);
+    setRetryMessage(null);
+    try {
+      const res = await fetch(`/api/invitations/${id}/retry`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "تعذّرت إعادة الإرسال");
+      setRetryMessage({ id, text: "تم إعادة الإرسال" });
+      await load();
+    } catch (e) {
+      setRetryMessage({ id, text: e instanceof Error ? e.message : "تعذّرت إعادة الإرسال" });
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  if (rows === null) {
+    return <div className="skeleton" style={{ height: 160, borderRadius: 10 }} />;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="empty-state card">
+        <Icon name="userPlus" size={28} className="text-muted" />
+        <p style={{ marginTop: 10 }}>لا توجد دعوات مسجّلة لهذا المشروع بعد</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card table-scroll" style={{ overflow: "hidden" }}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>البريد الإلكتروني</th>
+            <th>طريقة الإرسال</th>
+            <th>الحالة</th>
+            <th>أُرسلت</th>
+            <th>فُتحت</th>
+            <th>قُبلت</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const status = INVITATION_STATUS_META[r.status] ?? { label: r.status, color: "var(--text-muted)" };
+            const canRetry = r.status === "failed" && r.delivery_method === "email";
+            return (
+              <tr key={r.id}>
+                <td style={{ fontWeight: 600 }}>{r.email}</td>
+                <td>{INVITATION_METHOD_LABELS[r.delivery_method] ?? r.delivery_method}</td>
+                <td>
+                  <span className="chip" style={{ color: status.color, borderColor: status.color, fontSize: 11 }}>
+                    {status.label}
+                  </span>
+                </td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.sent_at ? new Date(r.sent_at).toLocaleString("ar") : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.opened_at ? new Date(r.opened_at).toLocaleString("ar") : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.accepted_at ? new Date(r.accepted_at).toLocaleString("ar") : "—"}</td>
+                <td>
+                  {canRetry ? (
+                    <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => retry(r.id)} disabled={retryingId === r.id}>
+                      {retryingId === r.id ? "جارٍ..." : "إعادة الإرسال"}
+                    </button>
+                  ) : (
+                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                  )}
+                  {retryMessage?.id === r.id && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{retryMessage.text}</div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1025,8 +1248,10 @@ function SendSuccessView({
   senderNumber,
   whatsappLink,
   whatsappSentAutomatically,
-  smsMessage,
+  inviteMessage,
   tempPassword,
+  email,
+  projectName,
 }: {
   deliveryMethod: ClientDeliveryMethod;
   link: string | null;
@@ -1036,11 +1261,14 @@ function SendSuccessView({
   senderNumber: CompanySenderNumber | null;
   whatsappLink: string | null;
   whatsappSentAutomatically: boolean;
-  smsMessage: string | null;
+  inviteMessage: string | null;
   tempPassword: string | null;
+  email: string;
+  projectName: string | null;
 }) {
   const [pwCopied, setPwCopied] = useState(false);
-  const [smsCopied, setSmsCopied] = useState(false);
+  const [msgCopied, setMsgCopied] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
 
   function copyPassword() {
     if (!tempPassword) return;
@@ -1050,16 +1278,29 @@ function SendSuccessView({
     });
   }
 
-  function copySmsMessage() {
-    if (!smsMessage) return;
-    navigator.clipboard.writeText(smsMessage).then(() => {
-      setSmsCopied(true);
-      setTimeout(() => setSmsCopied(false), 1800);
+  function copyEmail() {
+    navigator.clipboard.writeText(email).then(() => {
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 1800);
     });
   }
 
+  function copyMessage() {
+    if (!inviteMessage) return;
+    navigator.clipboard.writeText(inviteMessage).then(() => {
+      setMsgCopied(true);
+      setTimeout(() => setMsgCopied(false), 1800);
+    });
+  }
+
+  // "ترحيل يدوي" = لا يوجد إرسال تلقائي حقيقي حدث فعلاً لهذه الدعوة، فيلزم على
+  // المسؤول نسخ/فتح الرسالة بنفسه — يشمل: نسخ الرابط، SMS (لا مزوّد حقيقي بعد)،
+  // وواتساب فقط حين لم يُفعَّل واتساب بزنس API الحقيقي لهذه الشركة.
+  const needsManualRelay = deliveryMethod === "link" || deliveryMethod === "sms" || (deliveryMethod === "whatsapp" && !whatsappSentAutomatically);
+  const isNewAccount = Boolean(tempPassword);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", textAlign: "center", padding: "40px 10px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", textAlign: "center", padding: "32px 10px" }}>
       <div
         style={{
           width: 56,
@@ -1075,51 +1316,12 @@ function SendSuccessView({
         <Icon name="check" size={26} />
       </div>
       <div>
-        <h3 style={{ fontSize: 16, fontWeight: 800 }}>تم إنشاء الدعوة بنجاح</h3>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-          {deliveryMethod === "link"
-            ? "انسخ الرابط أدناه وأرسله للعميل عبر أي قناة"
-            : deliveryMethod === "whatsapp"
-              ? whatsappSentAutomatically
-                ? "تم إرسال الرسالة تلقائياً عبر واتساب بزنس API"
-                : "اضغط الزر أدناه لفتح واتساب برسالة جاهزة، ثم اضغط إرسال بنفسك"
-              : deliveryMethod === "sms"
-                ? "انسخ الرسالة أدناه وأرسلها للعميل كرسالة نصية"
-                : "تم إرسال بريد إلكتروني للعميل بتفاصيل الدخول"}
-        </p>
+        <h3 style={{ fontSize: 16, fontWeight: 800 }}>{isNewAccount ? "تم إنشاء حساب العميل بنجاح" : "تم إنشاء الدعوة بنجاح"}</h3>
+        {projectName && <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>المشروع: {projectName}</p>}
       </div>
 
       {deliveryMethod === "email" && usedFallbackMailer && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "var(--bg-hover)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            padding: "8px 12px",
-            fontSize: 12,
-            color: "var(--text-secondary)",
-          }}
-        >
-          <Icon name="info" size={14} className="text-muted" />
-          لم يتم إعداد بريد إرسال مخصص لهذه الشركة — تم استخدام بريد Supabase الافتراضي
-        </div>
-      )}
-
-      {deliveryMethod === "link" && link && (
-        <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 420 }}>
-          <input className="input-field" readOnly value={link} style={{ fontSize: 12, textAlign: "left", direction: "ltr" }} />
-          <button type="button" className="btn btn-gold" style={{ flexShrink: 0 }} onClick={onCopy}>
-            <Icon name={copied ? "check" : "copy"} size={14} /> {copied ? "تم النسخ" : "نسخ"}
-          </button>
-        </div>
-      )}
-      {deliveryMethod === "link" && senderNumber && (
-        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          من الرقم: {senderNumber.label} — {senderNumber.phone_number}
-        </p>
+        <InfoBanner tone="warning" text="لم يتم إعداد بريد إرسال مخصص لهذه الشركة — تم استخدام بريد Supabase الافتراضي" />
       )}
 
       {deliveryMethod === "whatsapp" && whatsappSentAutomatically && (
@@ -1134,67 +1336,141 @@ function SendSuccessView({
             padding: "8px 12px",
             fontSize: 12,
             color: "var(--success)",
+            width: "100%",
+            maxWidth: 460,
           }}
         >
           <Icon name="checkCircle" size={14} /> تم الإرسال تلقائياً عبر واتساب بزنس API المُعَدّ لهذه الشركة
         </div>
       )}
 
-      {deliveryMethod === "whatsapp" && !whatsappSentAutomatically && whatsappLink && (
-        <>
-          <a
-            href={whatsappLink}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-gold"
-            style={{ width: "100%", maxWidth: 320, justifyContent: "center" }}
-          >
-            <Icon name="phone" size={16} /> فتح واتساب وإرسال الآن
-          </a>
+      {needsManualRelay && (
+        <InfoBanner
+          tone="warning"
+          text={
+            deliveryMethod === "whatsapp"
+              ? "لا يوجد واتساب بزنس API مُفعَّل لهذه الشركة بعد — لم يُرسل شيء تلقائياً"
+              : deliveryMethod === "sms"
+                ? "لم تُرسل الرسالة تلقائياً — انسخها أدناه وأرسلها يدوياً كرسالة نصية"
+                : "لم يُرسل شيء تلقائياً — انسخ الرسالة أو الرابط أدناه وأرسله يدوياً"
+          }
+        />
+      )}
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              background: "var(--bg-hover)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: "10px 12px",
-              fontSize: 11.5,
-              color: "var(--text-secondary)",
-              textAlign: "right",
-              maxWidth: 420,
-            }}
-          >
-            <span style={{ flexShrink: 0, marginTop: 1, display: "flex" }}>
-              <Icon name="info" size={14} className="text-muted" />
-            </span>
-            <span>
-              لا يوجد واتساب بزنس API مُفعَّل لهذه الشركة بعد — سيُفتح واتساب ويب أو التطبيق مع رسالة جاهزة لرقم العميل، وعليك أنت الضغط على
-              زر الإرسال داخل واتساب من الجلسة المسجّل بها فعلياً.
-            </span>
+      {isNewAccount && <InfoBanner tone="danger" text="كلمة المرور المؤقتة تظهر مرة واحدة فقط — انسخها أو شاركها الآن." />}
+
+      {needsManualRelay && inviteMessage && (
+        <div style={{ width: "100%", maxWidth: 460, textAlign: "right" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>
+            <Icon name="mail" size={14} className="text-muted" /> رسالة الدعوة الجاهزة
           </div>
-        </>
-      )}
-
-      {deliveryMethod === "sms" && smsMessage && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 420 }}>
-          <textarea className="input-field" readOnly value={smsMessage} style={{ fontSize: 12.5, minHeight: 120, textAlign: "right" }} />
-          <button type="button" className="btn btn-gold" onClick={copySmsMessage}>
-            <Icon name={smsCopied ? "check" : "copy"} size={14} /> {smsCopied ? "تم النسخ" : "نسخ الرسالة"}
-          </button>
+          <textarea
+            readOnly
+            value={inviteMessage}
+            style={{
+              width: "100%",
+              minHeight: 140,
+              maxHeight: 200,
+              resize: "none",
+              fontSize: 12.5,
+              lineHeight: 1.7,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "var(--bg-secondary)",
+              color: "var(--text-primary)",
+              fontFamily: "inherit",
+            }}
+          />
         </div>
       )}
 
-      {(deliveryMethod === "whatsapp" || deliveryMethod === "sms") && tempPassword && (
-        <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 420, alignItems: "center" }}>
-          <input className="input-field" readOnly value={tempPassword} style={{ fontSize: 13, textAlign: "center", fontFamily: "monospace" }} />
-          <button type="button" className="btn btn-outline" style={{ flexShrink: 0 }} onClick={copyPassword}>
-            <Icon name={pwCopied ? "check" : "copy"} size={14} /> {pwCopied ? "تم النسخ" : "نسخ كلمة المرور"}
+      {needsManualRelay && (
+        <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 460 }}>
+          {deliveryMethod === "whatsapp" && whatsappLink && (
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noreferrer"
+              className="btn"
+              style={{ flex: 1, justifyContent: "center", background: "var(--success)", color: "#06210f", fontWeight: 700 }}
+            >
+              <Icon name="phone" size={16} /> إرسال واتساب
+            </a>
+          )}
+          {inviteMessage && (
+            <button type="button" className="btn btn-gold" style={{ flex: 1, justifyContent: "center" }} onClick={copyMessage}>
+              <Icon name={msgCopied ? "check" : "copy"} size={14} /> {msgCopied ? "تم النسخ" : "نسخ الرسالة كاملة"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {deliveryMethod === "link" && link && (
+        <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 460 }}>
+          <input className="input-field" readOnly value={link} style={{ fontSize: 12, textAlign: "left", direction: "ltr" }} />
+          <button type="button" className="btn btn-outline" style={{ flexShrink: 0 }} onClick={onCopy}>
+            <Icon name={copied ? "check" : "copy"} size={14} /> {copied ? "تم النسخ" : "نسخ الرابط فقط"}
           </button>
         </div>
       )}
+      {deliveryMethod === "link" && senderNumber && (
+        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          من الرقم: {senderNumber.label} — {senderNumber.phone_number}
+        </p>
+      )}
+
+      {(tempPassword || needsManualRelay) && (
+        <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 460 }}>
+          {tempPassword && (
+            <div style={{ flex: 1, textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>كلمة المرور</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="input-field" readOnly value={tempPassword} style={{ fontSize: 13, fontFamily: "monospace" }} />
+                <button type="button" className="btn-ghost" style={{ padding: "0 10px", flexShrink: 0 }} onClick={copyPassword} title="نسخ كلمة المرور">
+                  <Icon name={pwCopied ? "check" : "copy"} size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+          <div style={{ flex: 1, textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>البريد</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input className="input-field" readOnly value={email} style={{ fontSize: 13 }} />
+              <button type="button" className="btn-ghost" style={{ padding: "0 10px", flexShrink: 0 }} onClick={copyEmail} title="نسخ البريد">
+                <Icon name={emailCopied ? "check" : "copy"} size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoBanner({ tone, text }: { tone: "warning" | "danger"; text: string }) {
+  const colors = tone === "warning" ? { bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.3)", fg: "#F59E0B" } : { bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.3)", fg: "#3987e5" };
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        background: colors.bg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 10,
+        padding: "10px 12px",
+        fontSize: 12,
+        color: colors.fg,
+        width: "100%",
+        maxWidth: 460,
+        textAlign: "right",
+      }}
+    >
+      <span style={{ flexShrink: 0, marginTop: 1, display: "flex" }}>
+        <Icon name="warning" size={14} />
+      </span>
+      <span>{text}</span>
     </div>
   );
 }

@@ -273,6 +273,10 @@ export async function POST(request: Request) {
       whatsappSentAutomatically,
       smsMessage,
       tempPassword,
+      // نص الرسالة الجاهزة نفسه — يُعاد دائماً (وليس فقط لطريقة SMS) ليتيح للواجهة
+      // عرض/نسخ رسالة واحدة موحّدة لأي طريقة تحتاج ترحيلاً يدوياً (رابط/واتساب غير
+      // مُرسَل تلقائياً/SMS)، بدل الاعتماد فقط على smsMessage.
+      inviteMessage: message,
     });
   } catch (err) {
     // أي خطأ غير متوقع (مثل غياب SUPABASE_SERVICE_ROLE_KEY) كان يوقف الدالة بلا
