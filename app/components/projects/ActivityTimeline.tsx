@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   episode_stage_updated: "حدّث مرحلة تنفيذ",
   approval_revoked: "أعاد فتح حلقة للمراجعة",
   note_added: "أضاف ملاحظة",
+  video_comment_added: "أضاف تعليقاً على الفيديو",
 };
 
 function describe(item: ActivityItem): string {
@@ -36,6 +37,7 @@ function describe(item: ActivityItem): string {
   }
   if ((item.action === "episode_created" || item.action === "project_created") && d.title) return `${base}: ${d.title}`;
   if (item.action === "project_created" && d.name) return `${base}: ${d.name}`;
+  if (item.action === "video_comment_added" && d.at) return `${base} عند ${d.at}`;
   return base;
 }
 
