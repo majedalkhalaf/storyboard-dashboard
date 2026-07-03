@@ -4,7 +4,7 @@ import { getCurrentSession } from "@/app/lib/supabase/session";
 import { getEpisodeGallery } from "@/app/lib/episode-gallery";
 import ProjectDetailView from "@/app/components/projects/ProjectDetailView";
 import type { ProjectClientRow } from "@/app/components/projects/ClientsTab";
-import type { ClientPermissions, ClientRecord, Project, ProjectClientStatus, ProjectServiceItem } from "@/app/lib/types";
+import type { ClientAccessType, ClientPermissions, ClientRecord, Project, ProjectClientStatus, ProjectServiceItem } from "@/app/lib/types";
 
 export default async function ProjectDetailPage({
   params,
@@ -32,7 +32,7 @@ export default async function ProjectDetailPage({
     supabase.from("project_services").select("*").eq("project_id", id).order("created_at"),
     supabase
       .from("project_clients")
-      .select("id, invited_email, status, permissions, client:clients(name)")
+      .select("id, invited_email, status, permissions, invited_at, activated_at, expires_at, access_type, client_id, client:clients(id, name, phone, job_title, client_company_name)")
       .eq("project_id", id)
       .order("invited_at", { ascending: false }),
     supabase.from("clients").select("id, name, email, phone").eq("company_id", companyId).order("name"),
@@ -40,14 +40,23 @@ export default async function ProjectDetailPage({
   ]);
 
   const clients: ProjectClientRow[] = (projectClients ?? []).map((r) => {
-    const client = r.client as { name: string } | { name: string }[] | null;
-    const name = Array.isArray(client) ? client[0]?.name ?? null : client?.name ?? null;
+    type ClientJoin = { id: string; name: string; phone: string | null; job_title: string | null; client_company_name: string | null };
+    const client = r.client as ClientJoin | ClientJoin[] | null;
+    const c = Array.isArray(client) ? client[0] ?? null : client;
     return {
       id: r.id,
+      client_id: r.client_id,
       invited_email: r.invited_email,
-      client_name: name,
+      client_name: c?.name ?? null,
+      client_phone: c?.phone ?? null,
+      client_job_title: c?.job_title ?? null,
+      client_company_name: c?.client_company_name ?? null,
       status: r.status as ProjectClientStatus,
       permissions: r.permissions as ClientPermissions,
+      invited_at: r.invited_at,
+      activated_at: r.activated_at,
+      expires_at: r.expires_at,
+      access_type: r.access_type as ClientAccessType,
     };
   });
 

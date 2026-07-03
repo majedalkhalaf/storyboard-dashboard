@@ -3,9 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { notifyUser } from "@/app/lib/server/notify";
-import { getDefaultEmailSender, getEmailSenderById, sendMailViaSender } from "@/app/lib/server/mailer";
-import { getActiveWhatsappConfig, sendWhatsappMessage } from "@/app/lib/server/whatsapp";
-import { generateInvitationToken, generateTempPassword, toWhatsappDigits, checkInvitationRateLimit } from "@/app/lib/server/invitation-tracking";
+import { generateInvitationToken, generateTempPassword, checkInvitationRateLimit } from "@/app/lib/server/invitation-tracking";
+import { buildInviteMessage } from "@/app/lib/server/invite-message";
+import { dispatchInviteMessage } from "@/app/lib/server/invite-dispatch";
 import { DEFAULT_CLIENT_PERMISSIONS } from "@/app/lib/constants";
 import type { ClientAccessType, ClientPermissions, InvitationDeliveryMethod, InvitationStatus } from "@/app/lib/types";
 
@@ -174,34 +174,15 @@ export async function POST(request: Request) {
     // API مُعدّاً وفعّالاً لهذه الشركة. لا يفشل الطلب كاملاً إن تعذّر الإرسال
     // الفعلي عبر أي قناة — الحساب أُنشئ بالفعل، والرسالة الجاهزة تبقى متاحة دوماً
     // للنسخ/الإرسال اليدوي كخط رجوع صادق.
-    let emailSent = false;
-    let emailError: string | null = null;
     const cleanPhone = phone?.trim() || null;
-    const whatsappLink: string | null = cleanPhone ? `https://wa.me/${toWhatsappDigits(cleanPhone)}?text=${encodeURIComponent(message)}` : null;
-    let whatsappSentAutomatically = false;
-
-    const sender = senderId ? await getEmailSenderById(profile.company_id, senderId) : await getDefaultEmailSender(profile.company_id);
-    if (sender) {
-      try {
-        await sendMailViaSender(sender, {
-          to: email,
-          subject: `بيانات الدخول لمتابعة مشروعك "${project.name}"`,
-          html: `<div style="font-family:sans-serif;direction:rtl;text-align:right;white-space:pre-wrap">${message.replace(/\n/g, "<br/>")}</div>`,
-          text: message,
-        });
-        emailSent = true;
-      } catch (mailErr) {
-        emailError = mailErr instanceof Error ? mailErr.message : "خطأ غير معروف أثناء إرسال البريد";
-      }
-    }
-
-    if (cleanPhone) {
-      const waConfig = await getActiveWhatsappConfig(profile.company_id);
-      if (waConfig) {
-        const result = await sendWhatsappMessage(waConfig, toWhatsappDigits(cleanPhone), message);
-        whatsappSentAutomatically = result.success;
-      }
-    }
+    const { emailSent, emailError, whatsappLink, whatsappSentAutomatically } = await dispatchInviteMessage({
+      companyId: profile.company_id,
+      toEmail: email,
+      subject: `بيانات الدخول لمتابعة مشروعك "${project.name}"`,
+      message,
+      phone: cleanPhone,
+      senderId,
+    });
 
     const status: InvitationStatus = emailSent || whatsappSentAutomatically ? "sent" : "pending";
     const errorMessage = emailError;
@@ -265,40 +246,6 @@ export async function POST(request: Request) {
     // استجابة JSON صالحة — الآن يُرجع دائماً JSON فيه سبب الفشل الحقيقي.
     return NextResponse.json({ error: err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء إرسال الدعوة" }, { status: 500 });
   }
-}
-
-function buildInviteMessage(params: {
-  clientName: string;
-  projectName: string;
-  loginUrl: string;
-  email: string;
-  tempPassword: string | null;
-  hasExistingAccount: boolean;
-  customMessage?: string | null;
-}): string {
-  const { clientName, projectName, loginUrl, email, tempPassword, hasExistingAccount, customMessage } = params;
-  if (hasExistingAccount || !tempPassword) {
-    return [
-      `مرحباً ${clientName}،`,
-      `تمت إضافتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
-      ...(customMessage ? [``, customMessage] : []),
-      ``,
-      `رابط الدخول: ${loginUrl}`,
-      `البريد الإلكتروني: ${email}`,
-      ...(hasExistingAccount ? [`استخدم كلمة المرور الحالية لحسابك لديك.`] : []),
-    ].join("\n");
-  }
-  return [
-    `مرحباً ${clientName}،`,
-    `تمت دعوتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
-    ...(customMessage ? [``, customMessage] : []),
-    ``,
-    `رابط الدخول: ${loginUrl}`,
-    `البريد الإلكتروني: ${email}`,
-    `كلمة المرور المؤقتة: ${tempPassword}`,
-    ``,
-    `سيُطلب منك تعيين كلمة مرور جديدة عند أول تسجيل دخول.`,
-  ].join("\n");
 }
 
 async function createInvitationRow(
