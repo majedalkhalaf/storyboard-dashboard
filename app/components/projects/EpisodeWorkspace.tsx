@@ -15,12 +15,14 @@ import NotesTab from "./episode-tabs/NotesTab";
 import StagesTab from "./episode-tabs/StagesTab";
 import AssetsTab from "./episode-tabs/AssetsTab";
 import ActivityTab from "./episode-tabs/ActivityTab";
+import StoryboardTab from "./storyboard/StoryboardTab";
 
-type TabKey = "overview" | "script" | "files" | "video" | "notes" | "stages" | "assets" | "activity";
+type TabKey = "overview" | "script" | "storyboard" | "files" | "video" | "notes" | "stages" | "assets" | "activity";
 
 const TABS: TabDef<TabKey>[] = [
   { key: "overview", label: "نظرة عامة", icon: "info" },
   { key: "script", label: "السكربت", icon: "fileCheck" },
+  { key: "storyboard", label: "ستوري بورد", icon: "palette" },
   { key: "files", label: "الملفات", icon: "attachment" },
   { key: "video", label: "الفيديو", icon: "video" },
   { key: "notes", label: "الملاحظات", icon: "message" },
@@ -109,6 +111,12 @@ export default function EpisodeWorkspace({
 
           {loading || !detail ? (
             <WorkspaceSkeleton />
+          ) : tab === "storyboard" ? (
+            // ستوري بورد له تخطيطه الداخلي الخاص (معرض + لوحة تفاصيل + شريط مشاهد جانبي + Timeline)
+            // فلا حاجة للشريط الجانبي العام للحلقة هنا — يأخذ العرض الكامل.
+            <div className="animate-fade-in">
+              <StoryboardTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />
+            </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, alignItems: "flex-start" }}>
               <div className="animate-fade-in">

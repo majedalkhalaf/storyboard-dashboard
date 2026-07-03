@@ -9,6 +9,8 @@ import type {
   ContractStatus,
   ProposalStatus,
   ProposalType,
+  StoryboardSceneStatus,
+  StoryboardCastRole,
 } from "./types";
 
 export const PROJECT_TYPES: { value: string; label: string }[] = [
@@ -246,4 +248,70 @@ export const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
   { value: "مواصلات", label: "مواصلات" },
   { value: "تسويق", label: "تسويق" },
   { value: "أخرى", label: "أخرى" },
+];
+
+// ── Storyboard: مشاهد الحلقة ──
+// ملاحظة: "بانتظار العميل" هنا سماوي (Cyan) بدل البنفسجي المطلوب في الطلب الأصلي — هوية النظام
+// لا تستخدم البنفسجي إطلاقاً (نفس الاستبدال المطبَّق على شارة "بانتظار العميل" في معرض الحلقات).
+export const STORYBOARD_SCENE_STATUSES: { value: StoryboardSceneStatus; label: string; color: string }[] = [
+  { value: "planning", label: "التخطيط", color: "#CE902F" },
+  { value: "ready_to_shoot", label: "جاهز للتصوير", color: "#3B82F6" },
+  { value: "shot", label: "تم التصوير", color: "#22C55E" },
+  { value: "editing", label: "قيد المونتاج", color: "#F59E0B" },
+  { value: "client_review", label: "بانتظار العميل", color: "#06B6D4" },
+  { value: "approved", label: "تم الاعتماد", color: "#15803D" },
+];
+
+export const SHOT_TYPES: string[] = [
+  "Establishing Shot",
+  "Wide Shot",
+  "Medium Shot",
+  "Close-up",
+  "Extreme Close-up",
+  "Over the Shoulder",
+  "POV",
+  "Low Angle",
+  "High Angle",
+  "Bird Eye",
+  "Tracking Shot",
+  "Aerial",
+];
+
+export const CAST_ROLE_LABELS: Record<StoryboardCastRole, string> = {
+  character: "شخصية",
+  model: "موديل",
+  client: "العميل",
+  host: "مقدّم",
+  guest: "ضيف",
+};
+
+export const CAMERA_SETUP_FIELDS: { key: string; label: string }[] = [
+  { key: "camera_type", label: "نوع الكاميرا" },
+  { key: "lens", label: "العدسة" },
+  { key: "focal_length", label: "البعد البؤري" },
+  { key: "aperture", label: "فتحة العدسة" },
+  { key: "iso", label: "ISO" },
+  { key: "shutter", label: "Shutter" },
+  { key: "frame_rate", label: "Frame Rate" },
+  { key: "resolution", label: "Resolution" },
+  { key: "picture_profile", label: "Picture Profile" },
+  { key: "white_balance", label: "White Balance" },
+  { key: "nd_filter", label: "ND Filter" },
+  { key: "movement_type", label: "نوع الحركة" },
+  { key: "gimbal", label: "الجيمبل" },
+  { key: "tripod", label: "الحامل" },
+  { key: "mic", label: "المايك" },
+  { key: "lighting", label: "الإضاءة" },
+];
+
+export const DIRECTOR_NOTES_FIELDS: { key: string; label: string }[] = [
+  { key: "camera_movement", label: "طريقة حركة الكاميرا" },
+  { key: "angle", label: "زاوية التصوير" },
+  { key: "actor_movement", label: "حركة الممثل" },
+  { key: "mood", label: "الإحساس المطلوب" },
+  { key: "lighting", label: "الإضاءة المطلوبة" },
+  { key: "colors", label: "الألوان" },
+  { key: "music_type", label: "نوع الموسيقى" },
+  { key: "effects", label: "المؤثرات" },
+  { key: "transition", label: "طريقة الانتقال" },
 ];

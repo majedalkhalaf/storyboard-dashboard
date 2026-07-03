@@ -35,6 +35,10 @@ export type NoteTargetType =
 
 export type FileCategory = "image" | "video" | "document" | "audio" | "archive" | "link" | "other";
 
+export type StoryboardSceneStatus = "planning" | "ready_to_shoot" | "shot" | "editing" | "client_review" | "approved";
+
+export type StoryboardCastRole = "character" | "model" | "client" | "host" | "guest";
+
 export type InvoiceStatus = "draft" | "unpaid" | "paid" | "overdue" | "cancelled";
 export type PaymentStatus = "pending" | "paid" | "overdue" | "cancelled";
 export type ContractStatus = "draft" | "sent" | "pending_signature" | "signed" | "cancelled";
@@ -179,6 +183,7 @@ export interface ProjectFile {
   company_id: string;
   project_id: string;
   episode_id: string | null;
+  scene_id: string | null;
   uploaded_by: string | null;
   name: string;
   storage_path: string | null;
@@ -195,6 +200,7 @@ export interface Note {
   company_id: string;
   project_id: string;
   episode_id: string | null;
+  scene_id: string | null;
   target_type: NoteTargetType;
   target_id: string | null;
   parent_note_id: string | null;
@@ -207,6 +213,81 @@ export interface Note {
   video_timestamp_seconds: number | null;
   created_at: string;
   updated_at: string;
+}
+
+// حزمتا الإعدادات المرنتان (JSONB) داخل storyboard_scenes — المفاتيح هنا هي العقد الفعلي
+// المتوقَّع، حتى لو كان العمود نفسه بلا مخطط ملزم في قاعدة البيانات.
+export interface CameraSetup {
+  camera_type?: string;
+  lens?: string;
+  focal_length?: string;
+  aperture?: string;
+  iso?: string;
+  shutter?: string;
+  frame_rate?: string;
+  resolution?: string;
+  picture_profile?: string;
+  white_balance?: string;
+  nd_filter?: string;
+  movement_type?: string;
+  gimbal?: string;
+  tripod?: string;
+  mic?: string;
+  lighting?: string;
+}
+
+export interface DirectorNotes {
+  camera_movement?: string;
+  angle?: string;
+  actor_movement?: string;
+  mood?: string;
+  lighting?: string;
+  colors?: string;
+  music_type?: string;
+  effects?: string;
+  transition?: string;
+}
+
+export interface StoryboardScene {
+  id: string;
+  company_id: string;
+  episode_id: string;
+  number: number | null;
+  title: string;
+  description: string | null;
+  shot_goal: string | null;
+  cover_image_url: string | null;
+  duration_seconds: number | null;
+  shot_type: string | null;
+  location: string | null;
+  shooting_date: string | null;
+  shooting_time: string | null;
+  status: StoryboardSceneStatus;
+  progress: number;
+  sort_order: number;
+  camera_setup: CameraSetup;
+  director_notes: DirectorNotes;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoryboardSceneCast {
+  id: string;
+  company_id: string;
+  scene_id: string;
+  role_type: StoryboardCastRole;
+  name: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StoryboardSceneEquipment {
+  id: string;
+  company_id: string;
+  scene_id: string;
+  equipment_id: string;
+  created_at: string;
 }
 
 export interface Approval {
