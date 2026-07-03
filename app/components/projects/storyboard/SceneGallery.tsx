@@ -9,20 +9,18 @@ export default function SceneGallery({
   selectedId,
   onSelect,
   onCreate,
-  creating,
 }: {
   scenes: StoryboardSceneListItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
-  creating: boolean;
 }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700 }}>معرض المشاهد ({scenes.length})</h2>
-        <button className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 12 }} onClick={onCreate} disabled={creating}>
-          <Icon name="plus" size={14} /> {creating ? "جارٍ الإضافة..." : "مشهد جديد"}
+        <button className="btn btn-gold" style={{ padding: "8px 14px", fontSize: 12 }} onClick={onCreate}>
+          <Icon name="plus" size={14} /> مشهد جديد
         </button>
       </div>
 

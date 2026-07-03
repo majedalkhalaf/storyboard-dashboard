@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
-import { useSession } from "@/app/providers/SessionProvider";
 import { getStoryboardScenes, type StoryboardSceneListItem } from "@/app/lib/storyboard";
 import { fetchSceneDetail, type StoryboardSceneFullDetail } from "@/app/lib/storyboard-detail";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
@@ -10,19 +9,18 @@ import SceneGallery from "./SceneGallery";
 import SceneListSidebar from "./SceneListSidebar";
 import SceneDetailPanel from "./SceneDetailPanel";
 import SceneTimeline from "./SceneTimeline";
+import NewSceneModal from "./NewSceneModal";
 
 // Storyboard كل حلقة مستقل بالكامل — لا يُجلب إلا عند تفعيل هذا التبويب لأول مرة (lazy)،
 // وتفاصيل كل مشهد (كاميرا/إخراج/مرفقات/ملاحظات...) تُجلب فقط عند اختيار ذلك المشهد تحديداً.
 export default function StoryboardTab({ episode }: { episode: EpisodeFullDetail; onChanged: () => void }) {
   const supabase = createClient();
-  const { userId, company } = useSession();
-  const companyId = company!.id;
 
   const [scenes, setScenes] = useState<StoryboardSceneListItem[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<StoryboardSceneFullDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [showNewSceneModal, setShowNewSceneModal] = useState(false);
   const latestRequestRef = useRef<string | null>(null);
 
   const loadScenes = useCallback(async () => {
@@ -75,31 +73,10 @@ export default function StoryboardTab({ episode }: { episode: EpisodeFullDetail;
     }
   }
 
-  async function createScene() {
-    setCreating(true);
-    try {
-      const nextNumber = (scenes?.length ?? 0) + 1;
-      const { data } = await supabase
-        .from("storyboard_scenes")
-        .insert({
-          company_id: companyId,
-          episode_id: episode.id,
-          number: nextNumber,
-          title: `مشهد ${nextNumber}`,
-          status: "planning",
-          sort_order: nextNumber,
-          created_by: userId,
-        })
-        .select("id")
-        .single();
-      await loadScenes();
-      if (data) {
-        setSelectedId(data.id);
-        loadDetail(data.id);
-      }
-    } finally {
-      setCreating(false);
-    }
+  async function handleSceneCreated(sceneId: string) {
+    await loadScenes();
+    setSelectedId(sceneId);
+    loadDetail(sceneId);
   }
 
   async function deleteScene() {
@@ -122,7 +99,7 @@ export default function StoryboardTab({ episode }: { episode: EpisodeFullDetail;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <SceneGallery scenes={scenes} selectedId={selectedId} onSelect={selectScene} onCreate={createScene} creating={creating} />
+      <SceneGallery scenes={scenes} selectedId={selectedId} onSelect={selectScene} onCreate={() => setShowNewSceneModal(true)} />
 
       {selectedId && (
         <div className="animate-fade-in" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 16, alignItems: "flex-start" }}>
@@ -136,6 +113,15 @@ export default function StoryboardTab({ episode }: { episode: EpisodeFullDetail;
       )}
 
       <SceneTimeline scenes={scenes} selectedId={selectedId} onSelect={selectScene} />
+
+      {showNewSceneModal && (
+        <NewSceneModal
+          episodeId={episode.id}
+          nextNumber={(scenes?.length ?? 0) + 1}
+          onClose={() => setShowNewSceneModal(false)}
+          onCreated={handleSceneCreated}
+        />
+      )}
     </div>
   );
 }
