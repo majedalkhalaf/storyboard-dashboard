@@ -36,7 +36,7 @@ export function inferCategory(mime: string | null | undefined, name: string): Fi
   const m = (mime ?? "").toLowerCase();
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (m.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic", "heif", "bmp", "tiff"].includes(ext)) return "image";
-  if (m.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "flv", "wmv", "m4v"].includes(ext)) return "video";
+  if (m.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "flv", "wmv", "m4v", "mxf", "mts", "m2ts", "ts"].includes(ext)) return "video";
   if (m.startsWith("audio/") || ["mp3", "wav", "aac", "m4a", "ogg", "flac"].includes(ext)) return "audio";
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "archive";
   if (["psd", "ai", "xd", "fig", "sketch"].includes(ext)) return "design";
