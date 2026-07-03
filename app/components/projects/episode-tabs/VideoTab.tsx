@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { toEmbedUrl } from "@/app/lib/video-embed";
+import { downloadFile } from "../FilesPanel";
 import type { ProjectFile } from "@/app/lib/types";
 import type { EpisodeFullDetail, NoteWithAuthor } from "@/app/lib/episode-detail";
 import { formatDuration, relativeTime } from "../utils";
@@ -165,7 +166,12 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="card" style={{ padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: videoFiles.length === 0 ? 0 : 10 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: videoFiles.length === 0 ? 0 : 10 }}>
+          {activeFile && !embedUrl && (
+            <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => downloadFile(supabase, activeFile)}>
+              <Icon name="export" size={13} /> تحميل الفيديو
+            </button>
+          )}
           <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setShowAddLink((v) => !v)}>
             <Icon name="link" size={13} /> إضافة فيديو برابط (YouTube/Vimeo أو رابط مباشر)
           </button>
