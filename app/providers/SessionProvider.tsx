@@ -11,6 +11,8 @@ interface SessionContextValue {
   company: Company | null;
   theme: "dark" | "light";
   toggleTheme: () => void;
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -27,6 +29,7 @@ export default function SessionProvider({
   profile,
   company,
   initialTheme,
+  initialSidebarCollapsed = false,
   children,
 }: {
   userId: string;
@@ -34,9 +37,11 @@ export default function SessionProvider({
   profile: Profile;
   company: Company | null;
   initialTheme: "dark" | "light";
+  initialSidebarCollapsed?: boolean;
   children: React.ReactNode;
 }) {
   const [theme, setTheme] = useState<"dark" | "light">(initialTheme);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "dark" ? false : true);
@@ -52,8 +57,20 @@ export default function SessionProvider({
       .then(() => {});
   };
 
+  const toggleSidebarCollapsed = () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    const supabase = createClient();
+    supabase
+      .from("user_settings")
+      .upsert({ user_id: userId, extra: { sidebar_collapsed: next } }, { onConflict: "user_id" })
+      .then(() => {});
+  };
+
   return (
-    <SessionContext.Provider value={{ userId, email, profile, company, theme, toggleTheme }}>
+    <SessionContext.Provider
+      value={{ userId, email, profile, company, theme, toggleTheme, sidebarCollapsed, toggleSidebarCollapsed }}
+    >
       {children}
     </SessionContext.Provider>
   );

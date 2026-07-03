@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar, { useNavItems } from "./Sidebar";
+import MobileNavDrawer from "./MobileNavDrawer";
 import BrandingProvider from "./BrandingProvider";
 import AccountMenu from "./AccountMenu";
 import NotificationsBell from "./NotificationsBell";
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const bottomItems = useNavItems().slice(0, 5);
   const [today, setToday] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred to client only to avoid SSR/CSR date mismatch
@@ -29,6 +31,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     >
       <BrandingProvider />
       <Sidebar />
+      <MobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header
@@ -42,6 +45,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             background: "var(--bg-secondary)",
           }}
         >
+          <button
+            type="button"
+            className="mobile-menu-btn btn-ghost"
+            style={{ padding: 8, borderRadius: 8 }}
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="فتح القائمة"
+          >
+            <Icon name="menu" size={20} />
+          </button>
+
           <div className="header-date" style={{ fontSize: 13, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
             {today}
           </div>

@@ -19,6 +19,7 @@
   --text-muted: #6B6B6B;
   --card-radius: 18px;
   --sidebar-width: 252px;
+  --sidebar-collapsed-width: 72px;
   --bottom-nav-height: 64px;
 }
 
@@ -113,6 +114,61 @@ body {
   color: var(--gold);
   border-right: 3px solid var(--gold);
 }
+.sidebar-link.active .nav-icon { color: var(--gold); }
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.sidebar-collapse-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+.desktop-sidebar { transition: width 200ms ease, min-width 200ms ease; }
+
+/* ── MOBILE NAV DRAWER ── */
+.mobile-menu-btn { display: none; }
+
+.mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  visibility: hidden;
+  pointer-events: none;
+}
+.mobile-nav-overlay.is-open { visibility: visible; pointer-events: auto; }
+
+.mobile-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.mobile-nav-overlay.is-open .mobile-nav-backdrop { opacity: 1; }
+
+.mobile-nav-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(84vw, 300px);
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mobile-nav-overlay.is-open .mobile-nav-drawer { transform: translateX(0); }
 
 /* ── INPUTS ── */
 .input-field {
@@ -357,7 +413,8 @@ body {
   .sidebar-progress,
   .sidebar-bottom-label,
   .logo-title,
-  .logo-sub { display: none !important; }
+  .logo-sub,
+  .sidebar-collapse-btn { display: none !important; }
 
   .sidebar-link {
     justify-content: center;
@@ -505,6 +562,9 @@ body {
   .header-account-label,
   .header-new-project-label,
   .header-search { display: none !important; }
+
+  /* Hamburger menu button opens the full mobile nav drawer */
+  .mobile-menu-btn { display: inline-flex !important; }
 }
 
 /* ════════════════════════════════════

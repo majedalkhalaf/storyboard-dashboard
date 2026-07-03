@@ -21,9 +21,11 @@ export default async function InternalLayout({ children }: { children: React.Rea
 
   const { data: settings } = await supabase
     .from("user_settings")
-    .select("theme")
+    .select("theme, extra")
     .eq("user_id", session.userId)
     .single();
+
+  const extra = (settings?.extra ?? {}) as Record<string, unknown>;
 
   return (
     <SessionProvider
@@ -32,6 +34,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
       profile={session.profile}
       company={session.company}
       initialTheme={settings?.theme ?? "dark"}
+      initialSidebarCollapsed={Boolean(extra.sidebar_collapsed)}
     >
       <AppShell>{children}</AppShell>
     </SessionProvider>
