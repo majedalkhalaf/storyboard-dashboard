@@ -578,7 +578,7 @@ export interface ClientInviteWizardData {
   phone?: string;
   jobTitle?: string;
   clientCompanyName?: string;
-  inviteType: "view_only" | "client" | "manager" | "custom";
+  inviteType: "view_only" | "review" | "client" | "manager" | "custom";
   permissions: ClientPermissions;
   durationDays: number | null; // null = دائم
   accessType: ClientAccessType;

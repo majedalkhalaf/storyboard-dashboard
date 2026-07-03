@@ -33,13 +33,14 @@ export const CLIENT_PERMISSION_GROUPS: ClientPermissionGroup[] = [
   { key: "services", label: "الخدمات", icon: "calendar", keys: ["request_service", "request_meeting"] },
 ];
 
-export type ClientInviteType = "view_only" | "client" | "manager" | "custom";
+export type ClientInviteType = "view_only" | "review" | "client" | "manager" | "custom";
 
 export const CLIENT_INVITE_TYPES: { value: ClientInviteType; label: string; description: string; icon: IconName }[] = [
-  { value: "view_only", label: "مشاهدة فقط", description: "يستطيع مشاهدة المشروع دون تعديل", icon: "eye" },
-  { value: "client", label: "عميل", description: "يتابع المشروع ويضيف ملاحظات ويعتمد المراحل", icon: "user" },
-  { value: "manager", label: "مدير المشروع", description: "صلاحيات موسّعة تشمل كل الأقسام", icon: "userPlus" },
-  { value: "custom", label: "صلاحيات مخصصة", description: "تُختار يدوياً من القائمة أدناه", icon: "sliders" },
+  { value: "view_only", label: "مشاهدة فقط", description: "يشاهد العميل المحتوى المسموح به فقط، دون أي تفاعل", icon: "eye" },
+  { value: "review", label: "مراجعة", description: "يشاهد المحتوى ويضيف الملاحظات فقط", icon: "user" },
+  { value: "client", label: "مراجعة واعتماد", description: "يشاهد المحتوى، يضيف الملاحظات، ويعتمد الحلقات والملفات المرسلة له", icon: "userPlus" },
+  { value: "manager", label: "عميل كامل الصلاحيات", description: "يحصل على جميع الصلاحيات المسموح بها للعميل", icon: "sliders" },
+  { value: "custom", label: "مخصص", description: "تُختار يدوياً من القائمة أدناه", icon: "settings" },
 ];
 
 const ALL_KEYS = Object.keys(CLIENT_PERMISSION_LABELS) as (keyof ClientPermissions)[];
@@ -59,8 +60,13 @@ function viewOnly(): ClientPermissions {
   return p;
 }
 
+function review(): ClientPermissions {
+  return { ...viewOnly(), add_notes: true, reply_notes: true };
+}
+
 export const CLIENT_INVITE_PRESETS: Record<Exclude<ClientInviteType, "custom">, ClientPermissions> = {
   view_only: viewOnly(),
+  review: review(),
   client: { ...DEFAULT_CLIENT_PERMISSIONS },
   manager: allTrue(),
 };

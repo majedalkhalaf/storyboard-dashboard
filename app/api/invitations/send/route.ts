@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       phone,
       jobTitle,
       clientCompanyName,
+      customMessage,
       permissions,
       deliveryMethod,
       durationDays,
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
       phone?: string;
       jobTitle?: string;
       clientCompanyName?: string;
+      customMessage?: string;
       permissions?: Partial<ClientPermissions>;
       deliveryMethod?: InvitationDeliveryMethod;
       durationDays?: number | null;
@@ -61,16 +63,15 @@ export async function POST(request: Request) {
     };
 
     const email = (rawEmail ?? "").trim().toLowerCase();
-    const method: InvitationDeliveryMethod = deliveryMethod ?? "email";
+    // بلا معالج خطوات يفرض اختيار قناة إرسال واحدة مسبقاً — القناة المسجَّلة في سجل
+    // التدقيق هي فقط انعكاس لِما إن أُدخل رقم جوال أم لا (كلا القناتين تُتاحان معاً أدناه).
+    const method: InvitationDeliveryMethod = deliveryMethod ?? (phone?.trim() ? "whatsapp" : "email");
 
     if (!projectId || !email || !clientName) {
       return NextResponse.json({ error: "بيانات ناقصة — المشروع والاسم والبريد الإلكتروني مطلوبة" }, { status: 400 });
     }
     if (!EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "البريد الإلكتروني غير صالح" }, { status: 400 });
-    }
-    if ((method === "whatsapp" || method === "sms") && !phone?.trim()) {
-      return NextResponse.json({ error: "رقم جوال العميل مطلوب لهذه الطريقة" }, { status: 400 });
     }
     if (phone?.trim() && phone.replace(/\D/g, "").length < 8) {
       return NextResponse.json({ error: "رقم الجوال غير صالح" }, { status: 400 });
@@ -125,12 +126,18 @@ export async function POST(request: Request) {
     const hasExistingAccount = Boolean(existingProfile);
 
     let clientUserId: string | null = null;
-    let destinationUrl = `${origin}/login`;
+    const destinationUrl = `${origin}/login`;
     let tempPassword: string | null = null;
+    let accountCreated = false;
 
+    // بغض النظر عن قناة الإرسال المختارة: أي دعوة ببريد جديد تُنشئ فوراً حساب Supabase
+    // حقيقياً بكلمة مرور مؤقتة (بدل الاعتماد على رابط سحري ذي استخدام واحد) — هذا ما
+    // يتيح عرض بيانات دخول جاهزة (بريد + كلمة مرور) يمكن نسخها أو إرسالها عبر أي قناة
+    // (بريد/واتساب/يدوياً) بلا فرق، تماماً كما في التصميم المرجعي. بريد موجود مسبقاً
+    // يُربط بالمشروع فقط دون كلمة مرور جديدة.
     if (existingProfile) {
       clientUserId = existingProfile.id;
-    } else if (method === "whatsapp" || method === "sms") {
+    } else {
       tempPassword = generateTempPassword();
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email,
@@ -142,19 +149,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: createError?.message || "تعذّر إنشاء حساب العميل" }, { status: 500 });
       }
       clientUserId = created.user.id;
-      await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
-    } else {
-      // "email" و"link" كلاهما يحتاج generateLink (ينشئ الحساب دون إرسال أي بريد بذاته)
-      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: "invite",
-        email,
-        options: { data: { role: "client", full_name: clientName }, redirectTo: `${origin}/auth/callback` },
-      });
-      if (linkError || !linkData.user) {
-        return NextResponse.json({ error: linkError?.message || "تعذّر إنشاء رابط الدعوة" }, { status: 500 });
-      }
-      clientUserId = linkData.user.id;
-      destinationUrl = linkData.properties?.action_link ?? destinationUrl;
+      accountCreated = true;
       await admin.from("profiles").update({ must_change_password: true }).eq("id", clientUserId);
     }
 
@@ -162,68 +157,54 @@ export async function POST(request: Request) {
     // ويتيح تسجيل وقت الفتح/IP/الجهاز الحقيقيين عبر /api/invitations/track/[token].
     const token = generateInvitationToken();
     const trackingUrl = `${origin}/api/invitations/track/${token}`;
-    const message = buildInviteMessage({ clientName, projectName: project.name ?? "مشروعك", loginUrl: trackingUrl, email, tempPassword, hasExistingAccount });
+    const message = buildInviteMessage({
+      clientName,
+      projectName: project.name ?? "مشروعك",
+      loginUrl: trackingUrl,
+      email,
+      tempPassword,
+      hasExistingAccount,
+      customMessage: customMessage?.trim() || null,
+    });
 
-    let status: InvitationStatus = "sent";
-    let errorMessage: string | null = null;
-    let usedFallbackMailer = false;
-    let whatsappLink: string | null = null;
+    // بغض النظر عن قناة الإرسال المفضّلة: تُتاح دائماً كل القنوات الممكنة في آنٍ
+    // واحد بدل إجبار المستخدم على اختيار واحدة مسبقاً — بريد حقيقي إن وُجد مُرسِل
+    // مُعدّ، ورابط واتساب جاهز لرقم العميل دائماً (يُفتح واتساب المسؤول نفسه
+    // ببساطة عبر wa.me)، مع محاولة إرسال تلقائي حقيقي إضافية إن كان واتساب بزنس
+    // API مُعدّاً وفعّالاً لهذه الشركة. لا يفشل الطلب كاملاً إن تعذّر الإرسال
+    // الفعلي عبر أي قناة — الحساب أُنشئ بالفعل، والرسالة الجاهزة تبقى متاحة دوماً
+    // للنسخ/الإرسال اليدوي كخط رجوع صادق.
+    let emailSent = false;
+    let emailError: string | null = null;
+    const cleanPhone = phone?.trim() || null;
+    const whatsappLink: string | null = cleanPhone ? `https://wa.me/${toWhatsappDigits(cleanPhone)}?text=${encodeURIComponent(message)}` : null;
     let whatsappSentAutomatically = false;
-    let smsMessage: string | null = null;
-    let inviteLink: string | null = null;
 
-    if (method === "link") {
-      inviteLink = trackingUrl;
-    } else if (method === "whatsapp" && phone?.trim()) {
-      const waConfig = await getActiveWhatsappConfig(profile.company_id);
-      if (waConfig) {
-        const result = await sendWhatsappMessage(waConfig, toWhatsappDigits(phone.trim()), message);
-        whatsappSentAutomatically = result.success;
-        if (!result.success) {
-          errorMessage = `فشل الإرسال التلقائي عبر واتساب بزنس API: ${result.error} — تم توفير رابط لفتح واتساب يدوياً بدلاً منه`;
-          whatsappLink = `https://wa.me/${toWhatsappDigits(phone.trim())}?text=${encodeURIComponent(message)}`;
-        }
-      } else {
-        whatsappLink = `https://wa.me/${toWhatsappDigits(phone.trim())}?text=${encodeURIComponent(message)}`;
-      }
-    } else if (method === "sms" && phone?.trim()) {
-      smsMessage = message;
-    } else {
-      // email
-      const sender = senderId ? await getEmailSenderById(profile.company_id, senderId) : await getDefaultEmailSender(profile.company_id);
-      if (sender) {
-        try {
-          await sendMailViaSender(sender, {
-            to: email,
-            subject: "تمت دعوتك لمتابعة مشروعك",
-            html: `<div style="font-family:sans-serif;direction:rtl;text-align:right">
-              <p>مرحباً ${clientName}،</p>
-              <p>تمت دعوتك لمتابعة مشروع "${project.name}" عبر نظام إدارة الإنتاج. اضغط الرابط أدناه لإكمال الدخول:</p>
-              <p><a href="${trackingUrl}">${trackingUrl}</a></p>
-            </div>`,
-            text: message,
-          });
-        } catch (mailErr) {
-          status = "failed";
-          errorMessage = mailErr instanceof Error ? mailErr.message : "خطأ غير معروف أثناء إرسال البريد";
-          await createInvitationRow(admin, { profile, projectId, clientRecord, email, phone, method, destinationUrl, clientUserId, invitedBy: user.id, token, durationDays, status, errorMessage });
-          return NextResponse.json({ error: `تعذّر إرسال البريد عبر إعدادات SMTP المخصصة: ${errorMessage}` }, { status: 500 });
-        }
-      } else {
-        usedFallbackMailer = true;
-        const { error: fallbackErr } = await admin.auth.admin.inviteUserByEmail(email, {
-          data: { role: "client", full_name: clientName },
-          redirectTo: `${origin}/auth/callback`,
+    const sender = senderId ? await getEmailSenderById(profile.company_id, senderId) : await getDefaultEmailSender(profile.company_id);
+    if (sender) {
+      try {
+        await sendMailViaSender(sender, {
+          to: email,
+          subject: `بيانات الدخول لمتابعة مشروعك "${project.name}"`,
+          html: `<div style="font-family:sans-serif;direction:rtl;text-align:right;white-space:pre-wrap">${message.replace(/\n/g, "<br/>")}</div>`,
+          text: message,
         });
-        if (fallbackErr) {
-          status = "failed";
-          errorMessage = fallbackErr.message;
-          await createInvitationRow(admin, { profile, projectId, clientRecord, email, phone, method, destinationUrl, clientUserId, invitedBy: user.id, token, durationDays, status, errorMessage });
-          return NextResponse.json({ error: fallbackErr.message || "تعذّر إرسال دعوة البريد الإلكتروني" }, { status: 500 });
-        }
+        emailSent = true;
+      } catch (mailErr) {
+        emailError = mailErr instanceof Error ? mailErr.message : "خطأ غير معروف أثناء إرسال البريد";
       }
     }
 
+    if (cleanPhone) {
+      const waConfig = await getActiveWhatsappConfig(profile.company_id);
+      if (waConfig) {
+        const result = await sendWhatsappMessage(waConfig, toWhatsappDigits(cleanPhone), message);
+        whatsappSentAutomatically = result.success;
+      }
+    }
+
+    const status: InvitationStatus = emailSent || whatsappSentAutomatically ? "sent" : "pending";
+    const errorMessage = emailError;
     await createInvitationRow(admin, { profile, projectId, clientRecord, email, phone, method, destinationUrl, clientUserId, invitedBy: user.id, token, durationDays, status, errorMessage: errorMessage ?? undefined });
 
     const expiresAt = durationDays ? new Date(Date.now() + durationDays * 86400000).toISOString() : null;
@@ -253,29 +234,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "تعذّر ربط العميل بالمشروع" }, { status: 500 });
     }
 
-    if (clientUserId && method === "email" && !usedFallbackMailer) {
+    // حساب موجود مسبقاً يُربط بمشروع جديد → إشعار داخل النظام يكفي (لا كلمة مرور
+    // جديدة تُشارَك). حساب جديد بكلمة مرور مؤقتة → بيانات الدخول نفسها تُعرض في
+    // رسالة الدعوة الجاهزة بالواجهة، فلا حاجة لإشعار داخلي إضافي بهذه اللحظة.
+    if (clientUserId && hasExistingAccount) {
       await notifyUser({
         userId: clientUserId,
         companyId: profile.company_id,
         projectId,
         type: "project_invite",
-        title: "تمت دعوتك لمتابعة مشروع",
-        message: `تمت إضافتك إلى مشروع جديد. تفقّد بريدك الإلكتروني لإكمال الدخول.`,
+        title: "تمت إضافتك لمشروع جديد",
+        message: `تمت إضافتك إلى مشروع "${project.name}". تفقّد حسابك لمتابعته.`,
       });
     }
 
     return NextResponse.json({
       success: true,
       projectClientId: projectClient.id,
-      inviteLink,
-      usedFallbackMailer,
+      accountCreated,
+      linkedExisting: hasExistingAccount,
+      loginLink: trackingUrl,
+      tempPassword,
+      emailSent,
       whatsappLink,
       whatsappSentAutomatically,
-      smsMessage,
-      tempPassword,
-      // نص الرسالة الجاهزة نفسه — يُعاد دائماً (وليس فقط لطريقة SMS) ليتيح للواجهة
-      // عرض/نسخ رسالة واحدة موحّدة لأي طريقة تحتاج ترحيلاً يدوياً (رابط/واتساب غير
-      // مُرسَل تلقائياً/SMS)، بدل الاعتماد فقط على smsMessage.
       inviteMessage: message,
     });
   } catch (err) {
@@ -292,23 +274,24 @@ function buildInviteMessage(params: {
   email: string;
   tempPassword: string | null;
   hasExistingAccount: boolean;
+  customMessage?: string | null;
 }): string {
-  const { clientName, projectName, loginUrl, email, tempPassword, hasExistingAccount } = params;
+  const { clientName, projectName, loginUrl, email, tempPassword, hasExistingAccount, customMessage } = params;
   if (hasExistingAccount || !tempPassword) {
     return [
       `مرحباً ${clientName}،`,
       `تمت إضافتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+      ...(customMessage ? [``, customMessage] : []),
       ``,
       `رابط الدخول: ${loginUrl}`,
       `البريد الإلكتروني: ${email}`,
-      hasExistingAccount ? `استخدم كلمة المرور الحالية لحسابك لديك.` : ``,
-    ]
-      .filter(Boolean)
-      .join("\n");
+      ...(hasExistingAccount ? [`استخدم كلمة المرور الحالية لحسابك لديك.`] : []),
+    ].join("\n");
   }
   return [
     `مرحباً ${clientName}،`,
     `تمت دعوتك لمتابعة مشروع "${projectName}" عبر نظام إدارة الإنتاج.`,
+    ...(customMessage ? [``, customMessage] : []),
     ``,
     `رابط الدخول: ${loginUrl}`,
     `البريد الإلكتروني: ${email}`,
