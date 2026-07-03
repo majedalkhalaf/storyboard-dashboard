@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Tabs, { type TabDef } from "@/app/components/ui/Tabs";
 import Icon from "@/app/components/ui/Icon";
 import EditableTitle from "@/app/components/ui/EditableTitle";
+import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import StageQuickSelect from "./StageQuickSelect";
 import { useSession } from "@/app/providers/SessionProvider";
 import { createClient } from "@/app/lib/supabase/client";
@@ -12,6 +13,7 @@ import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { CompanyPipelineStage } from "@/app/lib/types";
 import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
 import { updateEpisodeTitle, updateEpisodePipelineStage } from "@/app/lib/episode-actions";
+import { exportEpisodeZip } from "@/app/lib/zip-export";
 import EpisodeGallery from "./EpisodeGallery";
 import EpisodeSidebar from "./EpisodeSidebar";
 import OverviewTab from "./episode-tabs/OverviewTab";
@@ -164,6 +166,11 @@ export default function EpisodeWorkspace({
                   <Icon name="zap" size={12} /> المرحلة
                 </span>
                 <StageQuickSelect stages={pipelineStages} currentKey={detail.pipeline_stage} onChange={saveStage} size="sm" />
+                <ZipExportButton
+                  label="تصدير الحلقة ZIP"
+                  icon="archive"
+                  run={(onProgress) => exportEpisodeZip(supabase, companyId, detail.id, onProgress)}
+                />
               </div>
             </div>
           )}

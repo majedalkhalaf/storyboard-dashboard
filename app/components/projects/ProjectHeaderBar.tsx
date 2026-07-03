@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
+import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { downloadCsv } from "@/app/lib/csv";
+import { exportProjectZip } from "@/app/lib/zip-export";
 import { PROJECT_STATUSES, PROJECT_TYPES } from "@/app/lib/constants";
 import type { Project } from "@/app/lib/types";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
@@ -179,9 +181,14 @@ export default function ProjectHeaderBar({
           <button className="btn btn-outline" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onOpenPresentation}>
             <Icon name="proposals" size={14} /> العرض الفني
           </button>
-          <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="تصدير قائمة الحلقات" onClick={exportEpisodes}>
+          <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="تصدير قائمة الحلقات (CSV)" onClick={exportEpisodes}>
             <Icon name="export" size={14} />
           </button>
+          <ZipExportButton
+            label="تصدير المشروع ZIP"
+            icon="archive"
+            run={(onProgress) => exportProjectZip(supabase, companyId, project, gallery, onProgress)}
+          />
           <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="نسخ رابط المشروع" onClick={share}>
             <Icon name={copied ? "check" : "share"} size={14} />
           </button>
