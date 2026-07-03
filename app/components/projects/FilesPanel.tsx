@@ -6,8 +6,13 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
+import { uploadFileWithProgress } from "@/app/lib/storage-upload";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanFileSize, inferCategory, relativeTime } from "./utils";
+
+// عدد الرفعات المتوازية بحد أقصى — رفع كل الملفات دفعة واحدة قد يُغرق النطاق الترددي
+// نفسه فيبطئ الجميع، لذا نُحدّد سقفاً معقولاً بدل التسلسل الكامل (رفع واحد تلو الآخر).
+const MAX_CONCURRENT_UPLOADS = 3;
 
 // تصنيفات الملفات كما هي فعلياً في قاعدة البيانات (لا تصنيفات وهمية جديدة) — تُستخدم هنا وفي AssetsTab.tsx
 export const FILE_CATEGORY_LABEL: Record<FileCategory, string> = {
@@ -135,6 +140,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadItems, setUploadItems] = useState<{ name: string; percent: number; error?: string }[]>([]);
   const [clientVisible, setClientVisible] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -163,30 +169,50 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
 
   async function handleUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
+    const filesToUpload = Array.from(fileList);
     setUploading(true);
-    try {
-      for (const file of Array.from(fileList)) {
-        const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
-        const { error: upErr } = await supabase.storage.from("project-files").upload(path, file, { upsert: false });
-        if (upErr) continue;
-        const category = forceCategory ?? inferCategory(file.type, file.name);
-        await supabase.from("files").insert({
-          company_id: companyId,
-          project_id: projectId,
-          episode_id: episodeId,
-          uploaded_by: userId,
-          name: file.name,
-          storage_path: path,
-          file_type: file.type || null,
-          category,
-          size_bytes: file.size,
-          client_visible: clientVisible,
-        });
+    setUploadItems(filesToUpload.map((f) => ({ name: f.name, percent: 0 })));
+
+    async function uploadOne(file: File, index: number) {
+      const path = `${companyId}/${projectId}/${crypto.randomUUID()}-${file.name}`;
+      const { error } = await uploadFileWithProgress(supabase, "project-files", path, file, (percent) => {
+        setUploadItems((prev) => prev.map((it, i) => (i === index ? { ...it, percent } : it)));
+      });
+      if (error) {
+        setUploadItems((prev) => prev.map((it, i) => (i === index ? { ...it, error } : it)));
+        return;
       }
+      const category = forceCategory ?? inferCategory(file.type, file.name);
+      await supabase.from("files").insert({
+        company_id: companyId,
+        project_id: projectId,
+        episode_id: episodeId,
+        uploaded_by: userId,
+        name: file.name,
+        storage_path: path,
+        file_type: file.type || null,
+        category,
+        size_bytes: file.size,
+        client_visible: clientVisible,
+      });
+    }
+
+    try {
+      // رفع متوازٍ بسقف MAX_CONCURRENT_UPLOADS بدل تسلسل صارم — كل عامل يسحب الملف التالي
+      // فور انتهائه، فلا ينتظر ملف صغير خلف فيديو كبير قيد الرفع في عامل آخر.
+      let cursor = 0;
+      async function worker() {
+        while (cursor < filesToUpload.length) {
+          const i = cursor++;
+          await uploadOne(filesToUpload[i], i);
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_UPLOADS, filesToUpload.length) }, worker));
       await load();
       onChanged?.();
     } finally {
       setUploading(false);
+      setUploadItems([]);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -328,6 +354,27 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
         </label>
         <input ref={replaceInputRef} type="file" accept={accept} hidden onChange={(e) => handleReplace(e.target.files)} />
       </div>
+
+      {uploadItems.length > 0 && (
+        <div className="card" style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {uploadItems.map((it, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <span style={{ wordBreak: "break-word" }}>{it.name}</span>
+                <span style={{ color: it.error ? "#ef4444" : "var(--text-muted)", flexShrink: 0, marginRight: 8 }}>
+                  {it.error ?? `${it.percent}%`}
+                </span>
+              </div>
+              <div className="progress-bar" style={{ height: 6 }}>
+                <div
+                  className="progress-fill"
+                  style={{ width: `${it.percent}%`, background: it.error ? "#ef4444" : undefined }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="empty-state">جارٍ التحميل...</div>
