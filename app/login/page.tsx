@@ -111,12 +111,43 @@ export default function LoginPage() {
 
           <OAuthButtons label="أو سجل الدخول باستخدام" />
 
-          <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 20 }}>
-            ليس لديك حساب؟{" "}
-            <Link href="/signup" style={{ color: "var(--gold)", fontWeight: 700 }}>
-              إنشاء حساب شركة جديد
-            </Link>
-          </p>
+          <div style={{ marginTop: 22 }}>
+            <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>ليس لديك حساب؟</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Link
+                href="/signup"
+                className="card"
+                style={{ padding: 14, textAlign: "center", textDecoration: "none", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.08)" }}
+              >
+                <span style={{ color: "var(--gold)", display: "inline-flex" }}>
+                  <Icon name="userPlus" size={18} />
+                </span>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--gold)", marginTop: 6 }}>إنشاء حساب شركة</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5 }}>
+                  للشركات التي ترغب في استخدام النظام وإدارة مشاريعها بالكامل
+                </div>
+              </Link>
+              <Link
+                href="/client-signup"
+                className="card"
+                style={{ padding: 14, textAlign: "center", textDecoration: "none", borderColor: "#1DB954", background: "rgba(29,185,84,0.08)" }}
+              >
+                <span style={{ color: "#1DB954", display: "inline-flex" }}>
+                  <Icon name="clients" size={18} />
+                </span>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1DB954", marginTop: 6 }}>تسجيل حساب عميل</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5 }}>
+                  للعملاء الذين تمت دعوتهم من قبل إحدى الشركات لمتابعة مشاريعهم
+                </div>
+              </Link>
+            </div>
+            <p style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11.5, color: "var(--text-muted)", marginTop: 12, lineHeight: 1.6 }}>
+              <span style={{ flexShrink: 0, marginTop: 2, display: "inline-flex" }}>
+                <Icon name="info" size={13} />
+              </span>
+              إذا تلقيت دعوة من إحدى الشركات، يمكنك تسجيل الدخول مباشرة من هنا باستخدام بيانات الدعوة التي وصلتك.
+            </p>
+          </div>
         </div>
 
         <AuthShowcase />
