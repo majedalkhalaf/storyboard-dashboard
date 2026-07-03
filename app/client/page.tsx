@@ -74,6 +74,31 @@ export default async function ClientDashboardPage() {
 
   const currentStageKey = currentPipelineStageKey(episodes, pipelineStages);
 
+  // نسبة إنجاز حقيقية لكل مرحلة من مراحل المشروع — متوسط progress من
+  // episode_stages لكل الحلقات على هذه المرحلة تحديداً (مصدر بيانات مختلف عن
+  // currentPipelineStageKey، لكنه الأدق لعرض "بطاقة مراحل" برقم نسبة لكل مرحلة).
+  const stageProgress: Record<string, number> = {};
+  if (canClient(permissions, "episodes") && episodes.length > 0 && pipelineStages.length > 0) {
+    const { data: stageRows } = await supabase
+      .from("episode_stages")
+      .select("key, progress")
+      .in(
+        "episode_id",
+        episodes.map((e) => e.id)
+      );
+    const sums = new Map<string, { total: number; count: number }>();
+    for (const row of (stageRows ?? []) as { key: string; progress: number }[]) {
+      const entry = sums.get(row.key) ?? { total: 0, count: 0 };
+      entry.total += row.progress ?? 0;
+      entry.count += 1;
+      sums.set(row.key, entry);
+    }
+    for (const stage of pipelineStages) {
+      const entry = sums.get(stage.key);
+      stageProgress[stage.key] = entry && entry.count > 0 ? entry.total / entry.count : 0;
+    }
+  }
+
   let recentFiles: ProjectFile[] = [];
   let recentImages: ProjectFile[] = [];
   if (canClient(permissions, "files")) {
@@ -183,6 +208,8 @@ export default async function ClientDashboardPage() {
       nextInvoice={nextInvoice}
       pipelineStages={pipelineStages}
       currentStageKey={currentStageKey}
+      stageProgress={stageProgress}
+      canDownloadProject={canClient(permissions, "download_project")}
       recentFiles={recentFiles}
       recentImages={recentImages}
       storyboardStatusCounts={storyboardStatusCounts}

@@ -15,6 +15,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/client", label: "الرئيسية", icon: "dashboard" },
+  { href: "/client/invoices", label: "الحسابات", icon: "finance" },
+  { href: "/client/reports", label: "التقارير", icon: "barChart" },
+  { href: "/client/notifications", label: "التنبيهات", icon: "bell" },
   { href: "/client/settings", label: "الإعدادات", icon: "settings" },
 ];
 
