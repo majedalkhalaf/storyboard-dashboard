@@ -580,6 +580,8 @@ export interface ClientInviteWizardData {
   accessType: ClientAccessType;
   expiresAt?: string | null;
   deliveryMethod: "email" | "link";
+  senderId?: string | null;
+  senderNumberId?: string | null;
 }
 
 export interface ClientInviteDraft {
@@ -592,6 +594,32 @@ export interface ClientInviteDraft {
   data: ClientInviteWizardData;
   created_at: string;
   updated_at: string;
+}
+
+// نسخة آمنة للعرض في الواجهة — بلا smtp_password إطلاقاً (لا تُعاد من أي API مطلقاً)
+export interface CompanyEmailSenderPublic {
+  id: string;
+  company_id: string;
+  label: string;
+  from_name: string;
+  from_email: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_secure: boolean;
+  smtp_username: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompanySenderNumber {
+  id: string;
+  company_id: string;
+  label: string;
+  phone_number: string;
+  is_default: boolean;
+  notes: string | null;
+  created_at: string;
 }
 
 export type EquipmentStatus = "available" | "in_use" | "maintenance";
