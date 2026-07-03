@@ -16,7 +16,7 @@ import { FILE_CATEGORY_ICON, humanEta, humanFileSize, humanSpeed, inferCategory,
 // نفسه فيبطئ الجميع، لذا نُحدّد سقفاً معقولاً بدل التسلسل الكامل (رفع واحد تلو الآخر).
 const MAX_CONCURRENT_UPLOADS = 3;
 
-// تصنيفات الملفات كما هي فعلياً في قاعدة البيانات (لا تصنيفات وهمية جديدة) — تُستخدم هنا وفي AssetsTab.tsx
+// تصنيفات الملفات كما هي فعلياً في قاعدة البيانات (لا تصنيفات وهمية جديدة)
 export const FILE_CATEGORY_LABEL: Record<FileCategory, string> = {
   image: "صورة",
   video: "فيديو",

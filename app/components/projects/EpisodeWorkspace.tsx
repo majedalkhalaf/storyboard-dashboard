@@ -10,24 +10,24 @@ import EpisodeSidebar from "./EpisodeSidebar";
 import OverviewTab from "./episode-tabs/OverviewTab";
 import ScriptTab from "./episode-tabs/ScriptTab";
 import FilesTab from "./episode-tabs/FilesTab";
-import VideoTab from "./episode-tabs/VideoTab";
 import NotesTab from "./episode-tabs/NotesTab";
 import StagesTab from "./episode-tabs/StagesTab";
-import AssetsTab from "./episode-tabs/AssetsTab";
 import ActivityTab from "./episode-tabs/ActivityTab";
 import StoryboardTab from "./storyboard/StoryboardTab";
 
-type TabKey = "overview" | "script" | "storyboard" | "files" | "video" | "notes" | "stages" | "assets" | "activity";
+// دُمج تبويبا "الفيديو" و"الأصول" السابقان داخل "الملفات": الفيديو أصبح قسماً أعلى قائمة
+// الملفات في FilesTab.tsx (نفس مشغّل الفيديو والتعليقات الموقوتة، بلا تبويب مستقل)،
+// والأصول أُزيل نهائياً لأنه كان بالحرف نفس ملفات "الملفات" مُجمّعة حسب التصنيف فقط —
+// وتصنيف/تحميل الملفات متاح بالفعل من داخل تبويب الملفات نفسه.
+type TabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity";
 
 const TABS: TabDef<TabKey>[] = [
   { key: "overview", label: "نظرة عامة", icon: "info" },
   { key: "script", label: "السكربت", icon: "fileCheck" },
   { key: "storyboard", label: "ستوري بورد", icon: "palette" },
   { key: "files", label: "الملفات", icon: "attachment" },
-  { key: "video", label: "الفيديو", icon: "video" },
   { key: "notes", label: "الملاحظات", icon: "message" },
   { key: "stages", label: "مراحل التنفيذ", icon: "timeline" },
-  { key: "assets", label: "الأصول", icon: "palette" },
   { key: "activity", label: "سجل النشاط", icon: "clock" },
 ];
 
@@ -132,10 +132,8 @@ export default function EpisodeWorkspace({
                 {tab === "overview" && <OverviewTab episode={detail} onChanged={applyPatch} />}
                 {tab === "script" && <ScriptTab episode={detail} onChanged={applyPatch} />}
                 {tab === "files" && <FilesTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
-                {tab === "video" && <VideoTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
                 {tab === "notes" && <NotesTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
                 {tab === "stages" && <StagesTab episode={detail} onChanged={applyPatch} />}
-                {tab === "assets" && <AssetsTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
                 {tab === "activity" && <ActivityTab episode={detail} />}
               </div>
               <EpisodeSidebar episode={detail} clientName={clientName} />

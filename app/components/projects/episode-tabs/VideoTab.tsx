@@ -204,7 +204,7 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
         {videoFiles.length === 0 ? (
           <div className="empty-state">
             <Icon name="video" size={30} className="text-muted" />
-            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفع فيديو من تبويب الملفات، أو أضف رابط فيديو خارجي أعلاه.</p>
+            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفعه من قائمة الملفات أدناه، أو أضف رابط فيديو خارجي أعلاه.</p>
           </div>
         ) : (
           <>
