@@ -10,6 +10,7 @@ import ClientAnnouncementCards from "@/app/components/client/ClientAnnouncementC
 import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { createClient } from "@/app/lib/supabase/client";
 import { formatCurrency, formatDate, relativeTime, projectStatusMeta } from "@/app/components/client/utils";
 import type { ClientAnnouncement, ProjectStatus } from "@/app/lib/types";
@@ -195,7 +196,7 @@ export default function ClientDashboard({
           <p style={{ marginTop: 10 }}>لا توجد مشاريع مطابقة.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 18, marginBottom: 22 }}>
+        <div className="client-projects-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 18, marginBottom: 22 }}>
           {filtered.map((c) => (
             <ProjectCard key={c.id} card={c} />
           ))}
@@ -262,6 +263,49 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 
 function ProjectCard({ card }: { card: ClientProjectCard }) {
   const status = projectStatusMeta(card.status);
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    // بطاقة مبسّطة عمداً على الجوال: صورة + اسم + نسبة إنجاز + حالة + آخر
+    // تحديث + زر دخول واحد واضح، بلا أي معلومات إضافية تُزاحم المساحة
+    // الصغيرة — البطاقة كلّها قابلة للمس للدخول مباشرة للمشروع.
+    return (
+      <Link href={`/client/projects/${card.id}`} className="card card-hover-lift" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}>
+        <div style={{ height: 140, position: "relative", background: "#0A0A0B" }}>
+          {card.cover_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={card.cover_image_url} alt={card.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="video" size={26} className="text-muted" />
+            </div>
+          )}
+          <span className="chip" style={{ position: "absolute", top: 8, insetInlineStart: 8, color: status.color, borderColor: status.color, background: "rgba(0,0,0,0.6)", fontSize: 10.5 }}>
+            {status.label}
+          </span>
+        </div>
+        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div>
+            <h3 style={{ fontSize: 14.5, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{card.name}</h3>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>تحديث {relativeTime(card.updated_at)}</div>
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+              <span>نسبة الإنجاز</span>
+              <span style={{ fontWeight: 800, color: "var(--gold)" }}>{Math.round(card.progress)}%</span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${Math.round(card.progress)}%` }} />
+            </div>
+          </div>
+          <span className="btn btn-gold" style={{ justifyContent: "center", fontSize: 12.5, pointerEvents: "none" }}>
+            دخول المشروع
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <div className="card card-hover-lift" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ height: 170, position: "relative", background: "#0A0A0B" }}>

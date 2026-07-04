@@ -7,8 +7,9 @@ import Icon from "@/app/components/ui/Icon";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
 import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
-import { projectHashtag } from "@/app/components/client/utils";
+import { relativeTime, projectHashtag } from "@/app/components/client/utils";
 import { createClient } from "@/app/lib/supabase/client";
 import type { ProgressUpdateMediaItem } from "@/app/lib/types";
 
@@ -62,13 +63,14 @@ function useProgressUpdatesRealtime() {
 // بجودته الأصلية (بما فيها سلايدر المقارنة قبل/بعد إن وُجد) في نافذة منبثقة.
 export default function ProgressUpdatesPreview({ updates }: { updates: ClientProgressUpdate[] }) {
   useProgressUpdatesRealtime();
+  const isMobile = useIsMobile();
   const [openUpdate, setOpenUpdate] = useState<ClientProgressUpdate | null>(null);
   if (updates.length === 0) return null;
 
-  const pool = flattenUpdatesToMediaCards(updates);
+  const pool = isMobile ? [] : flattenUpdatesToMediaCards(updates);
 
   return (
-    <div style={{ marginTop: 18, marginBottom: 6 }}>
+    <div style={{ marginTop: isMobile ? 16 : 18, marginBottom: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 7, color: "var(--text-secondary)" }}>
           <Icon name="barChart" size={15} className="nav-icon" />
@@ -79,13 +81,22 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
         </Link>
       </div>
 
-      <div className="bts-strip">
-        <div className="bts-strip-track">
-          {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
-            <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenUpdate} />
+      {isMobile ? (
+        // خلاصة عمودية بمنشورات فعلية على الجوال، بنفس فكرة شريط الكواليس تماماً.
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {updates.slice(0, MAX_UPDATES_SCANNED).map((update) => (
+            <MobileFeedCard key={update.id} update={update} onOpen={() => setOpenUpdate(update)} />
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="bts-strip">
+          <div className="bts-strip-track">
+            {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
+              <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenUpdate} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {openUpdate && (
         <div className="modal-overlay" onClick={() => setOpenUpdate(null)}>
@@ -95,6 +106,53 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
         </div>
       )}
     </div>
+  );
+}
+
+// بطاقة كاملة العرض للخلاصة العمودية على الجوال — نفس فكرة بطاقة الكواليس.
+function MobileFeedCard({ update, onOpen }: { update: ClientProgressUpdate; onOpen: () => void }) {
+  const cover = update.media.find((m) => m.label !== "before") ?? update.media[0] ?? null;
+  const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
+
+  return (
+    <button onClick={onOpen} className="card" style={{ padding: 0, overflow: "hidden", textAlign: "start", display: "flex", flexDirection: "column", width: "100%" }}>
+      {cover && (
+        <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 5", background: "#000" }}>
+          {cover.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover.url} alt={cover.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : cover.type === "video" ? (
+            <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="barChart" size={26} className="nav-icon" />
+            </div>
+          )}
+          {cover.type === "video" && (
+            <span style={{ position: "absolute", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", background: "rgba(0,0,0,0.55)", borderRadius: "50%", padding: 10, display: "flex", color: "#fff" }}>
+              <Icon name="play" size={20} />
+            </span>
+          )}
+          {update.contentType === "comparison" && (
+            <span style={{ position: "absolute", top: 10, insetInlineStart: 10, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 7 }}>
+              قبل/بعد
+            </span>
+          )}
+        </div>
+      )}
+      <div style={{ padding: 14 }}>
+        <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }}>
+          {projectHashtag(update.projectName)}
+          {stageMeta ? ` · ${stageMeta.label}` : ""} · {relativeTime(update.createdAt)}
+        </div>
+        {update.title && <div style={{ fontSize: 14.5, fontWeight: 800, marginTop: 4 }}>{update.title}</div>}
+        {update.description && (
+          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {update.description}
+          </p>
+        )}
+      </div>
+    </button>
   );
 }
 

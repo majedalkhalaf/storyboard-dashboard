@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { MediaGallery } from "@/app/components/projects/sections/ProjectBehindScenesSection";
 import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
 import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime, projectHashtag } from "@/app/components/client/utils";
 import type { BehindScenesComment, BehindScenesMediaItem } from "@/app/lib/types";
@@ -79,24 +80,37 @@ function useBehindScenesRealtime() {
 // يفتح المنشور المرتبط بالصورة المعروضة فيها حالياً كاملاً بالتفاصيل والتفاعل.
 export default function BehindScenesFeed({ posts, currentUserId, currentUserName }: { posts: BehindScenesFeedPost[]; currentUserId: string; currentUserName: string | null }) {
   useBehindScenesRealtime();
+  const isMobile = useIsMobile();
   const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
-  const pool = flattenPostsToMediaCards(posts);
+  const pool = isMobile ? [] : flattenPostsToMediaCards(posts);
 
   return (
-    <div style={{ marginTop: 24, marginBottom: 6 }}>
+    <div style={{ marginTop: isMobile ? 20 : 24, marginBottom: 6 }}>
       <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 10, display: "flex", alignItems: "center", gap: 7, color: "var(--text-secondary)" }}>
         <Icon name="sparkles" size={15} className="nav-icon" />
         الكواليس
       </h2>
-      <div className="bts-strip">
-        <div className="bts-strip-track">
-          {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
-            <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenPost} />
+
+      {isMobile ? (
+        // على الجوال: خلاصة عمودية حقيقية بمنشورات فعلية (صورة كل منشور
+        // وليس خانة عشوائية من مسبح مشترك) بأسلوب تطبيقات التواصل الاجتماعي —
+        // تجربة مختلفة تماماً عن الشريط المضغوط في سطح المكتب، بلا أي أثر عليه.
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {posts.slice(0, MAX_POSTS_SCANNED).map((post) => (
+            <MobileFeedCard key={post.id} post={post} onOpen={() => setOpenPost(post)} />
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="bts-strip">
+          <div className="bts-strip-track">
+            {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
+              <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenPost} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {openPost && (
         <div className="modal-overlay" onClick={() => setOpenPost(null)}>
@@ -106,6 +120,63 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
         </div>
       )}
     </div>
+  );
+}
+
+// بطاقة منشور كاملة العرض للخلاصة العمودية على الجوال — صورة/فيديو كبير وواضح
+// (الوسيط الأول الفعلي للمنشور نفسه)، ثم العنوان والوصف المختصر والتاريخ.
+function MobileFeedCard({ post, onOpen }: { post: BehindScenesFeedPost; onOpen: () => void }) {
+  const cover = post.media[0] ?? null;
+  return (
+    <button onClick={onOpen} className="card" style={{ padding: 0, overflow: "hidden", textAlign: "start", display: "flex", flexDirection: "column", width: "100%" }}>
+      {cover && (
+        <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 5", background: "#000" }}>
+          {cover.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover.url} alt={cover.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : cover.type === "video" ? (
+            <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="mic" size={26} className="nav-icon" />
+            </div>
+          )}
+          {cover.type === "video" && (
+            <span style={{ position: "absolute", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", background: "rgba(0,0,0,0.55)", borderRadius: "50%", padding: 10, display: "flex", color: "#fff" }}>
+              <Icon name="play" size={20} />
+            </span>
+          )}
+          {post.media.length > 1 && (
+            <span style={{ position: "absolute", top: 10, insetInlineEnd: 10, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 11, fontWeight: 700, borderRadius: 8, padding: "3px 8px" }}>
+              +{post.media.length - 1}
+            </span>
+          )}
+        </div>
+      )}
+      <div style={{ padding: 14 }}>
+        <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }}>
+          {projectHashtag(post.projectName)} · {relativeTime(post.createdAt)}
+        </div>
+        {post.title && <div style={{ fontSize: 14.5, fontWeight: 800, marginTop: 4 }}>{post.title}</div>}
+        {post.body && (
+          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {post.body}
+          </p>
+        )}
+        <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 11.5, color: "var(--text-muted)" }}>
+          {post.allowLikes && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="star" size={13} /> {post.likesCount}
+            </span>
+          )}
+          {post.allowComments && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Icon name="message" size={13} /> {post.comments.length}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }
 
