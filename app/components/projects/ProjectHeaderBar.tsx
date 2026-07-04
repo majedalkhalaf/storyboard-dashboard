@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { logActivity } from "@/app/lib/activity";
 import { downloadCsv } from "@/app/lib/csv";
 import { exportProjectZip } from "@/app/lib/zip-export";
@@ -34,6 +35,7 @@ export default function ProjectHeaderBar({
   const supabase = createClient();
   const { company } = useSession();
   const companyId = company!.id;
+  const isMobile = useIsMobile();
 
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(project.name);
@@ -92,7 +94,14 @@ export default function ProjectHeaderBar({
   }
 
   return (
-    <div className="card" style={{ padding: "16px 20px", position: "sticky", top: 0, zIndex: 5, backdropFilter: "blur(6px)" }}>
+    <div
+      className="card"
+      style={
+        isMobile
+          ? { padding: "12px 14px" }
+          : { padding: "16px 20px", position: "sticky", top: 0, zIndex: 5, backdropFilter: "blur(6px)" }
+      }
+    >
       <Link href="/projects" style={{ fontSize: 12, color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
         <Icon name="arrowRight" size={13} /> كل المشاريع
       </Link>
@@ -174,12 +183,12 @@ export default function ProjectHeaderBar({
           ))}
         </select>
 
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="btn btn-gold" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onNewEpisode}>
-            <Icon name="plus" size={14} /> حلقة جديدة
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button className="btn btn-gold" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="حلقة جديدة" onClick={onNewEpisode}>
+            <Icon name="plus" size={14} /> {!isMobile && "حلقة جديدة"}
           </button>
-          <button className="btn btn-outline" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onOpenPresentation}>
-            <Icon name="proposals" size={14} /> العرض الفني
+          <button className="btn btn-outline" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="العرض الفني" onClick={onOpenPresentation}>
+            <Icon name="proposals" size={14} /> {!isMobile && "العرض الفني"}
           </button>
           <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="تصدير قائمة الحلقات (CSV)" onClick={exportEpisodes}>
             <Icon name="export" size={14} />
@@ -187,6 +196,7 @@ export default function ProjectHeaderBar({
           <ZipExportButton
             label="تصدير المشروع ZIP"
             icon="archive"
+            size={isMobile ? "sm" : "md"}
             run={(onProgress) => exportProjectZip(supabase, companyId, project, gallery, onProgress)}
           />
           <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="نسخ رابط المشروع" onClick={share}>

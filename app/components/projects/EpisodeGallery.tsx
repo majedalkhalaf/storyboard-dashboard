@@ -79,7 +79,7 @@ export default function EpisodeGallery({
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+    <div className="episode-gallery-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
       {items.map((ep) => (
         <EpisodeGalleryCard
           key={ep.id}

@@ -540,6 +540,24 @@ body {
   /* Client episode cards: 2 side-by-side within the frame instead of 1 full-width */
   .client-episodes-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
 
+  /* Episode picker (project workspace, team side): horizontal scroll strip of
+     compact cards instead of a tall stack of full-width cards the user has to
+     scroll past before reaching the actual workspace content below. */
+  .episode-gallery-grid {
+    display: flex !important;
+    overflow-x: auto;
+    gap: 10px !important;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .episode-gallery-grid::-webkit-scrollbar { display: none; }
+  .episode-gallery-grid > * { flex: 0 0 190px; }
+
+  /* لا عناصر ثابتة (position:sticky) تسرق مساحة الشاشة الصغيرة أثناء التمرير —
+     تتصرّف كبقية الصفحة العادية على الجوال بدل البقاء مثبّتة أعلى الشاشة. */
+  .project-activity-sidebar { position: static !important; top: auto !important; }
+
   /* Kanban: horizontal scroll */
   .kanban-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .kanban-col { min-width: 240px !important; }

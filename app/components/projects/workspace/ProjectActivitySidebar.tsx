@@ -17,7 +17,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 export default function ProjectActivitySidebar({ items }: { items: WorkspaceActivityItem[] }) {
   return (
-    <div className="card" style={{ padding: 18, position: "sticky", top: 24 }}>
+    <div className="card project-activity-sidebar" style={{ padding: 18, position: "sticky", top: 24 }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>آخر النشاطات</h3>
 
       {items.length === 0 ? (

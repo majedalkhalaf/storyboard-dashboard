@@ -7,6 +7,7 @@ import EditableTitle from "@/app/components/ui/EditableTitle";
 import ZipExportButton from "@/app/components/ui/ZipExportButton";
 import StageQuickSelect from "./StageQuickSelect";
 import { useSession } from "@/app/providers/SessionProvider";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { createClient } from "@/app/lib/supabase/client";
 import { fetchEpisodeDetail, type EpisodeFullDetail } from "@/app/lib/episode-detail";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
@@ -66,6 +67,7 @@ export default function EpisodeWorkspace({
   const { company } = useSession();
   const companyId = company!.id;
   const supabase = createClient();
+  const isMobile = useIsMobile();
 
   const [pipelineStages, setPipelineStages] = useState<CompanyPipelineStage[]>([]);
   useEffect(() => {
@@ -200,16 +202,19 @@ export default function EpisodeWorkspace({
                     حلقة {detail.number}
                   </span>
                 )}
-                <EditableTitle value={detail.title} onSave={saveTitle} fontSize={16} maxWidth={420} />
+                <EditableTitle value={detail.title} onSave={saveTitle} fontSize={16} maxWidth={isMobile ? 200 : 420} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-muted)" }}>
-                  <Icon name="zap" size={12} /> المرحلة
-                </span>
+                {!isMobile && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-muted)" }}>
+                    <Icon name="zap" size={12} /> المرحلة
+                  </span>
+                )}
                 <StageQuickSelect stages={pipelineStages} currentKey={detail.pipeline_stage} onChange={saveStage} size="sm" />
                 <ZipExportButton
                   label="تصدير الحلقة ZIP"
                   icon="archive"
+                  size={isMobile ? "sm" : "md"}
                   run={(onProgress) => exportEpisodeZip(supabase, companyId, detail.id, onProgress)}
                 />
               </div>
@@ -218,6 +223,34 @@ export default function EpisodeWorkspace({
 
           {!showingExtra && (loading || !detail) ? (
             <WorkspaceSkeleton />
+          ) : isMobile ? (
+            // تخطيط الجوال مختلف تماماً عن سطح المكتب: عمود واحد بترتيب رأسي طبيعي
+            // (تبويبات أفقية قابلة للتمرير أعلى المحتوى بدل قائمة جانبية عمودية ثابتة
+            // العرض تُجبِر الصفحة على تمرير أفقي)، والمحتوى يتدفّق للأسفل بالكامل بلا
+            // أي عمود "متجمّد" يمنع الوصول لبقية الحلقة أثناء التمرير.
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Tabs orientation="horizontal" tabs={mergedTabs} active={activeKey} onChange={handleTabChange} />
+
+              {showingExtra ? (
+                <div className="animate-fade-in">{extraContent}</div>
+              ) : tab === "storyboard" ? (
+                <div className="animate-fade-in">
+                  <StoryboardTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />
+                </div>
+              ) : (
+                <>
+                  <div className="animate-fade-in">
+                    {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "activity" && <ActivityTab episode={detail!} />}
+                  </div>
+                  <EpisodeSidebar episode={detail!} clientName={clientName} />
+                </>
+              )}
+            </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: !showingExtra && tab === "storyboard" ? "190px 1fr" : "190px 1fr 280px", gap: 20, alignItems: "flex-start" }}>
               <Tabs orientation="vertical" tabs={mergedTabs} active={activeKey} onChange={handleTabChange} />
