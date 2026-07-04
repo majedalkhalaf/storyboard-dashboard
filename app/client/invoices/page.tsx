@@ -132,8 +132,8 @@ export default async function ClientInvoicesPage() {
                   {a.projectInvoices.map((inv) => {
                     const meta = INVOICE_STATUSES.find((s) => s.value === inv.status) ?? INVOICE_STATUSES[0];
                     return (
-                      <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8 }}>
-                        <span>
+                      <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, fontSize: 12.5, padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8 }}>
+                        <span style={{ minWidth: 0 }}>
                           #{inv.number} {inv.due_date ? `· تستحق ${formatDate(inv.due_date)}` : ""}
                         </span>
                         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -156,8 +156,8 @@ export default async function ClientInvoicesPage() {
                   {a.projectPayments.map((p) => {
                     const meta = PAYMENT_STATUSES.find((s) => s.value === p.status) ?? PAYMENT_STATUSES[0];
                     return (
-                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8 }}>
-                        <span>{p.paid_date ? `دُفعت ${formatDate(p.paid_date)}` : p.due_date ? `تستحق ${formatDate(p.due_date)}` : "—"}</span>
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, fontSize: 12.5, padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8 }}>
+                        <span style={{ minWidth: 0 }}>{p.paid_date ? `دُفعت ${formatDate(p.paid_date)}` : p.due_date ? `تستحق ${formatDate(p.due_date)}` : "—"}</span>
                         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <strong>{formatCurrency(p.amount)}</strong>
                           <span className="chip" style={{ fontSize: 10.5, color: meta.color, borderColor: meta.color }}>
