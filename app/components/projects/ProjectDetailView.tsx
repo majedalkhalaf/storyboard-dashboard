@@ -19,8 +19,9 @@ import ProjectContractsSection from "./sections/ProjectContractsSection";
 import ProjectProposalsSection from "./sections/ProjectProposalsSection";
 import ProjectNotesSection from "./sections/ProjectNotesSection";
 import ProjectActivitySection from "./sections/ProjectActivitySection";
+import ProjectBehindScenesSection from "./sections/ProjectBehindScenesSection";
 
-const PROJECT_SECTION_IDS = ["info", "stats", "finance", "contracts", "proposals", "notes", "activity"];
+const PROJECT_SECTION_IDS = ["info", "stats", "finance", "contracts", "proposals", "notes", "behind_scenes", "activity"];
 
 interface Props {
   project: Project;
@@ -87,6 +88,10 @@ export default function ProjectDetailView(props: Props) {
 
         <CollapsibleSection groupKey={`project:${project.id}`} id="notes" title="الملاحظات" icon="message" defaultOpen={false}>
           <ProjectNotesSection projectId={project.id} />
+        </CollapsibleSection>
+
+        <CollapsibleSection groupKey={`project:${project.id}`} id="behind_scenes" title="الكواليس" icon="sparkles" defaultOpen={false}>
+          <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />
         </CollapsibleSection>
 
         <CollapsibleSection groupKey={`project:${project.id}`} id="activity" title="سجل النشاط" icon="clock" defaultOpen={false}>

@@ -196,6 +196,8 @@ export interface Project {
   created_at: string;
   updated_at: string;
   code: string | null;
+  bts_allow_likes: boolean;
+  bts_allow_comments: boolean;
 }
 
 export interface ProjectServiceItem {
@@ -329,6 +331,47 @@ export interface Note {
   video_timestamp_seconds: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export type BehindScenesMediaType = "image" | "video" | "audio";
+
+export interface BehindScenesMediaItem {
+  type: BehindScenesMediaType;
+  url: string;
+  name: string;
+}
+
+export interface BehindScenesPost {
+  id: string;
+  company_id: string;
+  project_id: string;
+  author_id: string;
+  title: string | null;
+  body: string | null;
+  media: BehindScenesMediaItem[];
+  shared_with_client: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BehindScenesComment {
+  id: string;
+  post_id: string;
+  company_id: string;
+  project_id: string;
+  author_id: string;
+  author_role: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface BehindScenesLike {
+  id: string;
+  post_id: string;
+  company_id: string;
+  project_id: string;
+  user_id: string;
+  created_at: string;
 }
 
 // حزمتا الإعدادات المرنتان (JSONB) داخل storyboard_scenes — المفاتيح هنا هي العقد الفعلي

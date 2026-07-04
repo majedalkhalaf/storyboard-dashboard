@@ -4,7 +4,8 @@ import { requireClient } from "@/app/components/client/guards";
 import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
 import ClientDashboard, { type ClientProjectCard } from "@/app/components/client/ClientDashboard";
-import type { ClientPermissions, Invoice, Payment, Project } from "@/app/lib/types";
+import type { BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
+import type { BehindScenesComment, BehindScenesPost, ClientPermissions, Invoice, Payment, Project } from "@/app/lib/types";
 
 interface ProjectClientRow {
   id: string;
@@ -71,6 +72,7 @@ export default async function ClientDashboardPage() {
     { data: allNotesRows },
     { data: filesThisMonthRows },
     { data: openMeetingRows },
+    { data: btsRows },
   ] = await Promise.all([
     episodeProjectIds.length
       ? supabase.from("episodes").select("id, project_id, status").in("project_id", episodeProjectIds)
@@ -86,6 +88,13 @@ export default async function ClientDashboardPage() {
       ? supabase.from("files").select("id").in("project_id", fileProjectIds).eq("client_visible", true).gte("created_at", startOfMonth.toISOString())
       : Promise.resolve({ data: [] as { id: string }[] }),
     supabase.from("notes").select("id").in("project_id", projectIds).eq("target_type", "meeting").eq("status", "new"),
+    supabase
+      .from("behind_scenes_posts")
+      .select("*, comments:behind_scenes_comments(*), likes:behind_scenes_likes(user_id)")
+      .in("project_id", projectIds)
+      .eq("shared_with_client", true)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const episodesByProject = new Map<string, { total: number; completed: number }>();
@@ -183,10 +192,46 @@ export default async function ClientDashboardPage() {
       )
     : null;
 
+  // "الكواليس" المشتركة — عبر كل المشاريع النشطة معاً، ليشاهد العميل آخر
+  // التحديثات بمجرد دخوله دون الحاجة لفتح كل مشروع. اسم الناشر يُجلب عبر
+  // عميل الخدمة (نفس سبب جلب اسم مدير المشروع أعلاه: لا صلاحية RLS للعميل
+  // على ملفات فريق العمل الداخلي).
+  const btsProjectRows = (btsRows ?? []) as unknown as (BehindScenesPost & { comments: BehindScenesComment[]; likes: { user_id: string }[] })[];
+  const btsAuthorIds = Array.from(new Set(btsProjectRows.map((p) => p.author_id)));
+  const btsAuthorNameById = new Map<string, string>();
+  if (btsAuthorIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: authors } = await admin.from("profiles").select("id, full_name").in("id", btsAuthorIds);
+    for (const a of authors ?? []) {
+      if (a.full_name) btsAuthorNameById.set(a.id, a.full_name);
+    }
+  }
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const behindScenesPosts: BehindScenesFeedPost[] = btsProjectRows.map((p) => {
+    const project = projectById.get(p.project_id);
+    return {
+      id: p.id,
+      companyId: p.company_id,
+      projectId: p.project_id,
+      projectName: project?.name ?? "",
+      authorName: btsAuthorNameById.get(p.author_id) ?? null,
+      title: p.title,
+      body: p.body,
+      media: p.media,
+      createdAt: p.created_at,
+      likesCount: p.likes.length,
+      hasLiked: p.likes.some((l) => l.user_id === session.userId),
+      allowLikes: project?.bts_allow_likes ?? true,
+      allowComments: project?.bts_allow_comments ?? true,
+      comments: p.comments,
+    };
+  });
+
   return (
     <ClientDashboard
       firstName={firstName}
       userId={session.userId}
+      userName={session.profile.full_name}
       cards={cards}
       overallProgress={overallProgress}
       activeProjectsCount={activeProjectsCount}
@@ -196,6 +241,7 @@ export default async function ClientDashboardPage() {
       openMeetingRequestsCount={(openMeetingRows ?? []).length}
       nextInvoice={nextInvoice}
       financeTotals={financeTotals}
+      behindScenesPosts={behindScenesPosts}
     />
   );
 }

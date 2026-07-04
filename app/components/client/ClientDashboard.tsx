@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
+import BehindScenesFeed, { type BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
@@ -67,6 +68,7 @@ function useClientProjectsRealtime(userId: string) {
 export default function ClientDashboard({
   firstName,
   userId,
+  userName,
   cards,
   overallProgress,
   activeProjectsCount,
@@ -76,9 +78,11 @@ export default function ClientDashboard({
   openMeetingRequestsCount,
   nextInvoice,
   financeTotals,
+  behindScenesPosts,
 }: {
   firstName: string;
   userId: string;
+  userName: string | null;
   cards: ClientProjectCard[];
   overallProgress: number;
   activeProjectsCount: number;
@@ -88,6 +92,7 @@ export default function ClientDashboard({
   openMeetingRequestsCount: number;
   nextInvoice: { amount: number; due_date: string | null; projectName: string } | null;
   financeTotals: { value: number; paid: number; remaining: number } | null;
+  behindScenesPosts: BehindScenesFeedPost[];
 }) {
   useClientProjectsRealtime(userId);
 
@@ -140,6 +145,8 @@ export default function ClientDashboard({
           <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>هنا يمكنك متابعة جميع مشاريعك وحالة أعمالك لحظة بلحظة.</p>
         </div>
       </div>
+
+      <BehindScenesFeed posts={behindScenesPosts} currentUserId={userId} currentUserName={userName} />
 
       {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>
