@@ -99,6 +99,10 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
       router.push("/client");
       return;
     }
+    if (n.type === "progress_update" && n.project_id) {
+      router.push(`/client/projects/${n.project_id}?tab=progress`);
+      return;
+    }
     if (n.project_id) {
       router.push(n.episode_id ? `/client/projects/${n.project_id}/episodes/${n.episode_id}` : `/client/projects/${n.project_id}`);
     }

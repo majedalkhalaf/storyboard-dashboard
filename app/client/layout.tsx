@@ -131,7 +131,28 @@ export default async function ClientLayout({ children }: { children: React.React
         }
       }
 
-      await Promise.all([loadFiles(), loadNotes(), loadEpisodes()]);
+      async function loadProgressUpdates() {
+        const { data } = await supabase
+          .from("progress_updates")
+          .select("id, title, created_at")
+          .eq("project_id", project.id)
+          .eq("shared_with_client", true)
+          .order("created_at", { ascending: false })
+          .limit(2);
+        for (const u of (data ?? []) as { id: string; title: string | null; created_at: string }[]) {
+          items.push({
+            id: `progress-${u.id}`,
+            title: `${hashtag} – تحديث جديد في العمل الجاري`,
+            subtitle: u.title ?? "",
+            icon: "barChart",
+            color: "#3987e5",
+            at: u.created_at,
+            projectId: project.id,
+          });
+        }
+      }
+
+      await Promise.all([loadFiles(), loadNotes(), loadEpisodes(), loadProgressUpdates()]);
       return items;
     })
     );

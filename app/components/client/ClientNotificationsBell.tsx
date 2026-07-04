@@ -83,6 +83,10 @@ export default function ClientNotificationsBell() {
       router.push("/client");
       return;
     }
+    if (n.type === "progress_update" && n.project_id) {
+      router.push(`/client/projects/${n.project_id}?tab=progress`);
+      return;
+    }
     if (n.project_id) {
       router.push(
         n.episode_id

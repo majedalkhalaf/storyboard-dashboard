@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/client/projects", label: "مشاريعي", icon: "projects" },
   { href: "/client/files", label: "الملفات والمستندات", icon: "files" },
   { href: "/client/episodes", label: "الحلقات والإنتاج", icon: "episodes" },
+  { href: "/client/progress", label: "العمل الجاري", icon: "barChart" },
   { href: "/client/reports", label: "التقارير", icon: "barChart" },
   { href: "/client/invoices", label: "الحسابات", icon: "finance" },
   { href: "/client/notes", label: "طلبات التعديل", icon: "edit" },

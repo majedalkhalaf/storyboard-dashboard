@@ -5,7 +5,8 @@ import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
 import ClientDashboard, { type ClientProjectCard } from "@/app/components/client/ClientDashboard";
 import type { BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
-import type { BehindScenesComment, BehindScenesPost, ClientPermissions, Invoice, Payment, Project } from "@/app/lib/types";
+import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
+import type { BehindScenesComment, BehindScenesPost, ClientPermissions, Invoice, Payment, Project, ProgressUpdate } from "@/app/lib/types";
 
 interface ProjectClientRow {
   id: string;
@@ -73,6 +74,7 @@ export default async function ClientDashboardPage() {
     { data: filesThisMonthRows },
     { data: openMeetingRows },
     { data: btsRows },
+    { data: progressRowsHome },
   ] = await Promise.all([
     episodeProjectIds.length
       ? supabase.from("episodes").select("id, project_id, status").in("project_id", episodeProjectIds)
@@ -95,6 +97,13 @@ export default async function ClientDashboardPage() {
       .eq("shared_with_client", true)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("progress_updates")
+      .select("*")
+      .in("project_id", projectIds)
+      .eq("shared_with_client", true)
+      .order("created_at", { ascending: false })
+      .limit(4),
   ]);
 
   const episodesByProject = new Map<string, { total: number; completed: number }>();
@@ -227,6 +236,32 @@ export default async function ClientDashboardPage() {
     };
   });
 
+  // ملخّص "العمل الجاري" — آخر 4 تحديثات مشتركة عبر كل المشاريع، مع اسم الناشر
+  // الحقيقي (بناءً على طلب صريح بعرضه هنا خلافاً لبقية أقسام التواصل).
+  const progressRowsTyped = (progressRowsHome ?? []) as unknown as ProgressUpdate[];
+  const progressAuthorIds = Array.from(new Set(progressRowsTyped.map((u) => u.author_id)));
+  const progressAuthorNameById = new Map<string, string>();
+  if (progressAuthorIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: authors } = await admin.from("profiles").select("id, full_name").in("id", progressAuthorIds);
+    for (const a of authors ?? []) {
+      if (a.full_name) progressAuthorNameById.set(a.id, a.full_name);
+    }
+  }
+  const progressUpdates: ClientProgressUpdate[] = progressRowsTyped.map((u) => ({
+    id: u.id,
+    projectId: u.project_id,
+    projectName: projectById.get(u.project_id)?.name ?? "",
+    episodeTitle: null,
+    authorName: progressAuthorNameById.get(u.author_id) ?? null,
+    title: u.title,
+    description: u.description,
+    stage: u.stage,
+    contentType: u.content_type,
+    media: u.media,
+    createdAt: u.created_at,
+  }));
+
   return (
     <ClientDashboard
       firstName={firstName}
@@ -242,6 +277,7 @@ export default async function ClientDashboardPage() {
       nextInvoice={nextInvoice}
       financeTotals={financeTotals}
       behindScenesPosts={behindScenesPosts}
+      progressUpdates={progressUpdates}
     />
   );
 }

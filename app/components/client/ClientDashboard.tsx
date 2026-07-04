@@ -6,6 +6,8 @@ import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import BehindScenesFeed, { type BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
+import ProgressUpdatesPreview from "@/app/components/client/ProgressUpdatesPreview";
+import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
@@ -79,6 +81,7 @@ export default function ClientDashboard({
   nextInvoice,
   financeTotals,
   behindScenesPosts,
+  progressUpdates,
 }: {
   firstName: string;
   userId: string;
@@ -93,6 +96,7 @@ export default function ClientDashboard({
   nextInvoice: { amount: number; due_date: string | null; projectName: string } | null;
   financeTotals: { value: number; paid: number; remaining: number } | null;
   behindScenesPosts: BehindScenesFeedPost[];
+  progressUpdates: ClientProgressUpdate[];
 }) {
   useClientProjectsRealtime(userId);
 
@@ -147,6 +151,7 @@ export default function ClientDashboard({
       </div>
 
       <BehindScenesFeed posts={behindScenesPosts} currentUserId={userId} currentUserName={userName} />
+      <ProgressUpdatesPreview updates={progressUpdates} />
 
       {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>

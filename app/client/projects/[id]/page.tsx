@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireClient } from "@/app/components/client/guards";
 import ProjectView from "@/app/components/client/ProjectView";
 import BrandingInjector from "@/app/components/client/BrandingInjector";
 import { currentPipelineStageKey } from "@/app/components/client/pipeline";
 import Icon from "@/app/components/ui/Icon";
 import { canClient } from "@/app/lib/permissions";
-import type { Company, CompanyPipelineStage, Episode, Invoice, Note, Payment, Project, ProjectClient, ProjectFile } from "@/app/lib/types";
+import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
+import type { Company, CompanyPipelineStage, Episode, Invoice, Note, Payment, Project, ProgressUpdate, ProjectClient, ProjectFile } from "@/app/lib/types";
 
 export default async function ClientProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +49,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     { data: invoiceRows },
     { data: paymentRows },
     { data: lastPaymentRow },
+    { data: progressRows },
   ] = await Promise.all([
     supabase.from("companies").select("*").eq("id", proj.company_id).maybeSingle(),
     proj.client_id ? supabase.from("clients").select("name").eq("id", proj.client_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -66,6 +69,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     showPayments
       ? supabase.from("payments").select("*").eq("project_id", id).eq("status", "paid").order("paid_date", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null as Payment | null }),
+    supabase
+      .from("progress_updates")
+      .select("*, episode:episodes(title)")
+      .eq("project_id", id)
+      .eq("shared_with_client", true)
+      .order("created_at", { ascending: false }),
   ]);
 
   const company = (companyData ?? null) as Company | null;
@@ -108,6 +117,36 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
 
   const lastPayment = (lastPaymentRow ?? null) as Payment | null;
 
+  // "العمل الجاري" — اسم الناشر الحقيقي يظهر للعميل هنا تحديداً (بخلاف طلبات
+  // التعديل/الكواليس التي تُخفي هوية العضو الداخلي) بناءً على طلب صريح، فيُجلب
+  // عبر عميل الخدمة لأن العميل لا يملك صلاحية RLS لقراءة ملفات فريق العمل.
+  const progressRowsTyped = (progressRows ?? []) as unknown as (ProgressUpdate & { episode: { title: string } | { title: string }[] | null })[];
+  const progressAuthorIds = Array.from(new Set(progressRowsTyped.map((u) => u.author_id)));
+  const progressAuthorNameById = new Map<string, string>();
+  if (progressAuthorIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: authors } = await admin.from("profiles").select("id, full_name").in("id", progressAuthorIds);
+    for (const a of authors ?? []) {
+      if (a.full_name) progressAuthorNameById.set(a.id, a.full_name);
+    }
+  }
+  const progressUpdates: ClientProgressUpdate[] = progressRowsTyped.map((u) => {
+    const ep = Array.isArray(u.episode) ? (u.episode[0] ?? null) : u.episode;
+    return {
+      id: u.id,
+      projectId: u.project_id,
+      projectName: proj.name,
+      episodeTitle: ep?.title ?? null,
+      authorName: progressAuthorNameById.get(u.author_id) ?? null,
+      title: u.title,
+      description: u.description,
+      stage: u.stage,
+      contentType: u.content_type,
+      media: u.media,
+      createdAt: u.created_at,
+    };
+  });
+
   return (
     <>
       <BrandingInjector color={company?.primary_color} buttonColor={company?.button_color} alertColor={company?.alert_color} />
@@ -127,6 +166,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         totalNotesCount={totalNotesCount}
         finance={finance}
         lastPayment={lastPayment}
+        progressUpdates={progressUpdates}
         userId={session.userId}
         userName={session.profile.full_name}
       />

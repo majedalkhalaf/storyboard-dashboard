@@ -5,6 +5,7 @@ import type {
   NoteStatus,
   NoteRequestType,
   NotePriority,
+  ProgressUpdateStage,
   ClientPermissions,
   InvoiceStatus,
   PaymentStatus,
@@ -84,6 +85,18 @@ export const NOTE_PRIORITIES: { value: NotePriority; label: string; color: strin
   { value: "urgent", label: "عاجل", color: "#EF4444" },
   { value: "medium", label: "متوسط", color: "#F59E0B" },
   { value: "low", label: "منخفض", color: "#6B7280" },
+];
+
+// مراحل قسم "العمل الجاري" — توثيق مراحل التنفيذ الفعلية أمام العميل
+export const PROGRESS_UPDATE_STAGES: { value: ProgressUpdateStage; label: string; color: string; icon: IconName }[] = [
+  { value: "shooting", label: "التصوير", color: "#3987e5", icon: "video" },
+  { value: "editing", label: "المونتاج", color: "#F59E0B", icon: "video" },
+  { value: "color", label: "التلوين", color: "#8B5CF6", icon: "palette" },
+  { value: "audio", label: "الصوت", color: "#06B6D4", icon: "mic" },
+  { value: "graphics", label: "الجرافيك", color: "#EC4899", icon: "wand" },
+  { value: "review", label: "المراجعة", color: "#F59E0B", icon: "eye" },
+  { value: "delivery", label: "التسليم", color: "#1DB954", icon: "checkCircle" },
+  { value: "other", label: "أخرى", color: "#6B7280", icon: "more" },
 ];
 
 // المراحل الافتراضية لكل حلقة جديدة — يمكن تعديلها/حذفها لاحقاً لكل حلقة

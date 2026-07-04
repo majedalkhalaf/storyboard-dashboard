@@ -10,6 +10,7 @@ import NotesThread from "@/app/components/client/NotesThread";
 import ProjectStageTimeline from "@/app/components/client/ProjectStageTimeline";
 import EpisodeGridCard from "@/app/components/client/EpisodeGridCard";
 import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
+import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import StatCard from "@/app/components/dashboard/StatCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import { createClient } from "@/app/lib/supabase/client";
@@ -24,7 +25,7 @@ interface FinanceSummary {
   remaining: number;
 }
 
-type TabKey = "overview" | "episodes" | "files" | "notes";
+type TabKey = "overview" | "episodes" | "files" | "notes" | "progress";
 type EpisodeFilter = "all" | "completed" | "in_progress" | "overdue";
 type EpisodeSort = "newest" | "number" | "progress";
 
@@ -63,6 +64,7 @@ export default function ProjectView({
   totalNotesCount,
   finance,
   lastPayment,
+  progressUpdates,
   userId,
   userName,
 }: {
@@ -81,6 +83,7 @@ export default function ProjectView({
   totalNotesCount: number;
   finance: FinanceSummary | null;
   lastPayment: Payment | null;
+  progressUpdates: ClientProgressUpdate[];
   userId: string;
   userName: string | null;
 }) {
@@ -96,6 +99,7 @@ export default function ProjectView({
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "episodes", label: "الحلقات", show: showEpisodes },
     { key: "overview", label: "نظرة عامة", show: true },
+    { key: "progress", label: "العمل الجاري", show: progressUpdates.length > 0 },
     { key: "files", label: "الملفات", show: showFiles },
     { key: "notes", label: "طلبات التعديل", show: true },
   ];
@@ -319,6 +323,14 @@ export default function ProjectView({
               permissions={permissions}
               companyLogoUrl={company?.logo_url}
             />
+          )}
+
+          {active === "progress" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {progressUpdates.map((u) => (
+                <ProgressUpdateCard key={u.id} update={u} />
+              ))}
+            </div>
           )}
 
           {active === "files" && <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات على مستوى المشروع بعد." />}

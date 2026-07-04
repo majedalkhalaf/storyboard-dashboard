@@ -374,6 +374,32 @@ export interface BehindScenesLike {
   created_at: string;
 }
 
+export type ProgressUpdateStage = "shooting" | "editing" | "color" | "audio" | "graphics" | "review" | "delivery" | "other";
+export type ProgressUpdateContentType = "update" | "comparison";
+
+export interface ProgressUpdateMediaItem {
+  type: BehindScenesMediaType;
+  url: string;
+  name: string;
+  label?: "before" | "after";
+}
+
+export interface ProgressUpdate {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  author_id: string;
+  title: string | null;
+  description: string | null;
+  stage: ProgressUpdateStage;
+  content_type: ProgressUpdateContentType;
+  media: ProgressUpdateMediaItem[];
+  shared_with_client: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // حزمتا الإعدادات المرنتان (JSONB) داخل storyboard_scenes — المفاتيح هنا هي العقد الفعلي
 // المتوقَّع، حتى لو كان العمود نفسه بلا مخطط ملزم في قاعدة البيانات.
 export interface CameraSetup {

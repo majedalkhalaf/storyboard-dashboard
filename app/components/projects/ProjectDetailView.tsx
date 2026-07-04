@@ -20,8 +20,9 @@ import ProjectProposalsSection from "./sections/ProjectProposalsSection";
 import ProjectNotesSection from "./sections/ProjectNotesSection";
 import ProjectActivitySection from "./sections/ProjectActivitySection";
 import ProjectBehindScenesSection from "./sections/ProjectBehindScenesSection";
+import ProjectProgressUpdatesSection from "./sections/ProjectProgressUpdatesSection";
 
-const PROJECT_SECTION_IDS = ["info", "stats", "finance", "contracts", "proposals", "notes", "behind_scenes", "activity"];
+const PROJECT_SECTION_IDS = ["info", "stats", "finance", "contracts", "proposals", "notes", "behind_scenes", "progress", "activity"];
 
 interface Props {
   project: Project;
@@ -92,6 +93,10 @@ export default function ProjectDetailView(props: Props) {
 
         <CollapsibleSection groupKey={`project:${project.id}`} id="behind_scenes" title="الكواليس" icon="sparkles" defaultOpen={false}>
           <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />
+        </CollapsibleSection>
+
+        <CollapsibleSection groupKey={`project:${project.id}`} id="progress" title="العمل الجاري" icon="barChart" defaultOpen={false}>
+          <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />
         </CollapsibleSection>
 
         <CollapsibleSection groupKey={`project:${project.id}`} id="activity" title="سجل النشاط" icon="clock" defaultOpen={false}>
