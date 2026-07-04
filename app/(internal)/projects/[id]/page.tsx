@@ -22,13 +22,11 @@ export default async function ProjectDetailPage({
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).eq("company_id", companyId).single();
   if (!project) notFound();
 
-  let clientName: string | null = null;
-  if (project.client_id) {
-    const { data: client } = await supabase.from("clients").select("name").eq("id", project.client_id).single();
-    clientName = client?.name ?? null;
-  }
-
-  const [{ data: services }, { data: projectClients }, { data: companyClients }, gallery] = await Promise.all([
+  // جولة واحدة بدل جولتين متتاليتين: اسم العميل لا يعتمد على أي استعلام آخر
+  // في هذه الدفعة (يحتاج فقط project.client_id المعروف بالفعل)، فلا داعي
+  // لانتظاره منفرداً قبل إطلاق بقية الاستعلامات.
+  const [{ data: client }, { data: services }, { data: projectClients }, { data: companyClients }, gallery] = await Promise.all([
+    project.client_id ? supabase.from("clients").select("name").eq("id", project.client_id).single() : Promise.resolve({ data: null as { name: string } | null }),
     supabase.from("project_services").select("*").eq("project_id", id).order("created_at"),
     supabase
       .from("project_clients")
@@ -38,6 +36,7 @@ export default async function ProjectDetailPage({
     supabase.from("clients").select("id, name, email, phone").eq("company_id", companyId).order("name"),
     getEpisodeGallery(companyId, id),
   ]);
+  const clientName = client?.name ?? null;
 
   const clients: ProjectClientRow[] = (projectClients ?? []).map((r) => {
     type ClientJoin = { id: string; name: string; phone: string | null; job_title: string | null; client_company_name: string | null };
