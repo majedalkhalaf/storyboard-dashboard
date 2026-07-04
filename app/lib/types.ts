@@ -380,10 +380,11 @@ export interface BehindScenesLike {
   created_at: string;
 }
 
-export interface ProjectAnnouncement {
+export interface ClientAnnouncement {
   id: string;
   company_id: string;
-  project_id: string;
+  client_user_id: string;
+  client_id: string | null;
   title: string | null;
   media: BehindScenesMediaItem[];
   created_by: string | null;

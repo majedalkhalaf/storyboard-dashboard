@@ -4,9 +4,10 @@ import { requireClient } from "@/app/components/client/guards";
 import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
 import ClientDashboard, { type ClientProjectCard } from "@/app/components/client/ClientDashboard";
+import ClientAnnouncementCards from "@/app/components/client/ClientAnnouncementCards";
 import type { BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
 import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
-import type { BehindScenesComment, BehindScenesPost, ClientPermissions, Invoice, Payment, Project, ProgressUpdate } from "@/app/lib/types";
+import type { BehindScenesComment, BehindScenesPost, ClientAnnouncement, ClientPermissions, Invoice, Payment, Project, ProgressUpdate } from "@/app/lib/types";
 
 interface ProjectClientRow {
   id: string;
@@ -21,11 +22,17 @@ export default async function ClientDashboardPage() {
   const session = await requireClient();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("project_clients")
-    .select("id, permissions, project:projects(*)")
-    .eq("client_user_id", session.userId)
-    .eq("status", "active");
+  const [{ data }, { data: announcementRows }] = await Promise.all([
+    supabase
+      .from("project_clients")
+      .select("id, permissions, project:projects(*)")
+      .eq("client_user_id", session.userId)
+      .eq("status", "active"),
+    // إعلانات مستقلة تماماً عن المشاريع — تُجلب دائماً بغض النظر عن وجود مشاريع نشطة
+    supabase.from("client_announcements").select("*").eq("client_user_id", session.userId).order("created_at", { ascending: false }),
+  ]);
+
+  const announcements = (announcementRows ?? []) as ClientAnnouncement[];
 
   const rows = ((data ?? []) as unknown as ProjectClientRow[])
     .filter((r) => r.project && !r.project.archived)
@@ -44,6 +51,7 @@ export default async function ClientDashboardPage() {
             نعمل على مشاريعك بكل اهتمام — هدفنا أن تحصل على أفضل نتيجة ممكنة.
           </p>
         </div>
+        {announcements.length > 0 && <ClientAnnouncementCards announcements={announcements} />}
         <div className="card empty-state">
           <Icon name="projects" size={40} className="nav-icon" />
           <p style={{ marginTop: 12, fontSize: 15 }}>لا توجد مشاريع مرتبطة بحسابك حالياً.</p>
@@ -274,6 +282,7 @@ export default async function ClientDashboardPage() {
       financeTotals={financeTotals}
       behindScenesPosts={behindScenesPosts}
       progressUpdates={progressUpdates}
+      announcements={announcements}
     />
   );
 }

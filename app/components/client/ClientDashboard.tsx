@@ -6,12 +6,13 @@ import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import BehindScenesFeed, { type BehindScenesFeedPost } from "@/app/components/client/BehindScenesFeed";
 import ProgressUpdatesPreview from "@/app/components/client/ProgressUpdatesPreview";
+import ClientAnnouncementCards from "@/app/components/client/ClientAnnouncementCards";
 import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
 import { formatCurrency, formatDate, relativeTime, projectStatusMeta } from "@/app/components/client/utils";
-import type { ProjectStatus } from "@/app/lib/types";
+import type { ClientAnnouncement, ProjectStatus } from "@/app/lib/types";
 
 export interface ClientProjectCard {
   id: string;
@@ -82,6 +83,7 @@ export default function ClientDashboard({
   financeTotals,
   behindScenesPosts,
   progressUpdates,
+  announcements,
 }: {
   firstName: string;
   userId: string;
@@ -97,6 +99,7 @@ export default function ClientDashboard({
   financeTotals: { value: number; paid: number; remaining: number } | null;
   behindScenesPosts: BehindScenesFeedPost[];
   progressUpdates: ClientProgressUpdate[];
+  announcements: ClientAnnouncement[];
 }) {
   useClientProjectsRealtime(userId);
 
@@ -149,6 +152,8 @@ export default function ClientDashboard({
           <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>هنا يمكنك متابعة جميع مشاريعك وحالة أعمالك لحظة بلحظة.</p>
         </div>
       </div>
+
+      <ClientAnnouncementCards announcements={announcements} />
 
       {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>

@@ -21,19 +21,17 @@ import ProjectNotesSection from "./sections/ProjectNotesSection";
 import ProjectActivitySection from "./sections/ProjectActivitySection";
 import ProjectBehindScenesSection from "./sections/ProjectBehindScenesSection";
 import ProjectProgressUpdatesSection from "./sections/ProjectProgressUpdatesSection";
-import ProjectAnnouncementSection from "./sections/ProjectAnnouncementSection";
 
 // مرتّبة حسب الأولوية الفعلية أثناء متابعة المشروع: معلومات المشروع
 // والإحصائيات كنقطة انطلاق سريعة، ثم ما يتحرك يومياً (العمل الجاري
 // والملاحظات والكواليس)، فالمالية والمستندات الرسمية، وأخيراً سجل النشاط.
-type DetailsTabKey = "info" | "stats" | "progress" | "notes" | "behind_scenes" | "announcement" | "finance" | "contracts" | "proposals" | "activity";
+type DetailsTabKey = "info" | "stats" | "progress" | "notes" | "behind_scenes" | "finance" | "contracts" | "proposals" | "activity";
 const DETAILS_TABS: TabDef<DetailsTabKey>[] = [
   { key: "info", label: "معلومات المشروع", icon: "info" },
   { key: "stats", label: "الإحصائيات", icon: "barChart" },
   { key: "progress", label: "العمل الجاري", icon: "timeline" },
   { key: "notes", label: "الملاحظات", icon: "message" },
   { key: "behind_scenes", label: "الكواليس", icon: "sparkles" },
-  { key: "announcement", label: "إعلان للعميل", icon: "megaphone" },
   { key: "finance", label: "المالية", icon: "money" },
   { key: "contracts", label: "العقود", icon: "contracts" },
   { key: "proposals", label: "العروض", icon: "proposals" },
@@ -93,7 +91,6 @@ export default function ProjectDetailView(props: Props) {
             {detailsTab === "progress" && <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />}
             {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} />}
             {detailsTab === "behind_scenes" && <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />}
-            {detailsTab === "announcement" && <ProjectAnnouncementSection projectId={project.id} companyId={project.company_id} />}
             {detailsTab === "finance" && <ProjectFinanceSection projectId={project.id} />}
             {detailsTab === "contracts" && <ProjectContractsSection projectId={project.id} />}
             {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}

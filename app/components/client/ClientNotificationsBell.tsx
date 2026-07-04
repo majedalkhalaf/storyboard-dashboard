@@ -79,7 +79,7 @@ export default function ClientNotificationsBell() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
       await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
     }
-    if (n.type === "behind_scenes_post") {
+    if (n.type === "behind_scenes_post" || n.type === "client_announcement") {
       router.push("/client");
       return;
     }
