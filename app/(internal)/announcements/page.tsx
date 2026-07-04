@@ -58,6 +58,7 @@ export default async function AnnouncementsPage() {
       duration_days: (a.duration_days as number) ?? null,
       expires_at: (a.expires_at as string) ?? null,
       cta_label: (a.cta_label as string) || "عرض",
+      is_active: (a.is_active as boolean) ?? true,
       created_at: a.created_at as string,
       updated_at: a.updated_at as string,
       clientName: profile?.full_name || client?.name || "عميل",

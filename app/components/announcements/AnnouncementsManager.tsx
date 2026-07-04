@@ -6,11 +6,20 @@ import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
-import { CLIENT_INVITE_DURATIONS } from "@/app/lib/client-invite-catalog";
 import { formatDate } from "@/app/components/client/utils";
 import type { BehindScenesMediaItem, BehindScenesMediaType } from "@/app/lib/types";
 
 const DEFAULT_CTA_LABEL = "عرض";
+// أزرار اختيار سريع لمدة العرض — بالإضافة إلى إدخال عدد أيام يدوي حر لأي قيمة
+// أخرى، بحسب طلب صريح بمرونة كاملة (يوم، يومين، شهر، سنة...) بدل قائمة مغلقة.
+const DURATION_QUICK_PICKS: { label: string; days: number }[] = [
+  { label: "يوم", days: 1 },
+  { label: "يومان", days: 2 },
+  { label: "أسبوع", days: 7 },
+  { label: "شهر", days: 30 },
+  { label: "3 أشهر", days: 90 },
+  { label: "سنة", days: 365 },
+];
 
 export interface ClientAccountOption {
   clientUserId: string;
@@ -30,6 +39,7 @@ export interface AnnouncementRow {
   duration_days: number | null;
   expires_at: string | null;
   cta_label: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   clientName: string;
@@ -78,6 +88,7 @@ export default function AnnouncementsManager({
         duration_days: (a.duration_days as number) ?? null,
         expires_at: (a.expires_at as string) ?? null,
         cta_label: (a.cta_label as string) || DEFAULT_CTA_LABEL,
+        is_active: (a.is_active as boolean) ?? true,
         created_at: a.created_at as string,
         updated_at: a.updated_at as string,
         clientName: profile?.full_name || client?.name || "عميل",
@@ -91,6 +102,16 @@ export default function AnnouncementsManager({
     const supabase = createClient();
     await supabase.from("client_announcements").delete().eq("id", id);
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  async function toggleActive(id: string, nextActive: boolean) {
+    const supabase = createClient();
+    setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, is_active: nextActive } : a)));
+    const { error } = await supabase.from("client_announcements").update({ is_active: nextActive }).eq("id", id);
+    if (error) {
+      // تراجع محلي إن فشل التحديث فعلياً في قاعدة البيانات
+      setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, is_active: !nextActive } : a)));
+    }
   }
 
   return (
@@ -115,7 +136,13 @@ export default function AnnouncementsManager({
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
           {announcements.map((a) => (
-            <AnnouncementCard key={a.id} announcement={a} onEdit={() => setComposerTarget(a)} onDelete={() => deleteAnnouncement(a.id)} />
+            <AnnouncementCard
+              key={a.id}
+              announcement={a}
+              onEdit={() => setComposerTarget(a)}
+              onDelete={() => deleteAnnouncement(a.id)}
+              onToggleActive={() => toggleActive(a.id, !a.is_active)}
+            />
           ))}
         </div>
       )}
@@ -136,7 +163,17 @@ export default function AnnouncementsManager({
   );
 }
 
-function AnnouncementCard({ announcement, onEdit, onDelete }: { announcement: AnnouncementRow; onEdit: () => void; onDelete: () => void }) {
+function AnnouncementCard({
+  announcement,
+  onEdit,
+  onDelete,
+  onToggleActive,
+}: {
+  announcement: AnnouncementRow;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleActive: () => void;
+}) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -168,16 +205,32 @@ function AnnouncementCard({ announcement, onEdit, onDelete }: { announcement: An
   }
 
   return (
-    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10, opacity: announcement.is_active ? 1 : 0.6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 2 }}>إلى: {announcement.clientName}</div>
+          <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            إلى: {announcement.clientName}
+            {!announcement.is_active && (
+              <span className="chip" style={{ fontSize: 9.5, padding: "1px 6px", color: "var(--text-muted)", borderColor: "var(--text-muted)" }}>
+                متوقف
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: 14.5, fontWeight: 800 }}>{announcement.title || "إعلان بلا عنوان"}</div>
           <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
             {announcement.expires_at ? `ينتهي عرضه في ${formatDate(announcement.expires_at)}` : "عرض غير محدود"}
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button
+            className="btn btn-ghost"
+            style={{ padding: "4px 6px" }}
+            onClick={onToggleActive}
+            aria-label={announcement.is_active ? "إيقاف العرض" : "استئناف العرض"}
+            title={announcement.is_active ? "إيقاف العرض" : "استئناف العرض"}
+          >
+            <Icon name={announcement.is_active ? "pause" : "play"} size={14} className="text-muted" />
+          </button>
           <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={onEdit} aria-label="تعديل">
             <Icon name="edit" size={14} className="text-muted" />
           </button>
@@ -403,25 +456,59 @@ function AnnouncementComposer({
 
         <input className="input-field" placeholder="عنوان الإعلان" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 14 }} />
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>مدة عرض الإعلان</label>
-            <select
-              className="input-field"
-              value={durationDays === null ? "unlimited" : String(durationDays)}
-              onChange={(e) => setDurationDays(e.target.value === "unlimited" ? null : Number(e.target.value))}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>مدة عرض الإعلان</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {DURATION_QUICK_PICKS.map((q) => (
+              <button
+                key={q.days}
+                type="button"
+                onClick={() => setDurationDays(q.days)}
+                className="chip"
+                style={{
+                  cursor: "pointer",
+                  background: durationDays === q.days ? "rgba(var(--gold-rgb),0.15)" : undefined,
+                  borderColor: durationDays === q.days ? "var(--gold)" : undefined,
+                  color: durationDays === q.days ? "var(--gold)" : undefined,
+                  fontWeight: durationDays === q.days ? 700 : 500,
+                }}
+              >
+                {q.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setDurationDays(null)}
+              className="chip"
+              style={{
+                cursor: "pointer",
+                background: durationDays === null ? "rgba(var(--gold-rgb),0.15)" : undefined,
+                borderColor: durationDays === null ? "var(--gold)" : undefined,
+                color: durationDays === null ? "var(--gold)" : undefined,
+                fontWeight: durationDays === null ? 700 : 500,
+              }}
             >
-              {CLIENT_INVITE_DURATIONS.map((d) => (
-                <option key={d.label} value={d.value === null ? "unlimited" : d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+              غير محدود
+            </button>
           </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>نص زر الدعوة</label>
-            <input className="input-field" placeholder={DEFAULT_CTA_LABEL} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} />
-          </div>
+          {durationDays !== null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min={1}
+                className="input-field"
+                style={{ maxWidth: 110 }}
+                value={durationDays}
+                onChange={(e) => setDurationDays(Math.max(1, Number(e.target.value) || 1))}
+              />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>يوم — يمكنك كتابة أي عدد تريده</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>نص زر الدعوة</label>
+          <input className="input-field" placeholder={DEFAULT_CTA_LABEL} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} />
         </div>
 
         <div

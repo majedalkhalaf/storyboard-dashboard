@@ -390,6 +390,7 @@ export interface ClientAnnouncement {
   duration_days: number | null;
   expires_at: string | null;
   cta_label: string;
+  is_active: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
