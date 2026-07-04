@@ -5,7 +5,7 @@ import { canClient } from "@/app/lib/permissions";
 import { INVOICE_STATUSES, PAYMENT_STATUSES } from "@/app/lib/constants";
 import { formatCurrency, formatDate } from "@/app/components/client/utils";
 import Icon from "@/app/components/ui/Icon";
-import StatCard from "@/app/components/dashboard/StatCard";
+import ResponsiveStatRow from "@/app/components/dashboard/ResponsiveStatRow";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import FinanceRealtimeRefresh from "@/app/components/client/FinanceRealtimeRefresh";
 import type { ClientPermissions, Invoice, Payment, Project } from "@/app/lib/types";
@@ -93,11 +93,16 @@ export default async function ClientInvoicesPage() {
         الحسابات
       </h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label="المبلغ المستحق" value={formatCurrency(totalDue)} icon="alert" color="#EF4444" />
-        <StatCard label="إجمالي المدفوع" value={formatCurrency(totalPaid)} icon="checkCircle" color="var(--success)" />
-        <StatCard label="حسابات متأخرة" value={overdueAccounts} icon="warning" color="#F59E0B" />
-        <StatCard label="عدد المشاريع" value={accounts.length} icon="projects" color="var(--gold)" />
+      <div style={{ marginBottom: 24 }}>
+        <ResponsiveStatRow
+          minColWidth={190}
+          cards={[
+            { key: "due", label: "المبلغ المستحق", value: formatCurrency(totalDue), icon: "alert", color: "#EF4444" },
+            { key: "paid", label: "إجمالي المدفوع", value: formatCurrency(totalPaid), icon: "checkCircle", color: "var(--success)" },
+            { key: "overdue", label: "حسابات متأخرة", value: overdueAccounts, icon: "warning", color: "#F59E0B" },
+            { key: "projects", label: "عدد المشاريع", value: accounts.length, icon: "projects", color: "var(--gold)" },
+          ]}
+        />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

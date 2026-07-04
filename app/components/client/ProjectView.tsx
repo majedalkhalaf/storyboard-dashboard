@@ -14,6 +14,7 @@ import StatCard from "@/app/components/dashboard/StatCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
 import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
@@ -87,6 +88,7 @@ export default function ProjectView({
   userName: string | null;
 }) {
   useProjectRealtimeRefresh(project.id);
+  const isMobile = useIsMobile();
   const approvedSet = new Set(approvedEpisodeIds);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
@@ -262,23 +264,27 @@ export default function ProjectView({
 
       <div className="client-project-layout" style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-          {/* بطاقات الإحصائيات */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+          {/* بطاقات الإحصائيات — على الجوال شريط أفقي مضغوط بدل شبكة كبيرة
+              تستهلك مساحة رأسية كبيرة قبل الوصول لتبويبات المحتوى الأساسية. */}
+          <div
+            className={isMobile ? "mobile-feed-scroll" : undefined}
+            style={isMobile ? { display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 } : { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}
+          >
             {showEpisodes && (
               <>
-                <StatCard label="إجمالي الحلقات" value={episodes.length} icon="episodes" color="var(--gold)" />
-                <StatCard label="حلقات مكتملة" value={episodesCompleted} icon="checkCircle" color="var(--success)" />
-                <StatCard label="قيد التنفيذ" value={episodesInProgress} icon="clock" color="#F59E0B" />
-                <StatCard label="متبقية" value={episodesRemaining} icon="circle" color="#6B7280" />
+                <StatCard compact={isMobile} label="إجمالي الحلقات" value={episodes.length} icon="episodes" color="var(--gold)" />
+                <StatCard compact={isMobile} label="حلقات مكتملة" value={episodesCompleted} icon="checkCircle" color="var(--success)" />
+                <StatCard compact={isMobile} label="قيد التنفيذ" value={episodesInProgress} icon="clock" color="#F59E0B" />
+                <StatCard compact={isMobile} label="متبقية" value={episodesRemaining} icon="circle" color="#6B7280" />
               </>
             )}
-            {showFiles && <StatCard label="الملفات" value={files.length} icon="files" color="#3987e5" />}
-            <StatCard label="طلبات التعديل" value={totalNotesCount} icon="edit" color="#8B5CF6" />
+            {showFiles && <StatCard compact={isMobile} label="الملفات" value={files.length} icon="files" color="#3987e5" />}
+            <StatCard compact={isMobile} label="طلبات التعديل" value={totalNotesCount} icon="edit" color="#8B5CF6" />
             {showFinance && finance && (
               <>
-                {showProjectValue && <StatCard label="قيمة المشروع" value={formatCurrency(finance.projectValue)} icon="money" color="var(--gold)" />}
-                <StatCard label="المدفوع" value={formatCurrency(finance.paid)} icon="checkCircle" color="var(--success)" />
-                <StatCard label="المتبقي" value={formatCurrency(finance.remaining)} icon="clock" color="#EF4444" />
+                {showProjectValue && <StatCard compact={isMobile} label="قيمة المشروع" value={formatCurrency(finance.projectValue)} icon="money" color="var(--gold)" />}
+                <StatCard compact={isMobile} label="المدفوع" value={formatCurrency(finance.paid)} icon="checkCircle" color="var(--success)" />
+                <StatCard compact={isMobile} label="المتبقي" value={formatCurrency(finance.remaining)} icon="clock" color="#EF4444" />
               </>
             )}
           </div>

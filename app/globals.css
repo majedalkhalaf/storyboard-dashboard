@@ -493,10 +493,18 @@ body {
   /* Page padding smaller */
   .page-padding { padding: 16px !important; }
 
-  /* Stats: 2 cols */
+  /* Stats: 2 cols — بطاقات مضغوطة (أيقونة/رقم/تسمية أصغر) بدل الحجم الكامل
+     الذي يستهلك مساحة رأسية كبيرة على الجوال، بنفس مقاسات compact الخاصة
+     بمكوّن StatCard، مطبَّقة هنا عبر CSS كي تغطي كل صفحات لوحة الفريق التي
+     تستخدم نفس الشبكة المشتركة بلا حاجة لتعديل كل صفحة على حدة. */
   .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-  .stat-card { padding: 14px !important; }
+  .stat-card { padding: 10px !important; }
   .stat-card::after { display: none; }
+  .stat-card > span:first-child { padding: 6px !important; border-radius: 8px !important; }
+  .stat-card > *:first-child svg,
+  .stat-card > svg:first-child { width: 14px !important; height: 14px !important; }
+  .stat-card > div:nth-child(2) { font-size: 15px !important; margin-top: 6px !important; }
+  .stat-card > div:nth-child(3) { font-size: 10px !important; margin-top: 1px !important; }
 
   /* Single column layouts */
   .two-col,

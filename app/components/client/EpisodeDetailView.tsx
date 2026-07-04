@@ -12,6 +12,7 @@ import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
+import { useIsMobile } from "@/app/lib/useIsMobile";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
@@ -88,6 +89,7 @@ export default function EpisodeDetailView({
   userName: string | null;
 }) {
   useEpisodeRealtimeRefresh(episode.id);
+  const isMobile = useIsMobile();
   const es = episodeStatusMeta(episode.status);
 
   const showFiles = canClient(permissions, "files");
@@ -272,13 +274,19 @@ export default function EpisodeDetailView({
 
       <div className="client-project-layout" style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-          {/* بطاقات الإحصائيات */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-            <StatCard label="نسبة الإنجاز" value={`${episode.progress ?? 0}%`} icon="barChart" color="var(--gold)" />
-            {showFiles && <StatCard label="الملفات" value={files.length} icon="files" color="#3987e5" />}
-            <StatCard label="طلبات التعديل" value={notes.length} icon="edit" color="#8B5CF6" />
-            {showTasks && <StatCard label="المهام" value={`${stages.filter((s) => s.status === "completed").length} من ${stages.length}`} icon="tasks" color="var(--success)" />}
+          {/* بطاقات الإحصائيات — شريط أفقي مضغوط على الجوال بدل شبكة كبيرة. */}
+          <div
+            className={isMobile ? "mobile-feed-scroll" : undefined}
+            style={isMobile ? { display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 } : { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}
+          >
+            <StatCard compact={isMobile} label="نسبة الإنجاز" value={`${episode.progress ?? 0}%`} icon="barChart" color="var(--gold)" />
+            {showFiles && <StatCard compact={isMobile} label="الملفات" value={files.length} icon="files" color="#3987e5" />}
+            <StatCard compact={isMobile} label="طلبات التعديل" value={notes.length} icon="edit" color="#8B5CF6" />
+            {showTasks && (
+              <StatCard compact={isMobile} label="المهام" value={`${stages.filter((s) => s.status === "completed").length} من ${stages.length}`} icon="tasks" color="var(--success)" />
+            )}
             <StatCard
+              compact={isMobile}
               label="الوقت المتبقي للتسليم"
               value={daysToDelivery === null ? "غير محدد" : daysToDelivery >= 0 ? `${daysToDelivery} يوم` : "متأخر"}
               icon="clock"
