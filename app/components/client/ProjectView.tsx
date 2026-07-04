@@ -95,6 +95,8 @@ export default function ProjectView({
   const showEpisodes = canClient(permissions, "episodes");
   const showFiles = canClient(permissions, "files");
   const canDownloadProject = canClient(permissions, "download_project");
+  const showDeliveryDate = canClient(permissions, "show_delivery_date");
+  const showProjectValue = canClient(permissions, "show_project_value");
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "episodes", label: "الحلقات", show: showEpisodes },
@@ -204,7 +206,7 @@ export default function ProjectView({
                   <Icon name="user" size={13} /> {clientName}
                 </span>
               )}
-              {project.delivery_date && (
+              {project.delivery_date && showDeliveryDate && (
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <Icon name="calendar" size={13} /> التسليم المتوقع: {formatDate(project.delivery_date)}
                 </span>
@@ -276,7 +278,7 @@ export default function ProjectView({
             <StatCard label="طلبات التعديل" value={totalNotesCount} icon="edit" color="#8B5CF6" />
             {showFinance && finance && (
               <>
-                <StatCard label="قيمة المشروع" value={formatCurrency(finance.projectValue)} icon="money" color="var(--gold)" />
+                {showProjectValue && <StatCard label="قيمة المشروع" value={formatCurrency(finance.projectValue)} icon="money" color="var(--gold)" />}
                 <StatCard label="المدفوع" value={formatCurrency(finance.paid)} icon="checkCircle" color="var(--success)" />
                 <StatCard label="المتبقي" value={formatCurrency(finance.remaining)} icon="clock" color="#EF4444" />
               </>
@@ -310,7 +312,9 @@ export default function ProjectView({
             ))}
           </div>
 
-          {active === "overview" && <OverviewTab project={project} showFinance={showFinance} finance={finance} />}
+          {active === "overview" && (
+            <OverviewTab project={project} showFinance={showFinance} finance={finance} showProjectValue={showProjectValue} showDeliveryDate={showDeliveryDate} />
+          )}
 
           {active === "episodes" && (
             <EpisodesTab
@@ -542,20 +546,32 @@ function EpisodesTab({
   );
 }
 
-function OverviewTab({ project, finance, showFinance }: { project: Project; finance: FinanceSummary | null; showFinance: boolean }) {
+function OverviewTab({
+  project,
+  finance,
+  showFinance,
+  showProjectValue,
+  showDeliveryDate,
+}: {
+  project: Project;
+  finance: FinanceSummary | null;
+  showFinance: boolean;
+  showProjectValue: boolean;
+  showDeliveryDate: boolean;
+}) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
       <div className="card" style={{ padding: 18 }}>
         <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>تفاصيل المشروع</h3>
         <InfoRow icon="calendar" label="تاريخ التصوير" value={formatDate(project.shooting_date)} />
-        <InfoRow icon="calendar" label="تاريخ التسليم" value={formatDate(project.delivery_date)} />
+        {showDeliveryDate && <InfoRow icon="calendar" label="تاريخ التسليم" value={formatDate(project.delivery_date)} />}
         {project.location && <InfoRow icon="location" label="الموقع" value={project.location} />}
       </div>
 
       {showFinance && finance && (
         <div className="card" style={{ padding: 18 }}>
           <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>الملخّص المالي</h3>
-          <FinanceRow label="قيمة المشروع" value={formatCurrency(finance.projectValue)} color="var(--text-primary)" />
+          {showProjectValue && <FinanceRow label="قيمة المشروع" value={formatCurrency(finance.projectValue)} color="var(--text-primary)" />}
           <FinanceRow label="المدفوع" value={formatCurrency(finance.paid)} color="#1DB954" />
           <FinanceRow label="المتبقّي" value={formatCurrency(finance.remaining)} color="var(--gold)" />
         </div>

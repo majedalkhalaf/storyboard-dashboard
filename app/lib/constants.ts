@@ -195,6 +195,18 @@ export const DEFAULT_CLIENT_PERMISSIONS: ClientPermissions = {
   script: false,
   scenario: false,
   storyboard: false,
+  // القيم الافتراضية للمفاتيح الجديدة = true لأن هذه الأقسام كانت تظهر
+  // للعميل دون أي بوابة صلاحية من الأساس؛ تعيينها true هنا (وفي هجرة تعبئة
+  // الصفوف القديمة) يمنع أي انحسار مفاجئ في وصول كان يعمل فعلاً من قبل.
+  bts_view: true,
+  bts_comment: true,
+  progress_view: true,
+  progress_comment: true,
+  download_episode_zip: true,
+  view_reports: true,
+  view_support: true,
+  show_project_value: true,
+  show_delivery_date: true,
 };
 
 export const CLIENT_PERMISSION_LABELS: Record<keyof ClientPermissions, string> = {
@@ -203,8 +215,8 @@ export const CLIENT_PERMISSION_LABELS: Record<keyof ClientPermissions, string> =
   files: "مشاهدة الملفات",
   download_files: "تحميل الملفات",
   download_project: "تحميل المشروع كاملاً",
-  add_notes: "إضافة ملاحظة",
-  reply_notes: "الرد على ملاحظة",
+  add_notes: "إنشاء طلب تعديل",
+  reply_notes: "الرد على طلبات التعديل",
   approve_episodes: "اعتماد الحلقات",
   finance: "مشاهدة المالية",
   payments: "مشاهدة الدفعات",
@@ -213,11 +225,20 @@ export const CLIENT_PERMISSION_LABELS: Record<keyof ClientPermissions, string> =
   proposals: "مشاهدة العروض",
   request_service: "طلب خدمة إضافية",
   request_meeting: "طلب اجتماع",
-  upload_attachments: "رفع مرفقات",
+  upload_attachments: "رفع مرفقات على طلبات التعديل",
   execution_phases: "مشاهدة مراحل التنفيذ",
   script: "مشاهدة السكربت",
   scenario: "مشاهدة السيناريو",
   storyboard: "مشاهدة الستوري بورد",
+  bts_view: "مشاهدة الكواليس",
+  bts_comment: "التعليق على الكواليس",
+  progress_view: "مشاهدة العمل الجاري",
+  progress_comment: "التعليق على العمل الجاري",
+  download_episode_zip: "تحميل جميع ملفات الحلقة",
+  view_reports: "مشاهدة التقارير",
+  view_support: "الدعم الفني",
+  show_project_value: "إظهار قيمة المشروع",
+  show_delivery_date: "إظهار موعد التسليم",
 };
 
 export const USER_ROLE_LABELS: Record<string, string> = {

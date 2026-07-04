@@ -673,6 +673,24 @@ export interface ClientPermissions {
   script: boolean;
   scenario: boolean;
   storyboard: boolean;
+  bts_view: boolean;
+  bts_comment: boolean;
+  progress_view: boolean;
+  progress_comment: boolean;
+  download_episode_zip: boolean;
+  view_reports: boolean;
+  view_support: boolean;
+  show_project_value: boolean;
+  show_delivery_date: boolean;
+}
+
+export interface CompanyPermissionTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  permissions: ClientPermissions;
+  created_by: string | null;
+  created_at: string;
 }
 
 export type ProjectClientStatus = "invited" | "active" | "disabled" | "revoked";
@@ -702,7 +720,7 @@ export interface ClientInviteWizardData {
   phone?: string;
   jobTitle?: string;
   clientCompanyName?: string;
-  inviteType: "view_only" | "review" | "client" | "manager" | "custom";
+  inviteType: "view_only" | "regular" | "premium" | "manager" | "full" | "custom";
   permissions: ClientPermissions;
   durationDays: number | null; // null = دائم
   accessType: ClientAccessType;

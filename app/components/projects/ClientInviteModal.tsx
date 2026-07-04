@@ -2,16 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
-import { CLIENT_PERMISSION_LABELS } from "@/app/lib/constants";
+import ClientPermissionsEditor from "./ClientPermissionsEditor";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
-import {
-  CLIENT_INVITE_PRESETS,
-  CLIENT_INVITE_TYPES,
-  CLIENT_PERMISSION_GROUPS,
-  detectInviteType,
-  type ClientInviteType,
-} from "@/app/lib/client-invite-catalog";
+import { CLIENT_INVITE_PRESETS, CLIENT_INVITE_TYPES, detectInviteType, type ClientInviteType } from "@/app/lib/client-invite-catalog";
 import type { ClientInviteDraft, ClientInviteWizardData, ClientPermissions } from "@/app/lib/types";
 
 type ContactMethod = "email" | "phone";
@@ -70,10 +64,9 @@ export default function ClientInviteModal({
   const [clientCompanyName, setClientCompanyName] = useState(() => draft?.data.clientCompanyName ?? "");
   const [customMessage, setCustomMessage] = useState("");
 
-  const [permissions, setPermissions] = useState<ClientPermissions>(() => draft?.data.permissions ?? { ...CLIENT_INVITE_PRESETS.client });
-  const [activePreset, setActivePreset] = useState<ClientInviteType>(() => draft?.data.inviteType ?? "client");
+  const [permissions, setPermissions] = useState<ClientPermissions>(() => draft?.data.permissions ?? { ...CLIENT_INVITE_PRESETS.regular });
+  const [activePreset, setActivePreset] = useState<ClientInviteType>(() => draft?.data.inviteType ?? "regular");
   const [showCustom, setShowCustom] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const [saving, setSaving] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -98,14 +91,6 @@ export default function ClientInviteModal({
     }
     applyPermissions(CLIENT_INVITE_PRESETS[type]);
     setShowCustom(false);
-  }
-
-  function togglePerm(key: keyof ClientPermissions) {
-    applyPermissions({ ...permissions, [key]: !permissions[key] });
-  }
-
-  function toggleGroup(key: string) {
-    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   function buildWizardData(): ClientInviteWizardData {
@@ -223,8 +208,8 @@ export default function ClientInviteModal({
     setPhone("");
     setClientCompanyName("");
     setCustomMessage("");
-    setActivePreset("client");
-    setPermissions({ ...CLIENT_INVITE_PRESETS.client });
+    setActivePreset("regular");
+    setPermissions({ ...CLIENT_INVITE_PRESETS.regular });
     setResult(null);
     setError(null);
     setTouched(false);
@@ -369,44 +354,7 @@ export default function ClientInviteModal({
 
                   {showCustom && (
                     <div style={{ padding: "12px 14px" }}>
-                      {CLIENT_PERMISSION_GROUPS.map((group) => {
-                        const count = group.keys.filter((k) => permissions[k]).length;
-                        const collapsed = Boolean(collapsedGroups[group.key]);
-                        return (
-                          <div key={group.key} style={{ marginBottom: 10 }}>
-                            <button
-                              type="button"
-                              onClick={() => toggleGroup(group.key)}
-                              style={{
-                                width: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "6px 2px",
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                color: "var(--text-primary)",
-                              }}
-                            >
-                              <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 800, color: "var(--text-muted)", letterSpacing: "0.02em" }}>
-                                <Icon name={group.icon} size={13} /> {group.label} · {count}
-                              </span>
-                              <Icon name="chevronDown" size={14} className={collapsed ? "" : "rotate-180"} />
-                            </button>
-                            {!collapsed && (
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "4px 2px 8px" }}>
-                                {group.keys.map((key) => (
-                                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer", padding: "3px 0" }}>
-                                    <input type="checkbox" checked={permissions[key]} onChange={() => togglePerm(key)} style={{ accentColor: "var(--gold)" }} />
-                                    {CLIENT_PERMISSION_LABELS[key]}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      <ClientPermissionsEditor companyId={companyId} permissions={permissions} onChange={applyPermissions} />
                     </div>
                   )}
                 </div>

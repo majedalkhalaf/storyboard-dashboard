@@ -1,11 +1,13 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireClient } from "@/app/components/client/guards";
+import { canClient } from "@/app/lib/permissions";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import Icon from "@/app/components/ui/Icon";
-import type { Project, ProgressUpdate } from "@/app/lib/types";
+import type { ClientPermissions, Project, ProgressUpdate } from "@/app/lib/types";
 
 interface ProjectClientRow {
+  permissions: ClientPermissions;
   project: Project | null;
 }
 
@@ -17,11 +19,11 @@ export default async function ClientProgressPage() {
 
   const { data } = await supabase
     .from("project_clients")
-    .select("project:projects(*)")
+    .select("permissions, project:projects(*)")
     .eq("client_user_id", session.userId)
     .eq("status", "active");
 
-  const rows = ((data ?? []) as unknown as ProjectClientRow[]).filter((r) => r.project && !r.project.archived);
+  const rows = ((data ?? []) as unknown as ProjectClientRow[]).filter((r) => r.project && !r.project.archived && canClient(r.permissions, "progress_view"));
   const projectIds = rows.map((r) => r.project!.id);
   const projectNameById = new Map(rows.map((r) => [r.project!.id, r.project!.name]));
 

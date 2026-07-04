@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
-import { CLIENT_PERMISSION_LABELS } from "@/app/lib/constants";
+import { useSession } from "@/app/providers/SessionProvider";
+import { permissionCountOf } from "@/app/lib/client-invite-catalog";
 import type { ClientAccessType, ClientInviteDraft, ClientPermissions, ProjectClientStatus } from "@/app/lib/types";
 import { formatDate, relativeTime } from "./utils";
 import ClientInviteModal from "./ClientInviteModal";
+import ClientPermissionsEditor from "./ClientPermissionsEditor";
 
 export interface ProjectClientRow {
   id: string;
@@ -49,6 +51,8 @@ interface ResendResult {
 
 export default function ClientsTab({ projectId, initialClients, onRefresh }: { projectId: string; initialClients: ProjectClientRow[]; onRefresh: () => void }) {
   const supabase = createClient();
+  const { company } = useSession();
+  const companyId = company!.id;
   const [rows, setRows] = useState<ProjectClientRow[]>(initialClients);
   const [showInvite, setShowInvite] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -121,8 +125,7 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
     onRefresh();
   }
 
-  async function togglePerm(row: ProjectClientRow, key: keyof ClientPermissions) {
-    const next = { ...row.permissions, [key]: !row.permissions[key] };
+  async function applyPermissionsToRow(row: ProjectClientRow, next: ClientPermissions) {
     setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, permissions: next } : r)));
     await supabase.from("project_clients").update({ permissions: next }).eq("id", row.id);
   }
@@ -197,8 +200,6 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
     });
   }
 
-  const permKeys = Object.keys(CLIENT_PERMISSION_LABELS) as (keyof ClientPermissions)[];
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -242,7 +243,8 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {rows.map((row) => {
             const status = STATUS_LABELS[row.status];
-            const grantedCount = permKeys.filter((k) => row.permissions[k]).length;
+            const grantedCount = permissionCountOf(row.permissions);
+            const otherRows = rows.filter((r) => r.id !== row.id);
             const isOpen = expanded === row.id;
             const isEditing = editingId === row.id;
             const result = resendResults[row.id];
@@ -372,15 +374,31 @@ export default function ClientsTab({ projectId, initialClients, onRefresh }: { p
 
                     {/* ── الصلاحيات ── */}
                     <div>
-                      <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>الصلاحيات</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
-                        {permKeys.map((key) => (
-                          <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
-                            <input type="checkbox" checked={row.permissions[key]} onChange={() => togglePerm(row, key)} />
-                            {CLIENT_PERMISSION_LABELS[key]}
-                          </label>
-                        ))}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>الصلاحيات</div>
+                        {otherRows.length > 0 && (
+                          <select
+                            className="input-field"
+                            style={{ width: "auto", fontSize: 11.5, padding: "5px 8px" }}
+                            defaultValue=""
+                            onChange={(e) => {
+                              const source = otherRows.find((r) => r.id === e.target.value);
+                              if (source) applyPermissionsToRow(row, { ...source.permissions });
+                              e.target.value = "";
+                            }}
+                          >
+                            <option value="" disabled>
+                              نسخ صلاحيات من عميل آخر في هذا المشروع...
+                            </option>
+                            {otherRows.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.client_name || r.invited_email}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
+                      <ClientPermissionsEditor companyId={companyId} permissions={row.permissions} onChange={(next) => applyPermissionsToRow(row, next)} />
                     </div>
                   </div>
                 )}

@@ -61,6 +61,8 @@ export default async function ClientDashboardPage() {
   const financeProjectIds = rows.filter((r) => canClient(r.permissions, "finance")).map((r) => r.project!.id);
   const fileProjectIds = rows.filter((r) => canClient(r.permissions, "files")).map((r) => r.project!.id);
   const invoiceProjectIds = rows.filter((r) => canClient(r.permissions, "invoices")).map((r) => r.project!.id);
+  const btsProjectIds = rows.filter((r) => canClient(r.permissions, "bts_view")).map((r) => r.project!.id);
+  const progressProjectIds = rows.filter((r) => canClient(r.permissions, "progress_view")).map((r) => r.project!.id);
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -90,20 +92,18 @@ export default async function ClientDashboardPage() {
       ? supabase.from("files").select("id").in("project_id", fileProjectIds).eq("client_visible", true).gte("created_at", startOfMonth.toISOString())
       : Promise.resolve({ data: [] as { id: string }[] }),
     supabase.from("notes").select("id").in("project_id", projectIds).eq("target_type", "meeting").eq("status", "new"),
-    supabase
-      .from("behind_scenes_posts")
-      .select("*, comments:behind_scenes_comments(*), likes:behind_scenes_likes(user_id)")
-      .in("project_id", projectIds)
-      .eq("shared_with_client", true)
-      .order("created_at", { ascending: false })
-      .limit(4),
-    supabase
-      .from("progress_updates")
-      .select("*")
-      .in("project_id", projectIds)
-      .eq("shared_with_client", true)
-      .order("created_at", { ascending: false })
-      .limit(4),
+    btsProjectIds.length
+      ? supabase
+          .from("behind_scenes_posts")
+          .select("*, comments:behind_scenes_comments(*), likes:behind_scenes_likes(user_id)")
+          .in("project_id", btsProjectIds)
+          .eq("shared_with_client", true)
+          .order("created_at", { ascending: false })
+          .limit(4)
+      : Promise.resolve({ data: [] as (BehindScenesPost & { comments: BehindScenesComment[]; likes: { user_id: string }[] })[] }),
+    progressProjectIds.length
+      ? supabase.from("progress_updates").select("*").in("project_id", progressProjectIds).eq("shared_with_client", true).order("created_at", { ascending: false }).limit(4)
+      : Promise.resolve({ data: [] as ProgressUpdate[] }),
   ]);
 
   const episodesByProject = new Map<string, { total: number; completed: number }>();
@@ -176,6 +176,8 @@ export default async function ClientDashboardPage() {
       managerName: manager?.name ?? null,
       managerAvatarUrl: manager?.avatarUrl ?? null,
       companyLogoUrl: companyLogoById.get(project.company_id) ?? null,
+      showProjectValue: canClient(r.permissions, "show_project_value"),
+      showDeliveryDate: canClient(r.permissions, "show_delivery_date"),
     };
   });
 

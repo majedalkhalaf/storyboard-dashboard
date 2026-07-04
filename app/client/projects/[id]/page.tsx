@@ -35,6 +35,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   const showFiles = canClient(permissions, "files");
   const showFinance = canClient(permissions, "finance");
   const showPayments = canClient(permissions, "payments");
+  const showProgress = canClient(permissions, "progress_view");
 
   const [
     { data: companyData },
@@ -69,12 +70,9 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     showPayments
       ? supabase.from("payments").select("*").eq("project_id", id).eq("status", "paid").order("paid_date", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null as Payment | null }),
-    supabase
-      .from("progress_updates")
-      .select("*, episode:episodes(title)")
-      .eq("project_id", id)
-      .eq("shared_with_client", true)
-      .order("created_at", { ascending: false }),
+    showProgress
+      ? supabase.from("progress_updates").select("*, episode:episodes(title)").eq("project_id", id).eq("shared_with_client", true).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as (ProgressUpdate & { episode: { title: string } | null })[] }),
   ]);
 
   const company = (companyData ?? null) as Company | null;

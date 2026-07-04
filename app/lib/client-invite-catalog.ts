@@ -2,17 +2,16 @@ import type { IconName } from "@/app/components/ui/Icon";
 import type { ClientAccessType, ClientPermissions } from "@/app/lib/types";
 import { DEFAULT_CLIENT_PERMISSIONS, CLIENT_PERMISSION_LABELS } from "@/app/lib/constants";
 
-// كتالوج صلاحيات معالج دعوة العميل — مصدر واحد يغذّي كلاً من نافذة الدعوة (Wizard)
-// وأي عرض آخر لصلاحيات العميل. يعتمد حصراً على مفاتيح ClientPermissions الـ20
-// الموجودة فعلياً والمُطبَّقة في بوابة العميل (راجع canClient() في مكوّنات app/client
-// وapp/components/client) — لم تُضَف صلاحيات جديدة لا يوجد خلفها أي ميزة حقيقية.
+// كتالوج صلاحيات العميل — مصدر واحد يغذّي نافذة الدعوة ومحرر صلاحيات العميل
+// الحالي في تبويب "العملاء" سواء بسواء، بحيث لا يوجد نموذجان مختلفان لنفس
+// المفهوم. مقسّم إلى مجموعات مواضيعية بدل قائمة مسطّحة طويلة، مع ستة قوالب
+// جاهزة (خمسة مواقف + مخصّص) تُطبَّق بضغطة واحدة ويمكن تعديلها بعدها يدوياً.
 //
-// ملاحظة صادقة: مجموعة "التقارير" (مشاهدة تقارير/تصدير PDF أو Excel/تصدير المشروع)
-// المطلوبة في التصميم المرجعي لا تقابلها أي ميزة فعلية في بوابة العميل اليوم (لا يوجد
-// تبويب تقارير للعميل ولا تصدير)، فحُذفت من الكتالوج بدل إضافة صلاحيات وهمية. كذلك
-// request_service وrequest_meeting موجودتان في المخطط منذ قبل هذه الجلسة كصلاحيات
-// معلنة، لكن لا توجد بعد واجهة فعلية في بوابة العميل لتقديم طلب خدمة/اجتماع — أُبقيتا
-// في الكتالوج لأنهما جزء من المخطط الحالي أصلاً، مع الإفصاح عن هذا في ملخص التسليم.
+// ملاحظة صادقة: كل مفتاح هنا يقابله فعلياً بوابة صلاحية حقيقية أو حقل بيانات
+// حقيقي في بوابة العميل — لا توجد مفاتيح صلاحيات لميزات غير موجودة أصلاً (مثل
+// "الأرباح" أو "تعديل/حذف طلب تعديل بعد إرساله" أو إخفاء أسماء أعضاء الفريق
+// الداخلي تحديداً — تلك الأخيرة مُخفاة دائماً وبلا استثناء عن العميل في كل
+// مكان أصلاً، فلا حاجة لمفتاح صلاحية إضافي لها).
 export interface ClientPermissionGroup {
   key: string;
   label: string;
@@ -21,26 +20,27 @@ export interface ClientPermissionGroup {
 }
 
 export const CLIENT_PERMISSION_GROUPS: ClientPermissionGroup[] = [
-  { key: "project_contracts", label: "المشاريع والعقود", icon: "projects", keys: ["view_project", "contracts", "download_project"] },
-  { key: "files", label: "الملفات والمرفقات", icon: "files", keys: ["files", "download_files", "upload_attachments"] },
-  {
-    key: "production",
-    label: "الحلقات والإنتاج",
-    icon: "episodes",
-    keys: ["episodes", "approve_episodes", "execution_phases", "script", "scenario", "storyboard", "add_notes", "reply_notes"],
-  },
-  { key: "finance", label: "المالية", icon: "finance", keys: ["finance", "payments", "invoices", "proposals"] },
-  { key: "services", label: "الخدمات", icon: "calendar", keys: ["request_service", "request_meeting"] },
+  { key: "general", label: "الوصول العام", icon: "eye", keys: ["view_project", "show_project_value", "show_delivery_date"] },
+  { key: "episodes", label: "الحلقات ومراحل التنفيذ", icon: "episodes", keys: ["episodes", "execution_phases", "script", "scenario", "storyboard"] },
+  { key: "files", label: "الملفات والوسائط", icon: "files", keys: ["files", "download_files", "download_episode_zip", "download_project", "upload_attachments"] },
+  { key: "requests", label: "طلبات التعديل", icon: "edit", keys: ["add_notes", "reply_notes"] },
+  { key: "approvals", label: "الاعتماد", icon: "checkCircle", keys: ["approve_episodes"] },
+  { key: "behind_scenes", label: "الكواليس", icon: "sparkles", keys: ["bts_view", "bts_comment"] },
+  { key: "progress", label: "العمل الجاري", icon: "timeline", keys: ["progress_view", "progress_comment"] },
+  { key: "finance", label: "المالية والمستندات", icon: "finance", keys: ["finance", "payments", "invoices", "contracts", "proposals"] },
+  { key: "meetings_support", label: "الاجتماعات والدعم", icon: "calendar", keys: ["request_meeting", "request_service", "view_support"] },
+  { key: "reports", label: "التقارير", icon: "barChart", keys: ["view_reports"] },
 ];
 
-export type ClientInviteType = "view_only" | "review" | "client" | "manager" | "custom";
+export type ClientInviteType = "view_only" | "regular" | "premium" | "manager" | "full" | "custom";
 
 export const CLIENT_INVITE_TYPES: { value: ClientInviteType; label: string; description: string; icon: IconName }[] = [
-  { value: "view_only", label: "مشاهدة فقط", description: "يشاهد العميل المحتوى المسموح به فقط، دون أي تفاعل", icon: "eye" },
-  { value: "review", label: "مراجعة", description: "يشاهد المحتوى ويضيف الملاحظات فقط", icon: "user" },
-  { value: "client", label: "مراجعة واعتماد", description: "يشاهد المحتوى، يضيف الملاحظات، ويعتمد الحلقات والملفات المرسلة له", icon: "userPlus" },
-  { value: "manager", label: "عميل كامل الصلاحيات", description: "يحصل على جميع الصلاحيات المسموح بها للعميل", icon: "sliders" },
-  { value: "custom", label: "مخصص", description: "تُختار يدوياً من القائمة أدناه", icon: "settings" },
+  { value: "view_only", label: "مشاهدة فقط", description: "يشاهد العميل المحتوى المسموح به فقط، دون أي إضافة أو تفاعل", icon: "eye" },
+  { value: "regular", label: "عميل عادي", description: "يشاهد المحتوى، يرسل طلبات تعديل، ويعتمد الحلقات — الإعدادات الافتراضية المتوازنة", icon: "user" },
+  { value: "premium", label: "عميل مميز", description: "كل صلاحيات العميل العادي، بالإضافة إلى المالية والفواتير وتحميل المشروع كاملاً والتعليق على الكواليس والعمل الجاري", icon: "star" },
+  { value: "manager", label: "مدير من جهة العميل", description: "صلاحيات واسعة تشمل العقود والعروض وطلب خدمات إضافية، فوق كل صلاحيات العميل المميز", icon: "userPlus" },
+  { value: "full", label: "صلاحيات كاملة", description: "كل صلاحية في النظام مفعّلة دون استثناء", icon: "sliders" },
+  { value: "custom", label: "صلاحيات مخصصة", description: "تُختار يدوياً كل صلاحية على حدة من القائمة أدناه", icon: "settings" },
 ];
 
 const ALL_KEYS = Object.keys(CLIENT_PERMISSION_LABELS) as (keyof ClientPermissions)[];
@@ -51,24 +51,57 @@ function allTrue(): ClientPermissions {
   return p;
 }
 
-function viewOnly(): ClientPermissions {
+function allFalse(): ClientPermissions {
   const p = {} as ClientPermissions;
   for (const k of ALL_KEYS) p[k] = false;
-  p.view_project = true;
-  p.episodes = true;
-  p.files = true;
   return p;
 }
 
-function review(): ClientPermissions {
-  return { ...viewOnly(), add_notes: true, reply_notes: true };
+function viewOnly(): ClientPermissions {
+  return {
+    ...allFalse(),
+    view_project: true,
+    episodes: true,
+    files: true,
+    bts_view: true,
+    progress_view: true,
+    view_reports: true,
+    view_support: true,
+    show_project_value: true,
+    show_delivery_date: true,
+  };
+}
+
+function premium(): ClientPermissions {
+  return {
+    ...DEFAULT_CLIENT_PERMISSIONS,
+    finance: true,
+    payments: true,
+    download_project: true,
+    bts_comment: true,
+    progress_comment: true,
+  };
+}
+
+function managerPreset(): ClientPermissions {
+  return {
+    ...premium(),
+    contracts: true,
+    proposals: true,
+    request_service: true,
+    execution_phases: true,
+    script: true,
+    scenario: true,
+    storyboard: true,
+  };
 }
 
 export const CLIENT_INVITE_PRESETS: Record<Exclude<ClientInviteType, "custom">, ClientPermissions> = {
   view_only: viewOnly(),
-  review: review(),
-  client: { ...DEFAULT_CLIENT_PERMISSIONS },
-  manager: allTrue(),
+  regular: { ...DEFAULT_CLIENT_PERMISSIONS },
+  premium: premium(),
+  manager: managerPreset(),
+  full: allTrue(),
 };
 
 export interface ClientInviteDurationOption {
@@ -107,6 +140,10 @@ export const CLIENT_DELIVERY_METHODS: { value: ClientDeliveryMethod; label: stri
 
 export function permissionCountOf(permissions: ClientPermissions): number {
   return ALL_KEYS.filter((k) => permissions[k]).length;
+}
+
+export function permissionTotalCount(): number {
+  return ALL_KEYS.length;
 }
 
 export function detectInviteType(permissions: ClientPermissions): ClientInviteType {

@@ -31,6 +31,8 @@ export interface ClientProjectCard {
   managerName: string | null;
   managerAvatarUrl: string | null;
   companyLogoUrl: string | null;
+  showProjectValue: boolean;
+  showDeliveryDate: boolean;
 }
 
 type SortKey = "status" | "updated" | "progress" | "created";
@@ -308,7 +310,7 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <Icon name="episodes" size={13} /> {card.episodesCompleted} من {card.episodesTotal}
             </span>
-            {card.delivery_date && (
+            {card.delivery_date && card.showDeliveryDate && (
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Icon name="calendar" size={13} /> {formatDate(card.delivery_date)}
               </span>
@@ -317,11 +319,13 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
         )}
 
         {card.finance && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, fontSize: 11, background: "var(--bg-hover)", borderRadius: 10, padding: 10 }}>
-            <div>
-              <div style={{ color: "var(--text-muted)" }}>القيمة</div>
-              <div style={{ fontWeight: 700, marginTop: 2 }}>{formatCurrency(card.finance.projectValue)}</div>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: card.showProjectValue ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gap: 8, fontSize: 11, background: "var(--bg-hover)", borderRadius: 10, padding: 10 }}>
+            {card.showProjectValue && (
+              <div>
+                <div style={{ color: "var(--text-muted)" }}>القيمة</div>
+                <div style={{ fontWeight: 700, marginTop: 2 }}>{formatCurrency(card.finance.projectValue)}</div>
+              </div>
+            )}
             <div>
               <div style={{ color: "var(--text-muted)" }}>المدفوع</div>
               <div style={{ fontWeight: 700, marginTop: 2, color: "var(--success)" }}>{formatCurrency(card.finance.paid)}</div>
