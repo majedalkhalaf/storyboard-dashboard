@@ -33,9 +33,14 @@ const CARD_SIZES = [
   { width: 160, height: 125 },
   { width: 200, height: 150 },
 ];
-const MAX_POSTS_SCANNED = 6;
-const MAX_MEDIA_CARDS = 10;
-const MIN_VISIBLE_TARGET = 5;
+// نطاق أوسع من المنشورات/الوسائط هنا — المجموعة تُستخدم كـ"مسبح" عشوائي للتبديل
+// (Slideshow) وليس فقط أول عناصر تُعرض مباشرة، فكلما اتسع المسبح قلّ التكرار
+// الملحوظ بين الشرائح المتجاورة.
+const MAX_POSTS_SCANNED = 8;
+const MAX_MEDIA_CARDS = 20;
+const SLOT_COUNT = 4;
+const MIN_SLIDE_INTERVAL_MS = 4000;
+const MAX_SLIDE_INTERVAL_MS = 7500;
 
 interface StripMediaCard {
   key: string;
@@ -44,8 +49,8 @@ interface StripMediaCard {
 }
 
 // يفكّك المنشورات إلى بطاقة واحدة لكل صورة/فيديو بدل بطاقة واحدة تمثّل الغلاف
-// فقط — هذا ما يجعل منشوراً واحداً يحتوي عدة صور يظهر كمجموعة بطاقات بجانب
-// بعضها بدل بطاقة يتيمة تترك مساحة فارغة كبيرة بجانبها.
+// فقط — هذا ما يجعل منشوراً واحداً يحتوي عدة صور يُغذّي مسبح التبديل العشوائي
+// بخيارات أكثر بدل الاقتصار على غلاف واحد لكل منشور.
 function flattenPostsToMediaCards(posts: BehindScenesFeedPost[]): StripMediaCard[] {
   const out: StripMediaCard[] = [];
   for (const post of posts.slice(0, MAX_POSTS_SCANNED)) {
@@ -56,6 +61,38 @@ function flattenPostsToMediaCards(posts: BehindScenesFeedPost[]): StripMediaCard
     }
   }
   return out;
+}
+
+// كل خانة تحتفظ بفهرس عشوائي خاص بها ضمن مسبح الوسائط، وتُبدّله في فواصل
+// زمنية عشوائية غير متزامنة بين الخانات — بلا أي تمرير أفقي، بحسب طلب صريح
+// بتثبيت الشريط مكانه بدل تحريكه، مع إبقاء التغيّر التلقائي بين الصور نفسها.
+function useRandomSlideIndex(poolLength: number, seed: number) {
+  const [index, setIndex] = useState(() => (poolLength > 0 ? seed % poolLength : 0));
+
+  useEffect(() => {
+    if (poolLength <= 1) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleNext = () => {
+      const delay = MIN_SLIDE_INTERVAL_MS + Math.random() * (MAX_SLIDE_INTERVAL_MS - MIN_SLIDE_INTERVAL_MS);
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        setIndex((prev) => {
+          let next = Math.floor(Math.random() * poolLength);
+          if (next === prev) next = (next + 1) % poolLength;
+          return next;
+        });
+        scheduleNext();
+      }, delay);
+    };
+    scheduleNext();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [poolLength]);
+
+  return poolLength > 0 ? index % poolLength : 0;
 }
 
 // يستمع لأي منشور كواليس جديد مشترك عبر كل مشاريع العميل النشطة ويعيد جلب
@@ -77,25 +114,16 @@ function useBehindScenesRealtime() {
 }
 
 // شريط "الكواليس" — عرضي ومضغوط أسفل بطاقات المشاريع بدل مساحة كبيرة أعلى
-// الصفحة، ببطاقات صغيرة متفاوتة الحجم وحركة تمرير تلقائي بسيطة (تتوقف عند
-// التمرير فوقها بالماوس أو باللمس)، تكفي لجذب انتباه العميل دون إزعاج. الضغط
-// على أي بطاقة يفتح المنشور كاملاً بالتفاصيل والتفاعل (إعجاب/تعليق).
+// الصفحة، بخانات ثابتة المكان (بلا أي تمرير) متفاوتة الحجم، تتبدّل صورة كل
+// خانة عشوائياً بين الحين والآخر من كل كواليس حلقات المشروع — بدل حركة تمرير
+// أفقي مستمرة، بناءً على طلب صريح بتثبيت الشريط مكانه. الضغط على أي خانة
+// يفتح المنشور المرتبط بالصورة المعروضة فيها حالياً كاملاً بالتفاصيل والتفاعل.
 export default function BehindScenesFeed({ posts, currentUserId, currentUserName }: { posts: BehindScenesFeedPost[]; currentUserId: string; currentUserName: string | null }) {
   useBehindScenesRealtime();
   const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
-  // بطاقة واحدة لكل صورة/فيديو (وليس لكل منشور) — كي يظهر منشور بعدة صور
-  // كمجموعة بطاقات بجانب بعضها. إن كان إجمالي البطاقات الحقيقية قليلاً
-  // (أقل من 5)، تُكرَّر الدورة عدداً كافياً من المرّات (repeatCount) بدل ترك
-  // مساحة فارغة كبيرة بجانب بطاقة أو بطاقتين فقط — بحسب طلب صريح بألا تظهر
-  // أي مساحة فارغة، مع تعديل مقدار انزياح حركة التمرير (bts-shift) ليطابق
-  // عدد التكرارات فتبقى الحلقة سلسة بلا قفزة مرئية.
-  const base = flattenPostsToMediaCards(posts);
-  const repeatCount = base.length === 0 ? 0 : base.length < MIN_VISIBLE_TARGET ? Math.max(2, Math.ceil(MIN_VISIBLE_TARGET / base.length)) : base.length > 1 ? 2 : 1;
-  const loop = repeatCount > 1;
-  const items = loop ? Array.from({ length: repeatCount }, () => base).flat() : base;
-  const trackStyle = loop ? ({ "--bts-shift": `-${100 / repeatCount}%` } as React.CSSProperties) : undefined;
+  const pool = flattenPostsToMediaCards(posts);
 
   return (
     <div style={{ marginTop: 24, marginBottom: 6 }}>
@@ -103,10 +131,10 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
         <Icon name="sparkles" size={15} className="nav-icon" />
         الكواليس
       </h2>
-      <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
-        <div className="bts-strip-track" style={trackStyle}>
-          {items.map((item, i) => (
-            <StripCard key={`${item.key}-${i}`} media={item.media} name={item.post.title ?? "كواليس"} projectName={item.post.projectName} index={i} onOpen={() => setOpenPost(item.post)} />
+      <div className="bts-strip">
+        <div className="bts-strip-track">
+          {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
+            <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenPost} />
           ))}
         </div>
       </div>
@@ -122,43 +150,37 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
   );
 }
 
-function StripCard({
-  media,
-  name,
-  projectName,
-  index,
-  onOpen,
-}: {
-  media: BehindScenesMediaItem | null;
-  name: string;
-  projectName: string;
-  index: number;
-  onOpen: () => void;
-}) {
-  const size = CARD_SIZES[index % CARD_SIZES.length];
+function SlideshowSlot({ slotIndex, pool, onOpen }: { slotIndex: number; pool: StripMediaCard[]; onOpen: (post: BehindScenesFeedPost) => void }) {
+  const size = CARD_SIZES[slotIndex % CARD_SIZES.length];
+  // بذرة بداية مختلفة لكل خانة كي لا تعرض كل الخانات نفس الصورة في البداية.
+  const randomIndex = useRandomSlideIndex(pool.length, slotIndex * 3 + 1);
+  const item = pool.length > 0 ? pool[randomIndex % pool.length] : null;
+  const media = item?.media ?? null;
 
   return (
     <button
       className="bts-strip-card"
-      onClick={onOpen}
-      style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}
+      onClick={() => item && onOpen(item.post)}
+      style={{ width: size.width, height: size.height, animationDelay: `${slotIndex * 70}ms` }}
     >
-      {media ? (
-        media.type === "image" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : media.type === "video" ? (
-          <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <div key={item?.key ?? "empty"} className="bts-slide-fade" style={{ position: "absolute", inset: 0 }}>
+        {media ? (
+          media.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : media.type === "video" ? (
+            <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
+              <Icon name="mic" size={22} className="nav-icon" />
+            </div>
+          )
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-            <Icon name="mic" size={22} className="nav-icon" />
+            <Icon name="sparkles" size={22} className="nav-icon" />
           </div>
-        )
-      ) : (
-        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-          <Icon name="sparkles" size={22} className="nav-icon" />
-        </div>
-      )}
+        )}
+      </div>
 
       {media?.type === "video" && (
         <span
@@ -196,9 +218,9 @@ function StripCard({
       </span>
       <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
         <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {projectHashtag(projectName)}
+          {projectHashtag(item?.post.projectName ?? "")}
         </div>
-        <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+        <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item?.post.title ?? "كواليس"}</div>
       </div>
     </button>
   );

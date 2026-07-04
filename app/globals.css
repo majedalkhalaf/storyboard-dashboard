@@ -643,7 +643,17 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* تبديل عشوائي بلا تمرير: كل خانة "كواليس" ثابتة مكانها، وصورتها تتلاشى
+   دخولاً عند تبديلها بأخرى بدل قفزة مفاجئة. */
+.bts-slide-fade {
+  animation: bts-slide-fade 0.7s ease both;
+}
+@keyframes bts-slide-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
   .bts-strip-auto .bts-strip-track { animation: none; }
   .bts-strip-card { animation: none; }
+  .bts-slide-fade { animation: none; }
 }
