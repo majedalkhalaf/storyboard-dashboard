@@ -96,7 +96,7 @@ export default async function ClientDashboardPage() {
       .in("project_id", projectIds)
       .eq("shared_with_client", true)
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(4),
     supabase
       .from("progress_updates")
       .select("*")

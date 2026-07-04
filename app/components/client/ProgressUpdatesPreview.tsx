@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
+import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
+import { projectHashtag } from "@/app/components/client/utils";
 import { createClient } from "@/app/lib/supabase/client";
+
+// أحجام متفاوتة، أصغر بوضوح من بطاقة المشروع — نفس منطق شريط الكواليس.
+const CARD_SIZES = [
+  { width: 150, height: 118 },
+  { width: 195, height: 145 },
+  { width: 170, height: 130 },
+];
 
 // يستمع لأي تحديث "عمل جارٍ" جديد مشترك عبر كل مشاريع العميل ويعيد جلب بيانات
 // الصفحة الرئيسية — نفس نمط useBehindScenesRealtime (بلا فلترة على مستوى
@@ -25,26 +34,96 @@ function useProgressUpdatesRealtime() {
   }, []);
 }
 
+// شريط "العمل الجاري" — بنفس أسلوب شريط الكواليس (بطاقات مصغّرة متفاوتة
+// الحجم، حركة تلقائية بسيطة)، يعرض آخر التحديثات المشتركة عبر كل المشاريع.
+// الضغط على أي بطاقة يفتح التحديث كاملاً بجودته الأصلية (بما فيها سلايدر
+// المقارنة قبل/بعد إن وُجد) في نافذة منبثقة.
 export default function ProgressUpdatesPreview({ updates }: { updates: ClientProgressUpdate[] }) {
   useProgressUpdatesRealtime();
+  const [openUpdate, setOpenUpdate] = useState<ClientProgressUpdate | null>(null);
   if (updates.length === 0) return null;
 
+  const loop = updates.length > 1;
+  const items = loop ? [...updates, ...updates] : updates;
+
   return (
-    <div style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
-          <Icon name="barChart" size={17} className="nav-icon" />
+    <div style={{ marginTop: 18, marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 7, color: "var(--text-secondary)" }}>
+          <Icon name="barChart" size={15} className="nav-icon" />
           العمل الجاري
         </h2>
-        <Link href="/client/progress" className="btn btn-outline" style={{ fontSize: 12.5 }}>
+        <Link href="/client/progress" className="btn btn-outline" style={{ fontSize: 11.5, padding: "5px 10px" }}>
           عرض جميع الأعمال الجارية
         </Link>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {updates.map((u) => (
-          <ProgressUpdateCard key={u.id} update={u} showProjectHashtag />
-        ))}
+
+      <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
+        <div className="bts-strip-track">
+          {items.map((u, i) => (
+            <StripCard key={`${u.id}-${i}`} update={u} index={i} onOpen={() => setOpenUpdate(u)} />
+          ))}
+        </div>
       </div>
+
+      {openUpdate && (
+        <div className="modal-overlay" onClick={() => setOpenUpdate(null)}>
+          <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <ProgressUpdateCard update={openUpdate} showProjectHashtag />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function StripCard({ update, index, onOpen }: { update: ClientProgressUpdate; index: number; onOpen: () => void }) {
+  const size = CARD_SIZES[index % CARD_SIZES.length];
+  const cover = update.media.find((m) => m.label !== "before") ?? update.media[0];
+  const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
+
+  return (
+    <button className="bts-strip-card" onClick={onOpen} style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}>
+      {cover ? (
+        cover.type === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover.url} alt={cover.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : cover.type === "video" ? (
+          <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
+            <Icon name="mic" size={20} className="nav-icon" />
+          </div>
+        )
+      ) : (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
+          <Icon name="barChart" size={20} className="nav-icon" />
+        </div>
+      )}
+
+      {update.contentType === "comparison" && (
+        <span style={{ position: "absolute", top: 8, insetInlineStart: 8, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6 }}>
+          قبل/بعد
+        </span>
+      )}
+
+      <span
+        className="bts-strip-card-expand"
+        style={{ position: "absolute", top: 8, insetInlineEnd: 8, background: "rgba(0,0,0,0.5)", borderRadius: "50%", padding: 5, display: "flex", color: "#fff" }}
+      >
+        <Icon name="export" size={12} />
+      </span>
+
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent 55%)" }} />
+      <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
+        <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {projectHashtag(update.projectName)}
+          {stageMeta ? ` · ${stageMeta.label}` : ""}
+        </div>
+        {update.title && (
+          <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{update.title}</div>
+        )}
+      </div>
+    </button>
   );
 }

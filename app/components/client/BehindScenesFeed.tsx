@@ -25,14 +25,15 @@ export interface BehindScenesFeedPost {
   comments: BehindScenesComment[];
 }
 
-// أحجام متفاوتة للبطاقات داخل الشريط — تكرار نمط بصري غير رتيب بدل شبكة موحّدة.
+// أحجام متفاوتة لأربع بطاقات فقط — أكبرها أصغر بوضوح من بطاقة المشروع
+// (340px+ عرضاً و170px ارتفاع الغلاف وحده، دون احتساب النص والأزرار أسفلها).
 const CARD_SIZES = [
-  { width: 168, height: 138 },
-  { width: 220, height: 168 },
-  { width: 190, height: 150 },
-  { width: 240, height: 180 },
-  { width: 200, height: 160 },
+  { width: 140, height: 112 },
+  { width: 185, height: 140 },
+  { width: 160, height: 125 },
+  { width: 200, height: 150 },
 ];
+const MAX_VISIBLE = 4;
 
 // يستمع لأي منشور كواليس جديد مشترك عبر كل مشاريع العميل النشطة ويعيد جلب
 // بيانات الصفحة — بلا فلترة على مستوى القناة لأن Realtime لا يدعم فلترة
@@ -61,10 +62,12 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
   const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
+  // أحدث 4 منشورات فقط — الشريط ملخّص سريع وليس أرشيفاً كاملاً.
+  const visible = posts.slice(0, MAX_VISIBLE);
   // حركة تلقائية دائمة طالما هناك أكثر من منشور واحد — بلا حدٍّ أدنى مرتفع
   // للعدد، حتى لا يبقى الشريط ثابتاً بلا حركة عند وجود منشورين أو ثلاثة فقط.
-  const loop = posts.length > 1;
-  const items = loop ? [...posts, ...posts] : posts;
+  const loop = visible.length > 1;
+  const items = loop ? [...visible, ...visible] : visible;
 
   return (
     <div style={{ marginTop: 24, marginBottom: 6 }}>
