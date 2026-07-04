@@ -146,10 +146,6 @@ export default async function ClientDashboardPage() {
     const { data: companyRows } = await supabase.from("companies").select("id, logo_url").in("id", companyIds);
     for (const c of companyRows ?? []) companyLogoById.set(c.id, c.logo_url);
   }
-  // شعار كبير بجانب رسالة الترحيب — فقط إن كانت كل مشاريع العميل تابعة لشركة
-  // واحدة (نفس شرط شعار الشريط الجانبي في app/client/layout.tsx)، تفادياً لعرض
-  // شعار شركة واحدة وكأنه يمثّل كل المشاريع حين تتبع لأكثر من شركة إنتاج.
-  const heroLogoUrl = companyIds.length === 1 ? companyLogoById.get(companyIds[0]) ?? null : null;
 
   const cards: ClientProjectCard[] = rows.map((r) => {
     const project = r.project!;
@@ -284,7 +280,6 @@ export default async function ClientDashboardPage() {
       financeTotals={financeTotals}
       behindScenesPosts={behindScenesPosts}
       progressUpdates={progressUpdates}
-      heroLogoUrl={heroLogoUrl}
     />
   );
 }

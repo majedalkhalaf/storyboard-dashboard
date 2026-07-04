@@ -132,11 +132,6 @@ export default function ClientShell({
               </div>
             </div>
           )}
-          {brandCompany?.logo_url && (
-            <div className="logo-title" style={{ fontWeight: 800, fontSize: 14, textAlign: "center" }}>
-              {brandCompany.name}
-            </div>
-          )}
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, overflowY: "auto" }}>
@@ -205,66 +200,57 @@ export default function ClientShell({
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden" style={{ position: "relative" }}>
-        {/* رأس كل صفحة — شعار واسم الشركة يبقيان ظاهرين حتى على الجوال حيث
-            تختفي القائمة الجانبية (desktop-sidebar) ويحل محلها شريط سفلي فقط. */}
+        {/* رأس كل صفحة — بلا شعار مكرَّر هنا؛ شعار الشركة الوحيد في واجهة
+            البوابة هو شعار الشريط الجانبي أعلاه، بناءً على طلب صريح بعدم
+            تكراره في أكثر من موضع. */}
         <header
           className="no-print"
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "flex-end",
             gap: 10,
             padding: "12px 20px",
             borderBottom: "1px solid var(--border)",
             background: "var(--bg-secondary)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            {brandCompany?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={brandCompany.logo_url} alt={brandCompany.name} style={{ height: 34, width: "auto", maxWidth: 140, objectFit: "contain", flexShrink: 0 }} />
-            ) : null}
-            {brandCompany?.name && (
-              <span className="logo-title" style={{ fontWeight: 800, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {brandCompany.name}
-              </span>
-            )}
-          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <ClientNotificationsBell />
-            <AccountMenu companyLogoUrl={brandCompany?.logo_url} companyName={brandCompany?.name} />
+            <AccountMenu />
           </div>
         </header>
 
         <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)", position: "relative", zIndex: 1 }}>
-          {/* علامة مائية بهوية الشركة — ثابتة في زاوية الصفحة بحجم كبير وواضح،
-              خلف المحتوى الفعلي في كل صفحات البوابة، وغير قابلة للنقر. مصفوفة
-              كطبقة داخل <main> نفسها (لا كطبقة شقيقة له) لأن أي طبقة خارج
-              <main> كانت ستُحجب بالكامل خلف خلفيته الصلبة (خطأ منفصل عن مشكلة
-              RLS التي كانت تمنع وصول بيانات الشركة أصلاً). */}
+          {/* علامة مائية بهوية الشركة — ثابتة في زاوية الصفحة، خلف المحتوى
+              الفعلي في كل صفحات البوابة، وغير قابلة للنقر. مصفوفة كطبقة داخل
+              <main> نفسها (لا كطبقة شقيقة له) لأن أي طبقة خارج <main> كانت
+              ستُحجب بالكامل خلف خلفيته الصلبة. شفافية أعلى وزاوية مختلفة
+              (أعلى بدل أسفل) بناءً على طلب صريح بتخفيفها بعد أن بدت بارزة أكثر
+              من اللازم في أول نسخة.  */}
           {(brandCompany?.logo_url || brandCompany?.name) && (
             <div
               aria-hidden
               className="no-print"
               style={{
                 position: "fixed",
-                bottom: 0,
-                insetInlineEnd: 0,
+                top: 0,
+                insetInlineStart: 0,
                 display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "flex-end",
+                alignItems: "flex-start",
+                justifyContent: "flex-start",
                 pointerEvents: "none",
                 overflow: "hidden",
-                width: "min(46vw, 640px)",
-                height: "min(46vw, 640px)",
+                width: "min(38vw, 520px)",
+                height: "min(38vw, 520px)",
                 zIndex: 0,
               }}
             >
               {brandCompany.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={brandCompany.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom left", opacity: 0.08, transform: "translate(8%, 8%)" }} />
+                <img src={brandCompany.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "top right", opacity: 0.035, transform: "translate(-8%, -8%)" }} />
               ) : (
-                <span style={{ fontSize: "7vw", fontWeight: 900, opacity: 0.06, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
+                <span style={{ fontSize: "7vw", fontWeight: 900, opacity: 0.03, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
               )}
             </div>
           )}
