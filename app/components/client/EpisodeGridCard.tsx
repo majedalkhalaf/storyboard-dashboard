@@ -41,7 +41,7 @@ export default function EpisodeGridCard({
   const [sent, setSent] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
-  const canDownload = canClient(permissions, "download_files");
+  const canDownload = canClient(permissions, "download_episode_zip");
 
   async function handleDownloadAll(e: React.MouseEvent) {
     e.preventDefault();

@@ -63,6 +63,7 @@ export default async function ClientDashboardPage() {
   const invoiceProjectIds = rows.filter((r) => canClient(r.permissions, "invoices")).map((r) => r.project!.id);
   const btsProjectIds = rows.filter((r) => canClient(r.permissions, "bts_view")).map((r) => r.project!.id);
   const progressProjectIds = rows.filter((r) => canClient(r.permissions, "progress_view")).map((r) => r.project!.id);
+  const permissionsByProject = new Map(rows.map((r) => [r.project!.id, r.permissions]));
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -223,7 +224,10 @@ export default async function ClientDashboardPage() {
       likesCount: p.likes.length,
       hasLiked: p.likes.some((l) => l.user_id === session.userId),
       allowLikes: project?.bts_allow_likes ?? true,
-      allowComments: project?.bts_allow_comments ?? true,
+      // تعليق العميل يتطلب تفعيل التبديل العام للمشروع (bts_allow_comments)
+      // وصلاحيته الخاصة (bts_comment) معاً — التبديل العام وحده لم يكن كافياً
+      // لمنع عميل مُحدَّد لا يملك هذه الصلاحية من التعليق فعلياً.
+      allowComments: (project?.bts_allow_comments ?? true) && canClient(permissionsByProject.get(p.project_id), "bts_comment"),
       comments: p.comments,
     };
   });

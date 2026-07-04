@@ -111,7 +111,7 @@ export default function EpisodeDetailView({
   const [requestOpen, setRequestOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<ExportProgress | null>(null);
-  const canDownloadFiles = canClient(permissions, "download_files");
+  const canDownloadFiles = canClient(permissions, "download_episode_zip");
 
   async function handleDownloadAllFiles() {
     if (downloading) return;

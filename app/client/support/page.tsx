@@ -1,24 +1,27 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { requireClient } from "@/app/components/client/guards";
+import { canClient } from "@/app/lib/permissions";
 import Icon from "@/app/components/ui/Icon";
-import type { Company, Project } from "@/app/lib/types";
+import type { ClientPermissions, Company, Project } from "@/app/lib/types";
 
 // صفحة "الدعم الفني" — معلومات تواصل حقيقية لكل شركة إنتاج يتابع العميل
-// مشاريعها حالياً (وليس شركة واحدة مفترضة)، بلا بيانات وهمية.
+// مشاريعها حالياً (وليس شركة واحدة مفترضة)، بلا بيانات وهمية. تُستثنى شركة
+// إن لم يملك العميل صلاحية view_support على أي من مشاريعه معها.
 export default async function ClientSupportPage() {
   const session = await requireClient();
   const supabase = await createClient();
 
   const { data } = await supabase
     .from("project_clients")
-    .select("project:projects(company_id)")
+    .select("permissions, project:projects(company_id)")
     .eq("client_user_id", session.userId)
     .eq("status", "active");
 
-  type Row = { project: { company_id: string } | { company_id: string }[] | null };
+  type Row = { permissions: ClientPermissions; project: { company_id: string } | { company_id: string }[] | null };
   const companyIds = Array.from(
     new Set(
       ((data ?? []) as unknown as Row[])
+        .filter((r) => canClient(r.permissions, "view_support"))
         .map((r) => (Array.isArray(r.project) ? r.project[0]?.company_id : r.project?.company_id))
         .filter((id): id is string => Boolean(id))
     )

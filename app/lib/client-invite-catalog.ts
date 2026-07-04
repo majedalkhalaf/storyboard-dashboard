@@ -26,9 +26,9 @@ export const CLIENT_PERMISSION_GROUPS: ClientPermissionGroup[] = [
   { key: "requests", label: "طلبات التعديل", icon: "edit", keys: ["add_notes", "reply_notes"] },
   { key: "approvals", label: "الاعتماد", icon: "checkCircle", keys: ["approve_episodes"] },
   { key: "behind_scenes", label: "الكواليس", icon: "sparkles", keys: ["bts_view", "bts_comment"] },
-  { key: "progress", label: "العمل الجاري", icon: "timeline", keys: ["progress_view", "progress_comment"] },
+  { key: "progress", label: "العمل الجاري", icon: "timeline", keys: ["progress_view"] },
   { key: "finance", label: "المالية والمستندات", icon: "finance", keys: ["finance", "payments", "invoices", "contracts", "proposals"] },
-  { key: "meetings_support", label: "الاجتماعات والدعم", icon: "calendar", keys: ["request_meeting", "request_service", "view_support"] },
+  { key: "meetings_support", label: "الاجتماعات والدعم", icon: "calendar", keys: ["request_meeting", "view_support"] },
   { key: "reports", label: "التقارير", icon: "barChart", keys: ["view_reports"] },
 ];
 
@@ -37,8 +37,8 @@ export type ClientInviteType = "view_only" | "regular" | "premium" | "manager" |
 export const CLIENT_INVITE_TYPES: { value: ClientInviteType; label: string; description: string; icon: IconName }[] = [
   { value: "view_only", label: "مشاهدة فقط", description: "يشاهد العميل المحتوى المسموح به فقط، دون أي إضافة أو تفاعل", icon: "eye" },
   { value: "regular", label: "عميل عادي", description: "يشاهد المحتوى، يرسل طلبات تعديل، ويعتمد الحلقات — الإعدادات الافتراضية المتوازنة", icon: "user" },
-  { value: "premium", label: "عميل مميز", description: "كل صلاحيات العميل العادي، بالإضافة إلى المالية والفواتير وتحميل المشروع كاملاً والتعليق على الكواليس والعمل الجاري", icon: "star" },
-  { value: "manager", label: "مدير من جهة العميل", description: "صلاحيات واسعة تشمل العقود والعروض وطلب خدمات إضافية، فوق كل صلاحيات العميل المميز", icon: "userPlus" },
+  { value: "premium", label: "عميل مميز", description: "كل صلاحيات العميل العادي، بالإضافة إلى المالية والفواتير وتحميل المشروع كاملاً والتعليق على الكواليس", icon: "star" },
+  { value: "manager", label: "مدير من جهة العميل", description: "صلاحيات واسعة تشمل العقود والعروض ومراحل التنفيذ والسكربت، فوق كل صلاحيات العميل المميز", icon: "userPlus" },
   { value: "full", label: "صلاحيات كاملة", description: "كل صلاحية في النظام مفعّلة دون استثناء", icon: "sliders" },
   { value: "custom", label: "صلاحيات مخصصة", description: "تُختار يدوياً كل صلاحية على حدة من القائمة أدناه", icon: "settings" },
 ];
@@ -79,7 +79,6 @@ function premium(): ClientPermissions {
     payments: true,
     download_project: true,
     bts_comment: true,
-    progress_comment: true,
   };
 }
 
@@ -88,7 +87,6 @@ function managerPreset(): ClientPermissions {
     ...premium(),
     contracts: true,
     proposals: true,
-    request_service: true,
     execution_phases: true,
     script: true,
     scenario: true,

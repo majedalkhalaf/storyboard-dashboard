@@ -67,6 +67,12 @@ export default function ApproveEpisode({
     return null;
   }
 
+  function closeDialog() {
+    setOpen(false);
+    setNote("");
+    setError(null);
+  }
+
   async function confirmApproval() {
     setBusy(true);
     setError(null);
@@ -112,7 +118,7 @@ export default function ApproveEpisode({
 
       {open && (
         <ModalPortal>
-        <div className="modal-overlay" onClick={() => !busy && setOpen(false)}>
+        <div className="modal-overlay" onClick={() => !busy && closeDialog()}>
           <div className="modal-content" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <Icon name="checkCircle" size={22} className="nav-icon" />
@@ -138,7 +144,7 @@ export default function ApproveEpisode({
               </div>
             )}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button className="btn btn-ghost" onClick={() => setOpen(false)} disabled={busy}>
+              <button className="btn btn-ghost" onClick={closeDialog} disabled={busy}>
                 إلغاء
               </button>
               <button className="btn" style={{ background: "#1DB954", color: "#06210f", fontWeight: 800 }} onClick={confirmApproval} disabled={busy}>

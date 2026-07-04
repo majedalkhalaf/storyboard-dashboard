@@ -672,7 +672,6 @@ export interface ClientPermissions {
   invoices: boolean;
   contracts: boolean;
   proposals: boolean;
-  request_service: boolean;
   request_meeting: boolean;
   upload_attachments: boolean;
   execution_phases: boolean;
@@ -682,7 +681,6 @@ export interface ClientPermissions {
   bts_view: boolean;
   bts_comment: boolean;
   progress_view: boolean;
-  progress_comment: boolean;
   download_episode_zip: boolean;
   view_reports: boolean;
   view_support: boolean;

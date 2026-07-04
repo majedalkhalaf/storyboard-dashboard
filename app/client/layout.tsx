@@ -132,6 +132,7 @@ export default async function ClientLayout({ children }: { children: React.React
       }
 
       async function loadProgressUpdates() {
+        if (!canClient(permissions, "progress_view")) return;
         const { data } = await supabase
           .from("progress_updates")
           .select("id, title, created_at")

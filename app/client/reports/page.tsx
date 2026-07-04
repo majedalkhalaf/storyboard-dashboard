@@ -23,7 +23,7 @@ export default async function ClientReportsPage() {
     .eq("status", "active");
 
   const rows = ((data ?? []) as unknown as ProjectClientRow[])
-    .filter((r) => r.project && !r.project.archived)
+    .filter((r) => r.project && !r.project.archived && canClient(r.permissions, "view_reports"))
     .sort((a, b) => (b.project!.updated_at || "").localeCompare(a.project!.updated_at || ""));
 
   return (
