@@ -603,17 +603,6 @@ body {
   gap: 12px;
   width: max-content;
 }
-.bts-strip-auto .bts-strip-track {
-  animation: bts-marquee 45s linear infinite;
-}
-.bts-strip-auto:hover .bts-strip-track,
-.bts-strip-auto:focus-within .bts-strip-track {
-  animation-play-state: paused;
-}
-@keyframes bts-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(var(--bts-shift, -50%)); }
-}
 .bts-strip-card {
   position: relative;
   flex-shrink: 0;
@@ -643,17 +632,12 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* تبديل عشوائي بلا تمرير: كل خانة "كواليس" ثابتة مكانها، وصورتها تتلاشى
-   دخولاً عند تبديلها بأخرى بدل قفزة مفاجئة. */
-.bts-slide-fade {
-  animation: bts-slide-fade 0.7s ease both;
-}
-@keyframes bts-slide-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* تلاشٍ سينمائي بطيء بين صورتين متراكبتين (Crossfade) في خانات "الكواليس"
+   و"العمل الجاري" — بحسب طلب صريح: "تختفي الصورة بهدوء وتظهر الأخرى بهدوء". */
+.bts-crossfade-layer {
+  transition: opacity 2200ms ease-in-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .bts-strip-auto .bts-strip-track { animation: none; }
   .bts-strip-card { animation: none; }
-  .bts-slide-fade { animation: none; }
+  .bts-crossfade-layer { transition: none; }
 }

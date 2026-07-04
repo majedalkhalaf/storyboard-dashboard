@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { MediaGallery } from "@/app/components/projects/sections/ProjectBehindScenesSection";
+import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
+import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime, projectHashtag } from "@/app/components/client/utils";
 import type { BehindScenesComment, BehindScenesMediaItem } from "@/app/lib/types";
@@ -25,22 +27,11 @@ export interface BehindScenesFeedPost {
   comments: BehindScenesComment[];
 }
 
-// أحجام متفاوتة لأربع بطاقات فقط — أكبرها أصغر بوضوح من بطاقة المشروع
-// (340px+ عرضاً و170px ارتفاع الغلاف وحده، دون احتساب النص والأزرار أسفلها).
-const CARD_SIZES = [
-  { width: 140, height: 112 },
-  { width: 185, height: 140 },
-  { width: 160, height: 125 },
-  { width: 200, height: 150 },
-];
 // نطاق أوسع من المنشورات/الوسائط هنا — المجموعة تُستخدم كـ"مسبح" عشوائي للتبديل
 // (Slideshow) وليس فقط أول عناصر تُعرض مباشرة، فكلما اتسع المسبح قلّ التكرار
 // الملحوظ بين الشرائح المتجاورة.
 const MAX_POSTS_SCANNED = 8;
 const MAX_MEDIA_CARDS = 20;
-const SLOT_COUNT = 4;
-const MIN_SLIDE_INTERVAL_MS = 4000;
-const MAX_SLIDE_INTERVAL_MS = 7500;
 
 interface StripMediaCard {
   key: string;
@@ -61,38 +52,6 @@ function flattenPostsToMediaCards(posts: BehindScenesFeedPost[]): StripMediaCard
     }
   }
   return out;
-}
-
-// كل خانة تحتفظ بفهرس عشوائي خاص بها ضمن مسبح الوسائط، وتُبدّله في فواصل
-// زمنية عشوائية غير متزامنة بين الخانات — بلا أي تمرير أفقي، بحسب طلب صريح
-// بتثبيت الشريط مكانه بدل تحريكه، مع إبقاء التغيّر التلقائي بين الصور نفسها.
-function useRandomSlideIndex(poolLength: number, seed: number) {
-  const [index, setIndex] = useState(() => (poolLength > 0 ? seed % poolLength : 0));
-
-  useEffect(() => {
-    if (poolLength <= 1) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNext = () => {
-      const delay = MIN_SLIDE_INTERVAL_MS + Math.random() * (MAX_SLIDE_INTERVAL_MS - MIN_SLIDE_INTERVAL_MS);
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        setIndex((prev) => {
-          let next = Math.floor(Math.random() * poolLength);
-          if (next === prev) next = (next + 1) % poolLength;
-          return next;
-        });
-        scheduleNext();
-      }, delay);
-    };
-    scheduleNext();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [poolLength]);
-
-  return poolLength > 0 ? index % poolLength : 0;
 }
 
 // يستمع لأي منشور كواليس جديد مشترك عبر كل مشاريع العميل النشطة ويعيد جلب
@@ -151,7 +110,6 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
 }
 
 function SlideshowSlot({ slotIndex, pool, onOpen }: { slotIndex: number; pool: StripMediaCard[]; onOpen: (post: BehindScenesFeedPost) => void }) {
-  const size = CARD_SIZES[slotIndex % CARD_SIZES.length];
   // بذرة بداية مختلفة لكل خانة كي لا تعرض كل الخانات نفس الصورة في البداية.
   const randomIndex = useRandomSlideIndex(pool.length, slotIndex * 3 + 1);
   const item = pool.length > 0 ? pool[randomIndex % pool.length] : null;
@@ -161,26 +119,9 @@ function SlideshowSlot({ slotIndex, pool, onOpen }: { slotIndex: number; pool: S
     <button
       className="bts-strip-card"
       onClick={() => item && onOpen(item.post)}
-      style={{ width: size.width, height: size.height, animationDelay: `${slotIndex * 70}ms` }}
+      style={{ width: SLOT_SIZE.width, height: SLOT_SIZE.height, animationDelay: `${slotIndex * 70}ms` }}
     >
-      <div key={item?.key ?? "empty"} className="bts-slide-fade" style={{ position: "absolute", inset: 0 }}>
-        {media ? (
-          media.type === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : media.type === "video" ? (
-            <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-              <Icon name="mic" size={22} className="nav-icon" />
-            </div>
-          )
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-            <Icon name="sparkles" size={22} className="nav-icon" />
-          </div>
-        )}
-      </div>
+      <MediaCrossfadeSlot item={media ? { key: item!.key, type: media.type, url: media.url, name: media.name } : null} placeholderIcon="sparkles" />
 
       {media?.type === "video" && (
         <span

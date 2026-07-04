@@ -198,6 +198,11 @@ export default function ClientDashboard({
       )}
 
       <BehindScenesFeed posts={behindScenesPosts} currentUserId={userId} currentUserName={userName} />
+      {/* خط فاصل بين قسمي "الكواليس" و"العمل الجاري" — يظهر فقط حين يُعرض
+          القسمان معاً، وإلا فلا داعي لخط يفصل قسماً واحداً عن فراغ. */}
+      {behindScenesPosts.length > 0 && progressUpdates.length > 0 && (
+        <div aria-hidden style={{ height: 2, background: "var(--gold)", opacity: 0.5, borderRadius: 2, margin: "20px 0" }} />
+      )}
       <ProgressUpdatesPreview updates={progressUpdates} />
 
       {/* بطاقات مساندة */}

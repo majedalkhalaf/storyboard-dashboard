@@ -5,20 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
+import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
+import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
 import { projectHashtag } from "@/app/components/client/utils";
 import { createClient } from "@/app/lib/supabase/client";
 import type { ProgressUpdateMediaItem } from "@/app/lib/types";
 
-// أحجام متفاوتة، أصغر بوضوح من بطاقة المشروع — نفس منطق شريط الكواليس.
-const CARD_SIZES = [
-  { width: 150, height: 118 },
-  { width: 195, height: 145 },
-  { width: 170, height: 130 },
-];
-const MAX_UPDATES_SCANNED = 6;
-const MAX_MEDIA_CARDS = 10;
-const MIN_VISIBLE_TARGET = 5;
+// نطاق أوسع من التحديثات/الوسائط — مسبح عشوائي للتبديل، نفس منطق شريط الكواليس.
+const MAX_UPDATES_SCANNED = 8;
+const MAX_MEDIA_CARDS = 20;
 
 interface StripMediaCard {
   key: string;
@@ -28,7 +24,7 @@ interface StripMediaCard {
 
 // نفس منطق تفكيك منشورات الكواليس: بطاقة واحدة لكل صورة/فيديو (باستثناء
 // صور "قبل" كي لا تظهر مكرَّرة بمعزل عن مقارنتها) بدل بطاقة غلاف واحدة لكل
-// تحديث — كي يظهر تحديث بعدة صور كمجموعة بطاقات بجانب بعضها.
+// تحديث — كي يغذّي مسبح التبديل العشوائي بخيارات أكثر.
 function flattenUpdatesToMediaCards(updates: ClientProgressUpdate[]): StripMediaCard[] {
   const out: StripMediaCard[] = [];
   for (const update of updates.slice(0, MAX_UPDATES_SCANNED)) {
@@ -60,23 +56,16 @@ function useProgressUpdatesRealtime() {
   }, []);
 }
 
-// شريط "العمل الجاري" — بنفس أسلوب شريط الكواليس (بطاقات مصغّرة متفاوتة
-// الحجم، حركة تلقائية بسيطة)، يعرض آخر التحديثات المشتركة عبر كل المشاريع.
-// الضغط على أي بطاقة يفتح التحديث كاملاً بجودته الأصلية (بما فيها سلايدر
-// المقارنة قبل/بعد إن وُجد) في نافذة منبثقة.
+// شريط "العمل الجاري" — بنفس أسلوب شريط الكواليس تماماً: خانات ثابتة المكان
+// بحجم موحّد، تتبدّل صورة كل خانة عشوائياً بتلاشٍ سينمائي هادئ (Crossfade)
+// بدل حركة تمرير أو قفزة مفاجئة. الضغط على أي خانة يفتح التحديث كاملاً
+// بجودته الأصلية (بما فيها سلايدر المقارنة قبل/بعد إن وُجد) في نافذة منبثقة.
 export default function ProgressUpdatesPreview({ updates }: { updates: ClientProgressUpdate[] }) {
   useProgressUpdatesRealtime();
   const [openUpdate, setOpenUpdate] = useState<ClientProgressUpdate | null>(null);
   if (updates.length === 0) return null;
 
-  // نفس منطق شريط الكواليس: بطاقة لكل صورة/فيديو، وتكرار الدورة عدداً كافياً
-  // من المرّات إن كان إجمالي البطاقات الحقيقية أقل من 5 كي لا تظهر أي مساحة
-  // فارغة بجانب بطاقة أو بطاقتين فقط.
-  const base = flattenUpdatesToMediaCards(updates);
-  const repeatCount = base.length === 0 ? 0 : base.length < MIN_VISIBLE_TARGET ? Math.max(2, Math.ceil(MIN_VISIBLE_TARGET / base.length)) : base.length > 1 ? 2 : 1;
-  const loop = repeatCount > 1;
-  const items = loop ? Array.from({ length: repeatCount }, () => base).flat() : base;
-  const trackStyle = loop ? ({ "--bts-shift": `-${100 / repeatCount}%` } as React.CSSProperties) : undefined;
+  const pool = flattenUpdatesToMediaCards(updates);
 
   return (
     <div style={{ marginTop: 18, marginBottom: 6 }}>
@@ -90,10 +79,10 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
         </Link>
       </div>
 
-      <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
-        <div className="bts-strip-track" style={trackStyle}>
-          {items.map((item, i) => (
-            <StripCard key={`${item.key}-${i}`} media={item.media} update={item.update} index={i} onOpen={() => setOpenUpdate(item.update)} />
+      <div className="bts-strip">
+        <div className="bts-strip-track">
+          {Array.from({ length: SLOT_COUNT }, (_, slotIndex) => (
+            <SlideshowSlot key={slotIndex} slotIndex={slotIndex} pool={pool} onOpen={setOpenUpdate} />
           ))}
         </div>
       </div>
@@ -109,40 +98,22 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
   );
 }
 
-function StripCard({
-  media,
-  update,
-  index,
-  onOpen,
-}: {
-  media: ProgressUpdateMediaItem | null;
-  update: ClientProgressUpdate;
-  index: number;
-  onOpen: () => void;
-}) {
-  const size = CARD_SIZES[index % CARD_SIZES.length];
-  const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
+function SlideshowSlot({ slotIndex, pool, onOpen }: { slotIndex: number; pool: StripMediaCard[]; onOpen: (update: ClientProgressUpdate) => void }) {
+  // بذرة بداية مختلفة لكل خانة كي لا تعرض كل الخانات نفس الصورة في البداية.
+  const randomIndex = useRandomSlideIndex(pool.length, slotIndex * 3 + 2);
+  const item = pool.length > 0 ? pool[randomIndex % pool.length] : null;
+  const media = item?.media ?? null;
+  const stageMeta = item ? PROGRESS_UPDATE_STAGES.find((s) => s.value === item.update.stage) : null;
 
   return (
-    <button className="bts-strip-card" onClick={onOpen} style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}>
-      {media ? (
-        media.type === "image" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : media.type === "video" ? (
-          <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-            <Icon name="mic" size={20} className="nav-icon" />
-          </div>
-        )
-      ) : (
-        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
-          <Icon name="barChart" size={20} className="nav-icon" />
-        </div>
-      )}
+    <button
+      className="bts-strip-card"
+      onClick={() => item && onOpen(item.update)}
+      style={{ width: SLOT_SIZE.width, height: SLOT_SIZE.height, animationDelay: `${slotIndex * 70}ms` }}
+    >
+      <MediaCrossfadeSlot item={media ? { key: item!.key, type: media.type, url: media.url, name: media.name } : null} placeholderIcon="barChart" />
 
-      {update.contentType === "comparison" && (
+      {item?.update.contentType === "comparison" && (
         <span style={{ position: "absolute", top: 8, insetInlineStart: 8, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6 }}>
           قبل/بعد
         </span>
@@ -158,12 +129,10 @@ function StripCard({
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent 55%)" }} />
       <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
         <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {projectHashtag(update.projectName)}
+          {projectHashtag(item?.update.projectName ?? "")}
           {stageMeta ? ` · ${stageMeta.label}` : ""}
         </div>
-        {update.title && (
-          <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{update.title}</div>
-        )}
+        <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item?.update.title ?? "العمل الجاري"}</div>
       </div>
     </button>
   );
