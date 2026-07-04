@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import { createClient } from "@/app/lib/supabase/client";
 import { formatDate } from "@/app/components/client/utils";
 import type { EpisodeStatus } from "@/app/lib/types";
@@ -110,6 +111,7 @@ export default function ApproveEpisode({
       </button>
 
       {open && (
+        <ModalPortal>
         <div className="modal-overlay" onClick={() => !busy && setOpen(false)}>
           <div className="modal-content" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -145,6 +147,7 @@ export default function ApproveEpisode({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );

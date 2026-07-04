@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import RichTextEditor from "@/app/components/client/RichTextEditor";
 import { createClient } from "@/app/lib/supabase/client";
 import { NOTE_REQUEST_TYPES, NOTE_PRIORITIES } from "@/app/lib/constants";
@@ -139,6 +140,7 @@ export default function EditRequestComposer({
   }
 
   return (
+    <ModalPortal>
     <div className="modal-overlay" onClick={() => !busy && onClose()}>
       <div className="modal-content" style={{ maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -287,5 +289,6 @@ export default function EditRequestComposer({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
