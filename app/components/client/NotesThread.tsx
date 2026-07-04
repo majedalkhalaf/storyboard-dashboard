@@ -5,7 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { sanitizeRichText } from "@/app/components/client/RichTextEditor";
 import { createClient } from "@/app/lib/supabase/client";
-import { relativeTime } from "@/app/components/client/utils";
+import { relativeTime, formatDateTime } from "@/app/components/client/utils";
 import { canClient } from "@/app/lib/permissions";
 import { NOTE_STATUSES, NOTE_REQUEST_TYPES, NOTE_PRIORITIES } from "@/app/lib/constants";
 import type { ClientPermissions, Note, NoteTargetType } from "@/app/lib/types";
@@ -125,11 +125,18 @@ export default function NotesThread({
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, fontWeight: 800, color: mine ? "var(--gold)" : "var(--text-primary)" }}>{authorLabel}</span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{relativeTime(note.created_at)}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }} title={formatDateTime(note.created_at)}>
+            {relativeTime(note.created_at)} · {formatDateTime(note.created_at)}
+          </span>
         </div>
 
         {!isReply && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {note.stage_label && (
+              <span className="chip" style={{ fontSize: 11 }}>
+                {note.stage_label}
+              </span>
+            )}
             {statusMeta && (
               <span className="chip" style={{ color: statusMeta.color, borderColor: statusMeta.color, fontSize: 11 }}>
                 {statusMeta.label}

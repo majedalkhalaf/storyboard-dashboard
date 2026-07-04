@@ -8,6 +8,7 @@ import type { Episode, EpisodeScriptVersion, EpisodeStage, Note, ProjectFile } f
 
 export interface NoteWithAuthor extends Note {
   author_name: string | null;
+  author_job_title: string | null;
 }
 
 export interface ScriptVersionWithAuthor extends EpisodeScriptVersion {
@@ -63,13 +64,13 @@ export async function fetchEpisodeDetail(episodeId: string, companyId: string): 
       .order("created_at", { ascending: false }),
     supabase
       .from("notes")
-      .select("*, author:profiles!author_id(full_name)")
+      .select("*, author:profiles!author_id(full_name, job_title)")
       .eq("episode_id", episodeId)
       .order("created_at", { ascending: false }),
     supabase.from("files").select("*").eq("episode_id", episodeId).order("created_at", { ascending: false }),
     supabase
       .from("activity_logs")
-      .select("*, actor:profiles!actor_id(full_name)")
+      .select("*, actor:profiles!actor_id(full_name, job_title)")
       .eq("episode_id", episodeId)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -99,7 +100,8 @@ export async function fetchEpisodeDetail(episodeId: string, companyId: string): 
 
   const allNotes: NoteWithAuthor[] = (noteRows ?? []).map((n) => ({
     ...(n as Note),
-    author_name: one<{ full_name: string | null }>(n.author as never)?.full_name ?? null,
+    author_name: one<{ full_name: string | null; job_title: string | null }>(n.author as never)?.full_name ?? null,
+    author_job_title: one<{ full_name: string | null; job_title: string | null }>(n.author as never)?.job_title ?? null,
   }));
   const notes = allNotes.filter((n) => n.video_timestamp_seconds === null);
   const comments = allNotes.filter((n) => n.video_timestamp_seconds !== null);
@@ -107,7 +109,8 @@ export async function fetchEpisodeDetail(episodeId: string, companyId: string): 
   const activity: ActivityItem[] = (activityRows ?? []).map((a) => ({
     id: a.id,
     actor_role: a.actor_role,
-    actor_name: one<{ full_name: string | null }>(a.actor as never)?.full_name ?? null,
+    actor_name: one<{ full_name: string | null; job_title: string | null }>(a.actor as never)?.full_name ?? null,
+    actor_job_title: one<{ full_name: string | null; job_title: string | null }>(a.actor as never)?.job_title ?? null,
     action: a.action,
     details: (a.details ?? {}) as Record<string, unknown>,
     created_at: a.created_at,

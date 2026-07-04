@@ -43,6 +43,23 @@ export function formatDate(dateStr: string | null | undefined): string {
   return d.toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" });
 }
 
+// تاريخ ووقت دقيقان معاً — لعرض متى حدث إجراء بالضبط لا "منذ ساعة" فقط،
+// بحسب طلب صريح بتتبّع دقيق للعمليات في بوابة العميل أيضاً.
+export function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("ar", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// وقت قصير فقط (مثل تطبيقات المحادثة) — يُستخدم بجانب كل رسالة/طلب تعديل.
+export function formatTimeShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function formatCurrency(n: number | null | undefined): string {
   const value = typeof n === "number" ? n : 0;
   return value.toLocaleString("ar-SA", { maximumFractionDigits: 2 }) + " ر.س";

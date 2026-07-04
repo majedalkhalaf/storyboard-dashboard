@@ -2,12 +2,13 @@
 
 import Icon from "@/app/components/ui/Icon";
 import { USER_ROLE_LABELS } from "@/app/lib/constants";
-import { relativeTime } from "./utils";
+import { relativeTime, formatDateTime } from "./utils";
 
 export interface ActivityItem {
   id: string;
   actor_role: string | null;
   actor_name: string | null;
+  actor_job_title?: string | null;
   action: string;
   details: Record<string, unknown>;
   created_at: string;
@@ -81,10 +82,13 @@ export default function ActivityTimeline({ items }: { items: ActivityItem[] }) {
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13 }}>
-              <span style={{ fontWeight: 700 }}>{item.actor_name || USER_ROLE_LABELS[item.actor_role ?? ""] || "مستخدم"}</span>{" "}
+              <span style={{ fontWeight: 700 }}>{item.actor_name || USER_ROLE_LABELS[item.actor_role ?? ""] || "مستخدم"}</span>
+              {item.actor_job_title && <span style={{ color: "var(--text-muted)", fontSize: 11.5 }}> ({item.actor_job_title})</span>}{" "}
               <span style={{ color: "var(--text-secondary)" }}>{describe(item)}</span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{relativeTime(item.created_at)}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }} title={formatDateTime(item.created_at)}>
+              {relativeTime(item.created_at)} · {formatDateTime(item.created_at)}
+            </div>
           </div>
         </div>
       ))}

@@ -146,6 +146,9 @@ export interface Profile {
   email: string | null;
   phone: string | null;
   avatar_url: string | null;
+  // مسمّى وظيفي حر اختياري (مصمم/مونتير/مشرف...) يظهر بجانب اسم عضو الفريق
+  // في الملاحظات وسجل النشاط بدل الاكتفاء بتصنيف الدور العام فقط.
+  job_title: string | null;
   must_change_password: boolean;
   created_at: string;
   updated_at: string;
@@ -329,6 +332,9 @@ export interface Note {
   mentions: string[];
   attachments: { name: string; url: string; type?: string }[];
   video_timestamp_seconds: number | null;
+  // لقطة اسم المرحلة الحالية للحلقة وقت إرسال الطلب — تُملأ تلقائياً عبر
+  // trigger عند وجود episode_id، بلا أي إدخال يدوي من العميل أو الفريق.
+  stage_label: string | null;
   created_at: string;
   updated_at: string;
 }

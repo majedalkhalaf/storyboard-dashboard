@@ -104,7 +104,7 @@ export async function fetchClientActivity(clientId: string): Promise<ActivityIte
   if (projectIds.length === 0) return [];
   const { data } = await supabase
     .from("activity_logs")
-    .select("*, actor:profiles!actor_id(full_name)")
+    .select("*, actor:profiles!actor_id(full_name, job_title)")
     .in("project_id", projectIds)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -112,7 +112,8 @@ export async function fetchClientActivity(clientId: string): Promise<ActivityIte
   return (data ?? []).map((a) => ({
     id: a.id,
     actor_role: a.actor_role,
-    actor_name: one<{ full_name: string | null }>(a.actor as never)?.full_name ?? null,
+    actor_name: one<{ full_name: string | null; job_title: string | null }>(a.actor as never)?.full_name ?? null,
+    actor_job_title: one<{ full_name: string | null; job_title: string | null }>(a.actor as never)?.job_title ?? null,
     action: a.action,
     details: (a.details ?? {}) as Record<string, unknown>,
     created_at: a.created_at,

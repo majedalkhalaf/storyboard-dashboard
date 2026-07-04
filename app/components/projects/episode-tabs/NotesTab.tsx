@@ -10,7 +10,7 @@ import { NOTE_STATUSES } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { NoteStatus } from "@/app/lib/types";
 import type { EpisodeFullDetail, NoteWithAuthor } from "@/app/lib/episode-detail";
-import { relativeTime } from "../utils";
+import { relativeTime, formatDateTime } from "../utils";
 
 function isImageAttachment(name: string): boolean {
   return /\.(png|jpe?g|gif|webp|svg|heic)$/i.test(name);
@@ -202,11 +202,21 @@ export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullD
     return (
       <div className="card" style={{ padding: 14, marginInlineStart: isReply ? 28 : 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>{note.author_name || "مستخدم"}</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{relativeTime(note.created_at)}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>
+              {note.author_name || "مستخدم"}
+              {note.author_job_title && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> · {note.author_job_title}</span>}
+            </span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }} title={formatDateTime(note.created_at)}>
+              {relativeTime(note.created_at)} · {formatDateTime(note.created_at)}
+            </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {note.stage_label && (
+              <span className="chip" style={{ fontSize: 11 }}>
+                {note.stage_label}
+              </span>
+            )}
             {status && (
               <span className="chip" style={{ color: status.color, borderColor: status.color }}>
                 {status.label}

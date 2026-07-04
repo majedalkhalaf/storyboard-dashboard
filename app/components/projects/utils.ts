@@ -30,6 +30,27 @@ export function formatDate(iso: string | null | undefined): string {
   }
 }
 
+// تاريخ ووقت دقيقان معاً (بخلاف formatDate التي تعرض اليوم فقط) — لعرض متى
+// حدث إجراء بالضبط لا "منذ ساعة" فقط، بحسب طلب صريح بتتبّع دقيق للعمليات.
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("ar-EG", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
+
+// وقت قصير فقط (مثل تطبيقات المحادثة) — يُستخدم بجانب كل رسالة/ملاحظة.
+export function formatTimeShort(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 // استنتاج تصنيف الملف من نوع MIME أو الامتداد — لا يُرفض أي امتداد هنا؛ كل ما هو
 // غير معروف يُصنَّف "أخرى" بدل رفض الرفع (لا يوجد سبب أمني لرفض نوع ملف بحد ذاته).
 export function inferCategory(mime: string | null | undefined, name: string): FileCategory {

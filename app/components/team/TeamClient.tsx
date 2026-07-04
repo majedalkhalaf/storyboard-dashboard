@@ -11,6 +11,7 @@ interface Member {
   full_name: string | null;
   email: string | null;
   role: string;
+  job_title: string | null;
   created_at: string;
 }
 interface Invite {
@@ -38,6 +39,9 @@ export default function TeamClient({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [jobTitleDrafts, setJobTitleDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(members.map((m) => [m.id, m.job_title ?? ""]))
+  );
 
   async function sendInvite() {
     if (!email.trim() || !fullName.trim()) {
@@ -71,6 +75,16 @@ export default function TeamClient({
     router.refresh();
   }
 
+  // مسمّى وظيفي حر (مصمم/مونتير/مشرف...) — يظهر بجانب اسم العضو في سجلّ
+  // العمليات وطلبات التعديل بدل الاكتفاء بتصنيف "عضو فريق" العام، بحسب طلب
+  // صريح بمعرفة "صفة" المرسل بدقة أكبر.
+  async function saveJobTitle(memberId: string) {
+    const value = jobTitleDrafts[memberId]?.trim() || null;
+    const supabase = createClient();
+    await supabase.from("profiles").update({ job_title: value }).eq("id", memberId);
+    router.refresh();
+  }
+
   async function removeMember(memberId: string) {
     if (!confirm("إزالة هذا العضو من الشركة؟")) return;
     setBusyId(memberId);
@@ -101,6 +115,7 @@ export default function TeamClient({
               <th>الاسم</th>
               <th>البريد الإلكتروني</th>
               <th>الدور</th>
+              <th>المسمّى الوظيفي</th>
               <th></th>
             </tr>
           </thead>
@@ -124,6 +139,16 @@ export default function TeamClient({
                       <option value="team_member">عضو فريق</option>
                     </select>
                   )}
+                </td>
+                <td>
+                  <input
+                    className="input-field"
+                    style={{ width: 140, padding: "4px 8px", fontSize: 12 }}
+                    placeholder="مثال: مصمم"
+                    value={jobTitleDrafts[m.id] ?? ""}
+                    onChange={(e) => setJobTitleDrafts((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                    onBlur={() => saveJobTitle(m.id)}
+                  />
                 </td>
                 <td>
                   {m.id !== currentUserId && m.role !== "company_owner" && m.role !== "super_admin" && (

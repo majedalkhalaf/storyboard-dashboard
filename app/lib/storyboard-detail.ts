@@ -22,7 +22,7 @@ export async function fetchSceneDetail(sceneId: string): Promise<StoryboardScene
 
   const [{ data: files }, { data: noteRows }, { data: cast }, { data: equipmentRows }] = await Promise.all([
     supabase.from("files").select("*").eq("scene_id", sceneId).order("created_at", { ascending: false }),
-    supabase.from("notes").select("*, author:profiles!author_id(full_name)").eq("scene_id", sceneId).order("created_at", { ascending: false }),
+    supabase.from("notes").select("*, author:profiles!author_id(full_name, job_title)").eq("scene_id", sceneId).order("created_at", { ascending: false }),
     supabase.from("storyboard_scene_cast").select("*").eq("scene_id", sceneId).order("created_at"),
     supabase.from("storyboard_scene_equipment").select("id, equipment:equipment(*)").eq("scene_id", sceneId),
   ]);
@@ -31,7 +31,8 @@ export async function fetchSceneDetail(sceneId: string): Promise<StoryboardScene
 
   const notes: NoteWithAuthor[] = (noteRows ?? []).map((n) => ({
     ...(n as import("@/app/lib/types").Note),
-    author_name: one<{ full_name: string | null }>(n.author as never)?.full_name ?? null,
+    author_name: one<{ full_name: string | null; job_title: string | null }>(n.author as never)?.full_name ?? null,
+    author_job_title: one<{ full_name: string | null; job_title: string | null }>(n.author as never)?.job_title ?? null,
   }));
 
   const equipment: SceneEquipmentRow[] = (equipmentRows ?? [])

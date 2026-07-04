@@ -271,7 +271,7 @@ function ScriptComments({
         .select()
         .single();
       if (data) {
-        const newNote: NoteWithAuthor = { ...(data as Note), author_name: profile.full_name };
+        const newNote: NoteWithAuthor = { ...(data as Note), author_name: profile.full_name, author_job_title: profile.job_title ?? null };
         onChanged({ notes: [newNote, ...episode.notes] });
       }
       setBody("");
