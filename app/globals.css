@@ -545,6 +545,15 @@ body {
      is often under 340px) — force a single column that always fits. */
   .client-projects-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
 
+  /* الكواليس / العمل الجاري على الجوال: شريط أفقي مضغوط يُتصفَّح بسحب
+     يمين/يسار بدل التمرير العمودي، مع إخفاء شريط التمرير نفسه. */
+  .mobile-feed-scroll {
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-feed-scroll::-webkit-scrollbar { display: none; }
+
   /* Client project page: the 2.4fr/1fr two-column layout (main content +
      sidebar) had no mobile override at all — fr units never collapse to 0,
      so both columns were just squeezed narrow instead of stacking. Stacking

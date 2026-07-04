@@ -701,6 +701,7 @@ export interface ClientPermissions {
   view_support: boolean;
   show_project_value: boolean;
   show_delivery_date: boolean;
+  edit_episode: boolean;
 }
 
 export interface CompanyPermissionTemplate {

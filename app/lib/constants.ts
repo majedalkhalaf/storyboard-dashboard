@@ -205,6 +205,9 @@ export const DEFAULT_CLIENT_PERMISSIONS: ClientPermissions = {
   view_support: true,
   show_project_value: true,
   show_delivery_date: true,
+  // تعديل بيانات الحلقة (العنوان/الوصف/صورة الغلاف) من طرف العميل قدرة
+  // جديدة وحساسة — تبقى معطّلة افتراضياً وتُفعَّل يدوياً لكل عميل على حدة.
+  edit_episode: false,
 };
 
 export const CLIENT_PERMISSION_LABELS: Record<keyof ClientPermissions, string> = {
@@ -235,6 +238,7 @@ export const CLIENT_PERMISSION_LABELS: Record<keyof ClientPermissions, string> =
   view_support: "الدعم الفني",
   show_project_value: "إظهار قيمة المشروع",
   show_delivery_date: "إظهار موعد التسليم",
+  edit_episode: "تعديل بيانات الحلقة (العنوان/الوصف/الغلاف)",
 };
 
 export const USER_ROLE_LABELS: Record<string, string> = {

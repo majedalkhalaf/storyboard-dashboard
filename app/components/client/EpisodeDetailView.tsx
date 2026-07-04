@@ -9,6 +9,7 @@ import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
@@ -94,6 +95,7 @@ export default function EpisodeDetailView({
   const showScenario = canClient(permissions, "scenario") && Boolean(episode.scenario);
   const showStoryboard = canClient(permissions, "storyboard");
   const showTasks = canClient(permissions, "execution_phases") && stages.length > 0;
+  const canEditEpisode = canClient(permissions, "edit_episode");
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "overview", label: "نظرة عامة", show: true },
@@ -109,6 +111,7 @@ export default function EpisodeDetailView({
   const visibleTabs = tabs.filter((t) => t.show);
   const [active, setActive] = useState<TabKey>("overview");
   const [requestOpen, setRequestOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<ExportProgress | null>(null);
   const canDownloadFiles = canClient(permissions, "download_episode_zip");
@@ -188,6 +191,17 @@ export default function EpisodeDetailView({
         />
       )}
 
+      {editOpen && (
+        <EpisodeEditModal
+          episodeId={episode.id}
+          projectId={projectId}
+          title={episode.title}
+          description={episode.description}
+          coverImageUrl={episode.cover_image_url}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+
       {/* رأس الحلقة */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
         {episode.cover_image_url && (
@@ -200,7 +214,20 @@ export default function EpisodeDetailView({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{episode.number != null ? `الحلقة ${episode.number}` : "حلقة"}</div>
-              <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{episode.title}</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800 }}>{episode.title}</h1>
+                {canEditEpisode && (
+                  <button
+                    className="btn-ghost"
+                    style={{ padding: 6, borderRadius: 8, flexShrink: 0 }}
+                    onClick={() => setEditOpen(true)}
+                    title="تعديل بيانات الحلقة"
+                    aria-label="تعديل بيانات الحلقة"
+                  >
+                    <Icon name="edit" size={15} />
+                  </button>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
                 <StatusChip label={es.label} color={es.color} />
               </div>
@@ -548,5 +575,132 @@ function ReportRow({ label, value }: { label: string; value: string }) {
       <span style={{ color: "var(--text-secondary)" }}>{label}</span>
       <span style={{ fontWeight: 800 }}>{value}</span>
     </div>
+  );
+}
+
+// نافذة تعديل بيانات الحلقة من طرف العميل — تظهر فقط خلف صلاحية edit_episode
+// التي يفعّلها فريق العمل لعميل بعينه؛ يمر التعديل عبر مسار خادم مخصص
+// (service_role) بدل RLS مباشر لأن العميل لا يملك صلاحية تعديل صف الحلقة أصلاً.
+function EpisodeEditModal({
+  episodeId,
+  projectId,
+  title,
+  description,
+  coverImageUrl,
+  onClose,
+}: {
+  episodeId: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [titleValue, setTitleValue] = useState(title);
+  const [descriptionValue, setDescriptionValue] = useState(description ?? "");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(coverImageUrl);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function pickCover(file: File | null) {
+    if (file && file.size > 20 * 1024 * 1024) {
+      setError("حجم صورة الغلاف كبير جداً (الحد الأقصى 20 ميجابايت)");
+      return;
+    }
+    setError(null);
+    setCoverFile(file);
+    if (file) setCoverPreview(URL.createObjectURL(file));
+  }
+
+  async function submit() {
+    if (!titleValue.trim()) {
+      setError("العنوان مطلوب");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("episodeId", episodeId);
+      fd.append("projectId", projectId);
+      fd.append("title", titleValue.trim());
+      fd.append("description", descriptionValue.trim());
+      if (coverFile) fd.append("cover", coverFile);
+      const res = await fetch("/api/client-portal/episode-edit", { method: "POST", body: fd });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(json.error || "تعذّر حفظ التعديلات");
+        setSaving(false);
+        return;
+      }
+      router.refresh();
+      onClose();
+    } catch {
+      setError("تعذّر حفظ التعديلات");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalPortal>
+      <div className="modal-overlay" onClick={() => !saving && onClose()}>
+        <div className="modal-content" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <Icon name="edit" size={20} className="nav-icon" />
+            <h3 style={{ fontSize: 17, fontWeight: 800, flex: 1 }}>تعديل بيانات الحلقة</h3>
+            <button className="btn-ghost" style={{ padding: 6, borderRadius: 8 }} onClick={onClose} disabled={saving}>
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="btn-danger" style={{ display: "block", padding: "10px 14px", borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>العنوان *</label>
+              <input className="input-field" value={titleValue} onChange={(e) => setTitleValue(e.target.value)} placeholder="عنوان الحلقة" />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>الوصف</label>
+              <textarea
+                className="input-field"
+                rows={4}
+                value={descriptionValue}
+                onChange={(e) => setDescriptionValue(e.target.value)}
+                style={{ resize: "vertical" }}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>صورة الغلاف</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {coverPreview && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverPreview} alt="غلاف" style={{ width: 72, height: 48, objectFit: "cover", borderRadius: 8 }} />
+                )}
+                <label className="btn btn-outline" style={{ cursor: "pointer" }}>
+                  <Icon name="upload" size={14} /> {coverPreview ? "تغيير الصورة" : "اختر صورة"}
+                  <input type="file" accept="image/*" hidden onChange={(e) => pickCover(e.target.files?.[0] ?? null)} />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+            <button className="btn btn-ghost" onClick={onClose} disabled={saving}>
+              إلغاء
+            </button>
+            <button className="btn btn-gold" onClick={submit} disabled={saving}>
+              {saving ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
   );
 }

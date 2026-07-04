@@ -82,8 +82,9 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
       </div>
 
       {isMobile ? (
-        // خلاصة عمودية بمنشورات فعلية على الجوال، بنفس فكرة شريط الكواليس تماماً.
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        // شريط أفقي مضغوط على الجوال، بنفس فكرة شريط الكواليس تماماً — أصغر
+        // من بطاقات المشاريع ويُتصفَّح بسحب يمين/يسار بدل التمرير العمودي.
+        <div className="mobile-feed-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
           {updates.slice(0, MAX_UPDATES_SCANNED).map((update) => (
             <MobileFeedCard key={update.id} update={update} onOpen={() => setOpenUpdate(update)} />
           ))}
@@ -109,15 +110,20 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
   );
 }
 
-// بطاقة كاملة العرض للخلاصة العمودية على الجوال — نفس فكرة بطاقة الكواليس.
+// بطاقة مضغوطة لشريط الجوال الأفقي — أصغر من بطاقة المشروع عمداً، نفس فكرة
+// بطاقة الكواليس المضغوطة.
 function MobileFeedCard({ update, onOpen }: { update: ClientProgressUpdate; onOpen: () => void }) {
   const cover = update.media.find((m) => m.label !== "before") ?? update.media[0] ?? null;
   const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
 
   return (
-    <button onClick={onOpen} className="card" style={{ padding: 0, overflow: "hidden", textAlign: "start", display: "flex", flexDirection: "column", width: "100%" }}>
+    <button
+      onClick={onOpen}
+      className="card"
+      style={{ padding: 0, overflow: "hidden", textAlign: "start", display: "flex", flexDirection: "column", width: 132, flexShrink: 0, scrollSnapAlign: "start" }}
+    >
       {cover && (
-        <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 5", background: "#000" }}>
+        <div style={{ position: "relative", width: "100%", height: 96, background: "#000" }}>
           {cover.type === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={cover.url} alt={cover.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -125,32 +131,30 @@ function MobileFeedCard({ update, onOpen }: { update: ClientProgressUpdate; onOp
             <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="barChart" size={26} className="nav-icon" />
+              <Icon name="barChart" size={22} className="nav-icon" />
             </div>
           )}
           {cover.type === "video" && (
-            <span style={{ position: "absolute", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", background: "rgba(0,0,0,0.55)", borderRadius: "50%", padding: 10, display: "flex", color: "#fff" }}>
-              <Icon name="play" size={20} />
+            <span style={{ position: "absolute", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", background: "rgba(0,0,0,0.55)", borderRadius: "50%", padding: 7, display: "flex", color: "#fff" }}>
+              <Icon name="play" size={13} />
             </span>
           )}
           {update.contentType === "comparison" && (
-            <span style={{ position: "absolute", top: 10, insetInlineStart: 10, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 7 }}>
+            <span style={{ position: "absolute", top: 6, insetInlineStart: 6, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 6 }}>
               قبل/بعد
             </span>
           )}
         </div>
       )}
-      <div style={{ padding: 14 }}>
-        <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }}>
+      <div style={{ padding: 8 }}>
+        <div style={{ fontSize: 9.5, color: "var(--gold)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {projectHashtag(update.projectName)}
-          {stageMeta ? ` · ${stageMeta.label}` : ""} · {relativeTime(update.createdAt)}
+          {stageMeta ? ` · ${stageMeta.label}` : ""}
         </div>
-        {update.title && <div style={{ fontSize: 14.5, fontWeight: 800, marginTop: 4 }}>{update.title}</div>}
-        {update.description && (
-          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-            {update.description}
-          </p>
+        {update.title && (
+          <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{update.title}</div>
         )}
+        <div style={{ fontSize: 9.5, color: "var(--text-muted)", marginTop: 2 }}>{relativeTime(update.createdAt)}</div>
       </div>
     </button>
   );

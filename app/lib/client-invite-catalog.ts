@@ -21,7 +21,7 @@ export interface ClientPermissionGroup {
 
 export const CLIENT_PERMISSION_GROUPS: ClientPermissionGroup[] = [
   { key: "general", label: "الوصول العام", icon: "eye", keys: ["view_project", "show_project_value", "show_delivery_date"] },
-  { key: "episodes", label: "الحلقات ومراحل التنفيذ", icon: "episodes", keys: ["episodes", "execution_phases", "script", "scenario", "storyboard"] },
+  { key: "episodes", label: "الحلقات ومراحل التنفيذ", icon: "episodes", keys: ["episodes", "execution_phases", "script", "scenario", "storyboard", "edit_episode"] },
   { key: "files", label: "الملفات والوسائط", icon: "files", keys: ["files", "download_files", "download_episode_zip", "download_project", "upload_attachments"] },
   { key: "requests", label: "طلبات التعديل", icon: "edit", keys: ["add_notes", "reply_notes"] },
   { key: "approvals", label: "الاعتماد", icon: "checkCircle", keys: ["approve_episodes"] },
