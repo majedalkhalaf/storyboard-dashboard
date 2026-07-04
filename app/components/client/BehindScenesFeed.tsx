@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import { MediaGallery } from "@/app/components/projects/sections/ProjectBehindScenesSection";
 import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
 import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
@@ -113,11 +114,13 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
       )}
 
       {openPost && (
-        <div className="modal-overlay" onClick={() => setOpenPost(null)}>
-          <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <PostDetail post={openPost} currentUserId={currentUserId} currentUserName={currentUserName} />
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setOpenPost(null)}>
+            <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+              <PostDetail post={openPost} currentUserId={currentUserId} currentUserName={currentUserName} />
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

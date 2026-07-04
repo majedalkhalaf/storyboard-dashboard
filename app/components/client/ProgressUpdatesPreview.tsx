@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import MediaCrossfadeSlot from "@/app/components/client/MediaCrossfadeSlot";
 import { useRandomSlideIndex, SLOT_SIZE, SLOT_COUNT } from "@/app/components/client/randomSlideshow";
@@ -100,11 +101,13 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
       )}
 
       {openUpdate && (
-        <div className="modal-overlay" onClick={() => setOpenUpdate(null)}>
-          <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <ProgressUpdateCard update={openUpdate} showProjectHashtag />
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setOpenUpdate(null)}>
+            <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+              <ProgressUpdateCard update={openUpdate} showProjectHashtag />
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

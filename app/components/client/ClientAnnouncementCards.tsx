@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { exportAnnouncementMediaZip, downloadAnnouncementMediaItem, type ExportProgress } from "@/app/lib/client-zip-export";
 import { relativeTime } from "@/app/components/client/utils";
@@ -27,10 +28,12 @@ export default function ClientAnnouncementCards({ announcements }: { announcemen
   );
 }
 
-// بطاقة إعلانية متكاملة: رأس بعنوان الإعلان وزر دعوة قابل للتخصيص، يليه شريط
-// يعرض جميع المرفقات كاملة دون أي قص (contain)، مع تشغيل تلقائي لأي فيديو.
+// بطاقة إعلانية متكاملة: رأس بعنوان الإعلان وزر دعوة قابل للتخصيص، يليه
+// شبكة تعرض صورتين على الأقل من المرفقات مباشرة في واجهة البطاقة (بلا
+// إطار أسود — الصورة تملأ إطارها بالكامل)، مع مؤشر عدد على آخر خانة إن
+// وُجدت مرفقات إضافية بدل تمرير أفقي. فتح البطاقة يعرض كل المرفقات كاملة.
 function AnnouncementBanner({ announcement: a, onOpen }: { announcement: ClientAnnouncement; onOpen: () => void }) {
-  const shown = a.media.slice(0, 6);
+  const shown = a.media.slice(0, 2);
   const remaining = a.media.length - shown.length;
 
   return (
@@ -97,58 +100,56 @@ function AnnouncementBanner({ announcement: a, onOpen }: { announcement: ClientA
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && onOpen()}
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: shown.length === 1 ? "1fr" : "1fr 1fr",
             gap: 8,
             padding: "0 14px 14px",
-            overflowX: shown.length > 1 || remaining > 0 ? "auto" : "hidden",
             cursor: "pointer",
           }}
         >
-          {shown.map((m) => (
-            <div
-              key={m.url}
-              style={{
-                position: "relative",
-                flex: shown.length === 1 && remaining === 0 ? "1 1 auto" : "0 0 auto",
-                width: shown.length === 1 && remaining === 0 ? "100%" : 230,
-                height: 260,
-                borderRadius: 12,
-                overflow: "hidden",
-                background: "#000",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {m.type === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.url} alt={m.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-              ) : m.type === "video" ? (
-                <video src={m.url} autoPlay muted loop playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-              ) : (
-                <div style={{ color: "var(--text-muted)", fontSize: 12 }}>ملف صوتي</div>
-              )}
-            </div>
-          ))}
-          {remaining > 0 && (
-            <div
-              style={{
-                flex: "0 0 auto",
-                width: 80,
-                height: 260,
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.06)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontWeight: 800,
-                fontSize: 15,
-              }}
-            >
-              +{remaining}
-            </div>
-          )}
+          {shown.map((m, i) => {
+            const isLast = i === shown.length - 1;
+            return (
+              <div
+                key={m.url}
+                style={{
+                  position: "relative",
+                  aspectRatio: shown.length === 1 ? "16 / 9" : "1 / 1",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  background: "#111",
+                }}
+              >
+                {m.type === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.url} alt={m.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : m.type === "video" ? (
+                  <video src={m.url} autoPlay muted loop playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                    ملف صوتي
+                  </div>
+                )}
+                {isLast && remaining > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(0,0,0,0.55)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                      fontWeight: 800,
+                      fontSize: 18,
+                    }}
+                  >
+                    +{remaining}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -182,48 +183,50 @@ function AnnouncementModal({ announcement, onClose }: { announcement: ClientAnno
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <Icon name="megaphone" size={20} className="nav-icon" />
-          <h3 style={{ fontSize: 18, fontWeight: 800, flex: 1 }}>{announcement.title || "إعلان جديد"}</h3>
-          <button className="btn btn-ghost" onClick={onClose} aria-label="إغلاق">
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-
-        {announcement.media.length > 1 && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-            <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={handleDownloadAll} disabled={downloadingAll}>
-              <Icon name="archive" size={14} />
-              {downloadingAll ? `${progress?.stage ?? "جارٍ التحميل..."} ${progress?.percent ?? 0}%` : "تحميل الكل"}
+    <ModalPortal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-content" style={{ maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <Icon name="megaphone" size={20} className="nav-icon" />
+            <h3 style={{ fontSize: 18, fontWeight: 800, flex: 1 }}>{announcement.title || "إعلان جديد"}</h3>
+            <button className="btn btn-ghost" onClick={onClose} aria-label="إغلاق">
+              <Icon name="close" size={18} />
             </button>
           </div>
-        )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {announcement.media.map((m) => (
-            <div key={m.url} className="card" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-              {m.type === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.url} alt={m.name} style={{ width: "100%", height: "auto", maxHeight: "70vh", objectFit: "contain", borderRadius: 8, background: "#000" }} />
-              ) : m.type === "video" ? (
-                <VideoWithMuteToggle src={m.url} style={{ maxHeight: 420, borderRadius: 8, background: "#000" }} />
-              ) : (
-                <audio src={m.url} controls style={{ width: "100%" }} />
-              )}
-              <button
-                className="btn btn-outline"
-                style={{ fontSize: 12.5, alignSelf: "flex-start" }}
-                onClick={() => handleDownloadItem(m)}
-                disabled={downloadingUrl === m.url}
-              >
-                <Icon name="export" size={13} /> {downloadingUrl === m.url ? "جارٍ التحميل..." : "تحميل"}
+          {announcement.media.length > 1 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={handleDownloadAll} disabled={downloadingAll}>
+                <Icon name="archive" size={14} />
+                {downloadingAll ? `${progress?.stage ?? "جارٍ التحميل..."} ${progress?.percent ?? 0}%` : "تحميل الكل"}
               </button>
             </div>
-          ))}
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {announcement.media.map((m) => (
+              <div key={m.url} className="card" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                {m.type === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.url} alt={m.name} style={{ width: "100%", height: "auto", maxHeight: "70vh", objectFit: "contain", borderRadius: 8, background: "#000" }} />
+                ) : m.type === "video" ? (
+                  <VideoWithMuteToggle src={m.url} style={{ maxHeight: 420, borderRadius: 8, background: "#000" }} />
+                ) : (
+                  <audio src={m.url} controls style={{ width: "100%" }} />
+                )}
+                <button
+                  className="btn btn-outline"
+                  style={{ fontSize: 12.5, alignSelf: "flex-start" }}
+                  onClick={() => handleDownloadItem(m)}
+                  disabled={downloadingUrl === m.url}
+                >
+                  <Icon name="export" size={13} /> {downloadingUrl === m.url ? "جارٍ التحميل..." : "تحميل"}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

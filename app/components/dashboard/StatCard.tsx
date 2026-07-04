@@ -7,6 +7,7 @@ export default function StatCard({
   deltaTone = "up",
   icon,
   color,
+  compact = false,
 }: {
   label: string;
   value: string | number;
@@ -14,7 +15,20 @@ export default function StatCard({
   deltaTone?: "up" | "down";
   icon: IconName;
   color: string;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="stat-card" style={{ padding: 10, flexShrink: 0 }}>
+        <span style={{ color, display: "inline-flex", background: `${color}1a`, padding: 6, borderRadius: 8 }}>
+          <Icon name={icon} size={14} />
+        </span>
+        <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6 }}>{value}</div>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1, whiteSpace: "nowrap" }}>{label}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="stat-card">
       <span style={{ color, display: "inline-flex", background: `${color}1a`, padding: 8, borderRadius: 10 }}>

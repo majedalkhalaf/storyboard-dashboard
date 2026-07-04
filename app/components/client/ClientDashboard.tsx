@@ -103,10 +103,20 @@ export default function ClientDashboard({
   announcements: ClientAnnouncement[];
 }) {
   useClientProjectsRealtime(userId);
+  const isMobile = useIsMobile();
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("status");
   const [filter, setFilter] = useState<StatusFilter>("all");
+
+  const statCardDefs = [
+    { label: "نسبة الإنجاز الإجمالية", value: `${overallProgress}%`, icon: "barChart" as const, color: "var(--gold)" },
+    { label: "المشاريع النشطة", value: activeProjectsCount, icon: "projects" as const, color: "#3987e5" },
+    { label: "الحلقات المكتملة", value: episodesCompletedTotal, icon: "checkCircle" as const, color: "var(--success)" },
+    { label: "طلبات التعديل المفتوحة", value: openNotesTotal, icon: "edit" as const, color: "#F59E0B" },
+    { label: "ملفات هذا الشهر", value: filesThisMonthCount, icon: "fileUp" as const, color: "#8B5CF6" },
+    { label: "طلبات اجتماع مفتوحة", value: openMeetingRequestsCount, icon: "calendar" as const, color: "#06B6D4" },
+  ];
 
   const filtered = useMemo(() => {
     const today = new Date();
@@ -156,15 +166,16 @@ export default function ClientDashboard({
 
       <ClientAnnouncementCards announcements={announcements} />
 
-      {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>
-        <StatCard label="نسبة الإنجاز الإجمالية" value={`${overallProgress}%`} icon="barChart" color="var(--gold)" />
-        <StatCard label="المشاريع النشطة" value={activeProjectsCount} icon="projects" color="#3987e5" />
-        <StatCard label="الحلقات المكتملة" value={episodesCompletedTotal} icon="checkCircle" color="var(--success)" />
-        <StatCard label="طلبات التعديل المفتوحة" value={openNotesTotal} icon="edit" color="#F59E0B" />
-        <StatCard label="ملفات هذا الشهر" value={filesThisMonthCount} icon="fileUp" color="#8B5CF6" />
-        <StatCard label="طلبات اجتماع مفتوحة" value={openMeetingRequestsCount} icon="calendar" color="#06B6D4" />
-      </div>
+      {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع — على سطح المكتب تبقى شبكة
+          كاملة أعلى الصفحة كما هي دائماً؛ على الجوال تنتقل لشريط أفقي مضغوط
+          بعد معرض المشاريع كي لا تُبعد أهم عنصر (المشاريع) عن أعلى الشاشة. */}
+      {!isMobile && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>
+          {statCardDefs.map((s) => (
+            <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} />
+          ))}
+        </div>
+      )}
 
       {/* شريط أدوات: بحث، ترتيب، تصفية */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
@@ -199,6 +210,14 @@ export default function ClientDashboard({
         <div className="client-projects-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 18, marginBottom: 22 }}>
           {filtered.map((c) => (
             <ProjectCard key={c.id} card={c} />
+          ))}
+        </div>
+      )}
+
+      {isMobile && (
+        <div className="mobile-feed-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 20 }}>
+          {statCardDefs.map((s) => (
+            <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} compact />
           ))}
         </div>
       )}
