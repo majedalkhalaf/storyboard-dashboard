@@ -191,7 +191,7 @@ export default function EpisodeDetailView({
       {/* رأس الحلقة */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
         {episode.cover_image_url && (
-          <div style={{ position: "relative", background: "#000", display: "flex", justifyContent: "center", alignItems: "center", maxHeight: 340, overflow: "hidden" }}>
+          <div style={{ position: "relative", background: "var(--bg-secondary)", display: "flex", justifyContent: "center", alignItems: "center", maxHeight: 340, overflow: "hidden" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={episode.cover_image_url} alt={episode.title} style={{ maxWidth: "100%", maxHeight: 340, width: "auto", height: "auto", objectFit: "contain" }} />
           </div>
@@ -522,10 +522,10 @@ function StoryboardTab({ scenes }: { scenes: StoryboardScene[] }) {
         const meta = STORYBOARD_SCENE_STATUSES.find((s) => s.value === scene.status) ?? STORYBOARD_SCENE_STATUSES[0];
         return (
           <div key={scene.id} className="shot-card" style={{ overflow: "hidden" }}>
-            <div style={{ background: "#000", display: "flex", justifyContent: "center", alignItems: "center", height: 130, overflow: "hidden" }}>
+            <div style={{ position: "relative", aspectRatio: "16 / 9", overflow: "hidden", background: "var(--bg-hover)", display: "flex", justifyContent: "center", alignItems: "center" }}>
               {scene.cover_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={scene.cover_image_url} alt={scene.title} loading="lazy" style={{ maxWidth: "100%", maxHeight: 130, objectFit: "contain" }} />
+                <img src={scene.cover_image_url} alt={scene.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <Icon name="image" size={26} className="text-muted" />
               )}

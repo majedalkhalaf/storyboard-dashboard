@@ -61,12 +61,12 @@ export default function EpisodeGridCard({
   return (
     <div className="shot-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <Link href={`/client/projects/${projectId}/episodes/${episode.id}`} style={{ textDecoration: "none", color: "var(--text-primary)" }}>
-        <div style={{ background: "#000", maxHeight: 160, overflow: "hidden", display: "flex", justifyContent: "center", position: "relative" }}>
+        <div style={{ position: "relative", aspectRatio: "16 / 9", overflow: "hidden", background: "var(--bg-hover)" }}>
           {episode.cover_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={episode.cover_image_url} alt={episode.title} loading="lazy" style={{ width: "100%", maxHeight: 160, objectFit: "contain" }} />
+            <img src={episode.cover_image_url} alt={episode.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <div style={{ width: "100%", height: 130, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Icon name="video" size={30} className="nav-icon" />
             </div>
           )}

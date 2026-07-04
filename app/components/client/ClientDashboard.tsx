@@ -261,22 +261,8 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
     <div className="card card-hover-lift" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ height: 170, position: "relative", background: "#0A0A0B" }}>
         {card.cover_image_url ? (
-          <>
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: `url(${card.cover_image_url})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                filter: "blur(20px) brightness(0.5) saturate(1.2)",
-                transform: "scale(1.15)",
-              }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={card.cover_image_url} alt={card.name} loading="lazy" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain" }} />
-          </>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={card.cover_image_url} alt={card.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon name="video" size={30} className="text-muted" />

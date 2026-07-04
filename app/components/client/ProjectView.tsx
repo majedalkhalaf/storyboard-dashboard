@@ -187,7 +187,7 @@ export default function ProjectView({
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           {project.cover_image_url && (
-            <div style={{ position: "relative", flex: "1 1 320px", background: "#000", display: "flex", justifyContent: "center", alignItems: "center", minHeight: 220, maxHeight: 320, overflow: "hidden" }}>
+            <div style={{ position: "relative", flex: "1 1 320px", background: "var(--bg-secondary)", display: "flex", justifyContent: "center", alignItems: "center", minHeight: 220, maxHeight: 320, overflow: "hidden" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={project.cover_image_url} alt={project.name} style={{ maxWidth: "100%", maxHeight: 320, width: "auto", height: "auto", objectFit: "contain" }} />
             </div>
