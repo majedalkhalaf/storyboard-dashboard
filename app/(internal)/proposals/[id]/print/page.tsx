@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import PrintButton from "@/app/components/finance/PrintButton";
-import DocumentHeader, { printResetCss } from "@/app/components/finance/DocumentHeader";
+import DocumentHeader, { printResetCss, defaultSignatureUrl } from "@/app/components/finance/DocumentHeader";
 import { PROPOSAL_TYPES } from "@/app/lib/constants";
 import type { Proposal } from "@/app/lib/types";
 
@@ -57,6 +58,17 @@ export default async function ProposalPrintPage({ params }: { params: Promise<{ 
             <p style={{ whiteSpace: "pre-wrap" }}>{s.body}</p>
           </div>
         ))}
+
+        <div className="doc-signatures">
+          <div className="doc-sign-box">
+            {company.stamp_url && <img src={company.stamp_url} alt="" className="doc-sign-img" />}
+            <div className="doc-sign-line">ختم الشركة</div>
+          </div>
+          <div className="doc-sign-box">
+            {defaultSignatureUrl(company) && <img src={defaultSignatureUrl(company)!} alt="" className="doc-sign-img" />}
+            <div className="doc-sign-line">التوقيع المعتمد</div>
+          </div>
+        </div>
       </div>
     </>
   );

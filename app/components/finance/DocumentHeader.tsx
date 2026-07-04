@@ -62,15 +62,19 @@ export default function DocumentHeader({
   title: string;
   subtitle?: string;
 }) {
+  // شعار المستندات الرسمية إن رُفع خصيصاً، وإلا الشعار الرئيسي — كل مستند مطبوع
+  // (فاتورة/عقد/عرض) يمر من هنا فيرث التبديل تلقائياً بلا أي تعديل في كل صفحة.
+  const documentLogo = company.document_logo_url || company.logo_url;
+
   return (
     <div className="doc-head">
       <div>
-        {company.logo_url ? (
-          <img src={company.logo_url} alt={company.name} className="doc-logo" />
+        {documentLogo ? (
+          <img src={documentLogo} alt={company.name} className="doc-logo" />
         ) : (
           <div className="doc-company-name">{company.name}</div>
         )}
-        {company.logo_url && <div className="doc-company-name" style={{ marginTop: 6 }}>{company.name}</div>}
+        {documentLogo && <div className="doc-company-name" style={{ marginTop: 6 }}>{company.name}</div>}
         {company.commercial_register && (
           <div className="doc-company-line">س.ت: {company.commercial_register}</div>
         )}
@@ -86,4 +90,19 @@ export default function DocumentHeader({
       </div>
     </div>
   );
+}
+
+// التوقيع الافتراضي الذي اختارته الشركة (إعدادات الشركة ← التوقيع والختم) —
+// يُستخدم في كل مستند مطبوع بدل الاعتماد دائماً على "توقيع المدير" فقط.
+export function defaultSignatureUrl(company: Company): string | null {
+  switch (company.default_signature_key) {
+    case "executive":
+      return company.signature_executive_url || company.signature_url;
+    case "accountant":
+      return company.signature_accountant_url || company.signature_url;
+    case "project_manager":
+      return company.signature_pm_url || company.signature_url;
+    default:
+      return company.signature_url;
+  }
 }

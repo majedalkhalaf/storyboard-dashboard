@@ -2,22 +2,41 @@
 
 import { useEffect } from "react";
 
-// يحقن اللون الأساسي لشركة الإنتاج المالكة للمشروع كمتغير CSS ‎--gold‎
-// فتتلوّن الأزرار والحدود وأشرطة التقدم بهوية تلك الشركة داخل صفحات المشروع.
-// نستخدمه على صفحات /client/projects/** فقط (العميل غير مرتبط بشركة ثابتة).
-export default function BrandingInjector({ color }: { color?: string | null }) {
+// يحقن هوية شركة الإنتاج المالكة للمشروع كمتغيرات CSS داخل صفحات المشروع
+// (العميل غير مرتبط بشركة ثابتة، فلا يمكن تطبيق الهوية على مستوى التخطيط
+// العام). لون الأزرار (إن حُدِّد في إعدادات الشركة) يجب أن يطغى على اللون
+// الأساسي تحديداً لأن كل الأزرار الحالية في الواجهة مبنية على ‎--gold‎ نفسه —
+// وإلا فلا فرق مرئياً بينهما. لون التنبيهات يُحقن كمتغير ‎--alert‎ منفصل، لكن
+// عناصر التنبيه/الخطأ في الواجهة حالياً تستخدم ألواناً ثابتة مباشرة في كل
+// مكوّن (#EF4444 وغيره) لا هذا المتغير، فتأثيره حالياً جزئي فقط إلى أن يُستبدل
+// ذلك التكرار بالمتغير في كل مكان — إفصاح صريح بدل الإدّعاء بتطبيق كامل.
+export default function BrandingInjector({
+  color,
+  buttonColor,
+  alertColor,
+}: {
+  color?: string | null;
+  buttonColor?: string | null;
+  alertColor?: string | null;
+}) {
   useEffect(() => {
-    if (!color) return;
     const root = document.documentElement.style;
-    root.setProperty("--gold", color);
-    root.setProperty("--gold-light", color);
-    root.setProperty("--gold-dark", color);
+    const gold = buttonColor || color;
+    if (gold) {
+      root.setProperty("--gold", gold);
+      root.setProperty("--gold-light", gold);
+      root.setProperty("--gold-dark", gold);
+    }
+    if (alertColor) root.setProperty("--alert", alertColor);
     return () => {
-      root.removeProperty("--gold");
-      root.removeProperty("--gold-light");
-      root.removeProperty("--gold-dark");
+      if (gold) {
+        root.removeProperty("--gold");
+        root.removeProperty("--gold-light");
+        root.removeProperty("--gold-dark");
+      }
+      if (alertColor) root.removeProperty("--alert");
     };
-  }, [color]);
+  }, [color, buttonColor, alertColor]);
 
   return null;
 }

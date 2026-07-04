@@ -60,6 +60,8 @@ export interface PresentationDefaultTexts {
   thanks_message?: string;
 }
 
+export type CompanySignatureKey = "manager" | "executive" | "accountant" | "project_manager";
+
 export interface Company {
   id: string;
   name: string;
@@ -83,6 +85,52 @@ export interface Company {
   default_tax_rate: number;
   invoice_number_prefix: string;
   default_payment_terms_days: number;
+  // ملف الشركة الكامل — supabase/migrations/0036_company_profile_expansion.sql
+  logo_white_url: string | null;
+  logo_black_url: string | null;
+  favicon_url: string | null;
+  document_logo_url: string | null;
+  cover_image_url: string | null;
+  client_portal_logo_url: string | null;
+  name_en: string | null;
+  trade_name: string | null;
+  short_description: string | null;
+  about_text: string | null;
+  mission: string | null;
+  vision: string | null;
+  company_values: string | null;
+  business_activity: string | null;
+  establishment_number: string | null;
+  chamber_number: string | null;
+  founded_date: string | null;
+  country: string | null;
+  city: string | null;
+  postal_code: string | null;
+  finance_email: string | null;
+  support_email: string | null;
+  mobile_phone: string | null;
+  whatsapp_number: string | null;
+  signature_executive_url: string | null;
+  signature_accountant_url: string | null;
+  signature_pm_url: string | null;
+  default_signature_key: CompanySignatureKey;
+  button_color: string | null;
+  alert_color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompanyBankAccount {
+  id: string;
+  company_id: string;
+  bank_name: string;
+  beneficiary_name: string | null;
+  account_number: string | null;
+  iban: string | null;
+  swift_code: string | null;
+  currency: string;
+  bank_logo_url: string | null;
+  is_default: boolean;
   created_at: string;
   updated_at: string;
 }

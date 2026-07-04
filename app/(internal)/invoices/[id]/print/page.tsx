@@ -1,10 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import PrintButton from "@/app/components/finance/PrintButton";
-import DocumentHeader, { printResetCss } from "@/app/components/finance/DocumentHeader";
+import DocumentHeader, { printResetCss, defaultSignatureUrl } from "@/app/components/finance/DocumentHeader";
 import { INVOICE_STATUSES } from "@/app/lib/constants";
-import type { Invoice } from "@/app/lib/types";
+import type { CompanyBankAccount, Invoice } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,10 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const company = session!.company!;
 
-  const { data: invoice } = await supabase
-    .from("invoices")
-    .select("*, projects(name), clients(name, email, phone)")
-    .eq("company_id", company.id)
-    .eq("id", id)
-    .single();
+  const [{ data: invoice }, { data: bankAccount }] = await Promise.all([
+    supabase.from("invoices").select("*, projects(name), clients(name, email, phone)").eq("company_id", company.id).eq("id", id).single(),
+    supabase.from("company_bank_accounts").select("*").eq("company_id", company.id).eq("is_default", true).maybeSingle(),
+  ]);
 
   if (!invoice) notFound();
 
@@ -36,6 +35,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     projects: { name: string } | null;
     clients: { name: string; email: string | null; phone: string | null } | null;
   };
+  const account = bankAccount as CompanyBankAccount | null;
   const total = Number(inv.amount) + Number(inv.tax ?? 0);
   const statusLabel = INVOICE_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status;
 
@@ -92,9 +92,44 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
           </div>
         )}
 
+        {account && (
+          <div className="doc-section">
+            <div className="doc-section-title">بيانات التحويل البنكي</div>
+            <div className="doc-notes" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+              <BankField label="البنك" value={account.bank_name} />
+              <BankField label="المستفيد" value={account.beneficiary_name} />
+              <BankField label="رقم الحساب" value={account.account_number} />
+              <BankField label="IBAN" value={account.iban} />
+              <BankField label="SWIFT" value={account.swift_code} />
+              <BankField label="العملة" value={account.currency} />
+            </div>
+          </div>
+        )}
+
+        <div className="doc-signatures">
+          <div className="doc-sign-box">
+            {company.stamp_url && <img src={company.stamp_url} alt="" className="doc-sign-img" />}
+            <div className="doc-sign-line">ختم الشركة</div>
+          </div>
+          <div className="doc-sign-box">
+            {defaultSignatureUrl(company) && <img src={defaultSignatureUrl(company)!} alt="" className="doc-sign-img" />}
+            <div className="doc-sign-line">التوقيع المعتمد</div>
+          </div>
+        </div>
+
         <DocumentFooter company={company} />
       </div>
     </>
+  );
+}
+
+function BankField({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <div>
+      <div className="doc-label">{label}</div>
+      <div style={{ fontSize: 13 }}>{value}</div>
+    </div>
   );
 }
 

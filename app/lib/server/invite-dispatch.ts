@@ -1,6 +1,7 @@
 import { getDefaultEmailSender, getEmailSenderById, sendMailViaSender } from "@/app/lib/server/mailer";
 import { getActiveWhatsappConfig, sendWhatsappMessage } from "@/app/lib/server/whatsapp";
 import { toWhatsappDigits } from "@/app/lib/server/invitation-tracking";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 export interface DispatchResult {
   emailSent: boolean;
@@ -32,10 +33,16 @@ export async function dispatchInviteMessage(params: {
   const sender = senderId ? await getEmailSenderById(companyId, senderId) : await getDefaultEmailSender(companyId);
   if (sender) {
     try {
+      // شعار الشركة أعلى رسالة الدعوة إن كان مرفوعاً — نفس المصدر الوحيد
+      // (إعدادات الشركة) بلا أي إعداد إضافي مطلوب هنا.
+      const admin = createAdminClient();
+      const { data: companyRow } = await admin.from("companies").select("logo_url").eq("id", companyId).maybeSingle();
+      const logoHtml = companyRow?.logo_url ? `<img src="${companyRow.logo_url}" alt="" style="max-height:56px;max-width:200px;object-fit:contain;margin-bottom:16px" /><br/>` : "";
+
       await sendMailViaSender(sender, {
         to: toEmail,
         subject,
-        html: `<div style="font-family:sans-serif;direction:rtl;text-align:right;white-space:pre-wrap">${message.replace(/\n/g, "<br/>")}</div>`,
+        html: `<div style="font-family:sans-serif;direction:rtl;text-align:right;white-space:pre-wrap">${logoHtml}${message.replace(/\n/g, "<br/>")}</div>`,
         text: message,
       });
       emailSent = true;

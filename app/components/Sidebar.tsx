@@ -80,22 +80,39 @@ export default function Sidebar() {
     >
       <div className="logo-wrap" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 8px 14px", justifyContent: effectiveCollapsed ? "center" : "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 900,
-              color: "#090909",
-              flexShrink: 0,
-            }}
-          >
-            {(company?.name || "ن").charAt(0)}
-          </div>
+          {company?.logo_url ? (
+            // شعار الشركة الحقيقي بدل الحرف الأول دائماً — مصدره الوحيد صفحة
+            // إعدادات الشركة، ويظهر بحجم أكبر عند فرد القائمة.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={company.logo_url}
+              alt={company.name}
+              style={{
+                width: effectiveCollapsed ? 36 : 48,
+                height: effectiveCollapsed ? 36 : 48,
+                borderRadius: 10,
+                objectFit: "contain",
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 900,
+                color: "#090909",
+                flexShrink: 0,
+              }}
+            >
+              {(company?.name || "ن").charAt(0)}
+            </div>
+          )}
           {!effectiveCollapsed && (
             <div style={{ minWidth: 0 }}>
               <div className="logo-title" style={{ fontWeight: 800, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

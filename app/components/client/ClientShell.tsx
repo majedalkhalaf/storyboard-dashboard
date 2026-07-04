@@ -93,40 +93,49 @@ export default function ClientShell({
           padding: "18px 12px",
         }}
       >
-        <div className="logo-wrap" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 8px 20px" }}>
+        <div className="logo-wrap" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "8px 8px 22px" }}>
           {brandCompany?.logo_url ? (
+            // شعار الشركة يظهر بحجم كبير وبارز دائماً بأعلى بوابة العميل — بلا
+            // إعادة إدخال أو رفع مرة أخرى، مصدره الوحيد صفحة إعدادات الشركة.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={brandCompany.logo_url}
               alt={brandCompany.name}
-              style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+              style={{ maxWidth: "100%", maxHeight: 96, width: "auto", height: "auto", objectFit: "contain" }}
             />
           ) : (
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 900,
-                color: "#0A0A0B",
-                flexShrink: 0,
-              }}
-            >
-              {(brandCompany?.name || profile.full_name || "ع").charAt(0)}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 900,
+                  color: "#0A0A0B",
+                  flexShrink: 0,
+                }}
+              >
+                {(brandCompany?.name || profile.full_name || "ع").charAt(0)}
+              </div>
+              <div>
+                <div className="logo-title" style={{ fontWeight: 800, fontSize: 14 }}>
+                  {brandCompany?.name || "بوابة العميل"}
+                </div>
+                <div className="logo-sub" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  {brandCompany ? "بوابة العميل" : "متابعة مشاريعك"}
+                </div>
+              </div>
             </div>
           )}
-          <div>
-            <div className="logo-title" style={{ fontWeight: 800, fontSize: 14 }}>
-              {brandCompany?.name || "بوابة العميل"}
+          {brandCompany?.logo_url && (
+            <div className="logo-title" style={{ fontWeight: 800, fontSize: 14, textAlign: "center" }}>
+              {brandCompany.name}
             </div>
-            <div className="logo-sub" style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {brandCompany ? "بوابة العميل" : "متابعة مشاريعك"}
-            </div>
-          </div>
+          )}
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, overflowY: "auto" }}>

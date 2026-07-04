@@ -110,7 +110,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <BrandingInjector color={company?.primary_color} />
+      <BrandingInjector color={company?.primary_color} buttonColor={company?.button_color} alertColor={company?.alert_color} />
       <ProjectView
         project={proj}
         company={company}

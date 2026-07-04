@@ -77,7 +77,7 @@ export default async function ClientEpisodePage({
 
   return (
     <>
-      <BrandingInjector color={companyData?.primary_color} />
+      <BrandingInjector color={companyData?.primary_color} buttonColor={companyData?.button_color} alertColor={companyData?.alert_color} />
       <EpisodeDetailView
         episode={episode}
         projectName={proj.name}

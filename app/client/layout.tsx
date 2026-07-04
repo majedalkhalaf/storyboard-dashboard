@@ -53,9 +53,11 @@ export default async function ClientLayout({ children }: { children: React.React
     let projectManager: ProjectManagerInfo | null = null;
     if (companyIds.size === 1) {
       const [companyId] = companyIds;
-      const { data: company } = await supabase.from("companies").select("name, logo_url, phone, email").eq("id", companyId).maybeSingle();
+      const { data: company } = await supabase.from("companies").select("name, logo_url, client_portal_logo_url, phone, email").eq("id", companyId).maybeSingle();
       if (company) {
-        brandCompany = { name: company.name, logo_url: company.logo_url };
+        // صورة بوابة العملاء المخصصة إن رُفعت، وإلا الشعار الرئيسي — كي يظهر
+        // "بحجم كبير دائماً" في القائمة الجانبية دون إعادة إدخال أي شيء.
+        brandCompany = { name: company.name, logo_url: company.client_portal_logo_url || company.logo_url };
         supportCompany = { name: company.name, phone: company.phone, email: company.email };
       }
 
