@@ -27,52 +27,39 @@ export default function ClientAnnouncementCards({ announcements }: { announcemen
   );
 }
 
-// بانر إعلاني لامع بمعاينة حقيقية لأول وسيط مرفق (صورة أو فيديو) بدل أيقونة
-// عامة — ما يجعله يلفت الانتباه فعلياً كإعلان، لا مجرد شريط نصي.
+// بطاقة إعلانية متكاملة: رأس بعنوان الإعلان وزر دعوة قابل للتخصيص، يليه شريط
+// يعرض جميع المرفقات كاملة دون أي قص (contain)، مع تشغيل تلقائي لأي فيديو.
 function AnnouncementBanner({ announcement: a, onOpen }: { announcement: ClientAnnouncement; onOpen: () => void }) {
-  const preview = a.media[0];
+  const shown = a.media.slice(0, 6);
+  const remaining = a.media.length - shown.length;
 
   return (
-    <button
-      onClick={onOpen}
+    <div
       className="announcement-banner"
       style={{
         position: "relative",
         overflow: "hidden",
-        padding: 0,
-        minHeight: 128,
-        borderRadius: 16,
-        cursor: "pointer",
-        textAlign: "start",
+        borderRadius: 18,
         border: "1px solid var(--gold)",
         boxShadow: "0 8px 28px rgba(var(--gold-rgb),0.18), inset 0 0 0 1px rgba(var(--gold-rgb),0.15)",
         background: "linear-gradient(135deg, #2a2110, #0A0A0B)",
       }}
     >
-      {preview && (
-        <div style={{ position: "absolute", inset: 0 }}>
-          {preview.type === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview.url} alt={preview.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : preview.type === "video" ? (
-            <video src={preview.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : null}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,11,0.92) 15%, rgba(10,10,11,0.45) 60%, rgba(10,10,11,0.15))" }} />
-        </div>
-      )}
-
-      {/* لمعة زجاجية قطرية أعلى البطاقة — تعطي الإحساس "اللامع" المطلوب دون تعقيد */}
-      <div
-        aria-hidden
+      <button
+        onClick={onOpen}
         style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 22%, transparent 45%)",
-          pointerEvents: "none",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "16px 18px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "start",
         }}
-      />
-
-      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, padding: 18, minHeight: 128 }}>
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span
             style={{
@@ -91,18 +78,80 @@ function AnnouncementBanner({ announcement: a, onOpen }: { announcement: ClientA
             <Icon name="megaphone" size={18} />
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}>{a.title || "إعلان جديد"}</div>
-            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{a.title || "إعلان جديد"}</div>
+            <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
               {a.media.length > 0 ? `${a.media.length} عنصر مرفق · ` : ""}
               {relativeTime(a.created_at)}
             </div>
           </div>
         </div>
         <span className="btn btn-gold" style={{ fontSize: 12.5, flexShrink: 0, pointerEvents: "none" }}>
-          عرض الإعلان
+          {a.cta_label || "عرض"}
         </span>
-      </div>
-    </button>
+      </button>
+
+      {shown.length > 0 && (
+        <div
+          onClick={onOpen}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && onOpen()}
+          style={{
+            display: "flex",
+            gap: 8,
+            padding: "0 14px 14px",
+            overflowX: shown.length > 1 || remaining > 0 ? "auto" : "hidden",
+            cursor: "pointer",
+          }}
+        >
+          {shown.map((m) => (
+            <div
+              key={m.url}
+              style={{
+                position: "relative",
+                flex: shown.length === 1 && remaining === 0 ? "1 1 auto" : "0 0 auto",
+                width: shown.length === 1 && remaining === 0 ? "100%" : 230,
+                height: 260,
+                borderRadius: 12,
+                overflow: "hidden",
+                background: "#000",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {m.type === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.url} alt={m.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : m.type === "video" ? (
+                <video src={m.url} autoPlay muted loop playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : (
+                <div style={{ color: "var(--text-muted)", fontSize: 12 }}>ملف صوتي</div>
+              )}
+            </div>
+          ))}
+          {remaining > 0 && (
+            <div
+              style={{
+                flex: "0 0 auto",
+                width: 80,
+                height: 260,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontWeight: 800,
+                fontSize: 15,
+              }}
+            >
+              +{remaining}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

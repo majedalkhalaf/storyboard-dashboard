@@ -387,6 +387,9 @@ export interface ClientAnnouncement {
   client_id: string | null;
   title: string | null;
   media: BehindScenesMediaItem[];
+  duration_days: number | null;
+  expires_at: string | null;
+  cta_label: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;

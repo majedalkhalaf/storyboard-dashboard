@@ -28,8 +28,14 @@ export default async function ClientDashboardPage() {
       .select("id, permissions, project:projects(*)")
       .eq("client_user_id", session.userId)
       .eq("status", "active"),
-    // إعلانات مستقلة تماماً عن المشاريع — تُجلب دائماً بغض النظر عن وجود مشاريع نشطة
-    supabase.from("client_announcements").select("*").eq("client_user_id", session.userId).order("created_at", { ascending: false }),
+    // إعلانات مستقلة تماماً عن المشاريع — تُجلب دائماً بغض النظر عن وجود مشاريع نشطة،
+    // باستثناء ما انتهت مدة عرضه المحدَّدة (expires_at) إن وُجدت.
+    supabase
+      .from("client_announcements")
+      .select("*")
+      .eq("client_user_id", session.userId)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order("created_at", { ascending: false }),
   ]);
 
   const announcements = (announcementRows ?? []) as ClientAnnouncement[];

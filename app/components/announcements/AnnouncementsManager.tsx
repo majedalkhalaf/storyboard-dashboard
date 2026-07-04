@@ -5,7 +5,11 @@ import Icon from "@/app/components/ui/Icon";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { CLIENT_INVITE_DURATIONS } from "@/app/lib/client-invite-catalog";
+import { formatDate } from "@/app/components/client/utils";
 import type { BehindScenesMediaItem, BehindScenesMediaType } from "@/app/lib/types";
+
+const DEFAULT_CTA_LABEL = "عرض";
 
 export interface ClientAccountOption {
   clientUserId: string;
@@ -22,6 +26,9 @@ export interface AnnouncementRow {
   client_id: string | null;
   title: string | null;
   media: BehindScenesMediaItem[];
+  duration_days: number | null;
+  expires_at: string | null;
+  cta_label: string;
   created_at: string;
   updated_at: string;
   clientName: string;
@@ -67,6 +74,9 @@ export default function AnnouncementsManager({
         client_id: (a.client_id as string) ?? null,
         title: (a.title as string) ?? null,
         media: a.media as BehindScenesMediaItem[],
+        duration_days: (a.duration_days as number) ?? null,
+        expires_at: (a.expires_at as string) ?? null,
+        cta_label: (a.cta_label as string) || DEFAULT_CTA_LABEL,
         created_at: a.created_at as string,
         updated_at: a.updated_at as string,
         clientName: profile?.full_name || client?.name || "عميل",
@@ -162,6 +172,9 @@ function AnnouncementCard({ announcement, onEdit, onDelete }: { announcement: An
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 2 }}>إلى: {announcement.clientName}</div>
           <div style={{ fontSize: 14.5, fontWeight: 800 }}>{announcement.title || "إعلان بلا عنوان"}</div>
+          <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
+            {announcement.expires_at ? `ينتهي عرضه في ${formatDate(announcement.expires_at)}` : "عرض غير محدود"}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={onEdit} aria-label="تعديل">
@@ -213,6 +226,8 @@ function AnnouncementComposer({
   const isEditing = Boolean(existing);
   const [clientUserId, setClientUserId] = useState(existing?.client_user_id ?? "");
   const [title, setTitle] = useState(existing?.title ?? "");
+  const [ctaLabel, setCtaLabel] = useState(existing?.cta_label ?? DEFAULT_CTA_LABEL);
+  const [durationDays, setDurationDays] = useState<number | null>(existing ? existing.duration_days : 30);
   const [media, setMedia] = useState<BehindScenesMediaItem[]>(existing?.media ?? []);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
@@ -257,11 +272,16 @@ function AnnouncementComposer({
     setError(null);
     const supabase = createClient();
     const selected = clientAccounts.find((c) => c.clientUserId === clientUserId);
+    // إعادة حساب تاريخ الانتهاء فقط عند إنشاء إعلان جديد أو عند تغيير المدة فعلياً
+    // أثناء التعديل — كي لا يُعاد ضبط عدّاد الأيام من الصفر بمجرد تعديل العنوان فقط.
+    const durationChanged = !isEditing || durationDays !== (existing?.duration_days ?? null);
+    const expiresAt = durationChanged ? (durationDays ? new Date(Date.now() + durationDays * 86400000).toISOString() : null) : (existing?.expires_at ?? null);
+    const ctaLabelToSave = ctaLabel.trim() || DEFAULT_CTA_LABEL;
 
     if (isEditing && existing) {
       const { error: updateError } = await supabase
         .from("client_announcements")
-        .update({ title: title.trim() || null, media })
+        .update({ title: title.trim() || null, media, duration_days: durationDays, expires_at: expiresAt, cta_label: ctaLabelToSave })
         .eq("id", existing.id);
       setBusy(false);
       if (updateError) {
@@ -278,6 +298,9 @@ function AnnouncementComposer({
       client_id: selected?.clientId ?? null,
       title: title.trim() || null,
       media,
+      duration_days: durationDays,
+      expires_at: expiresAt,
+      cta_label: ctaLabelToSave,
       created_by: profile.id,
     });
     setBusy(false);
@@ -308,6 +331,27 @@ function AnnouncementComposer({
         </select>
 
         <input className="input-field" placeholder="عنوان الإعلان" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 14 }} />
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>مدة عرض الإعلان</label>
+            <select
+              className="input-field"
+              value={durationDays === null ? "unlimited" : String(durationDays)}
+              onChange={(e) => setDurationDays(e.target.value === "unlimited" ? null : Number(e.target.value))}
+            >
+              {CLIENT_INVITE_DURATIONS.map((d) => (
+                <option key={d.label} value={d.value === null ? "unlimited" : d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>نص زر الدعوة</label>
+            <input className="input-field" placeholder={DEFAULT_CTA_LABEL} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} />
+          </div>
+        </div>
 
         <div
           onDragOver={(e) => {
