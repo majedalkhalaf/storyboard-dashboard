@@ -589,3 +589,53 @@ body {
   .page-title-size { font-size: 18px !important; }
   .btn { font-size: 13px !important; padding: 9px 12px !important; }
 }
+
+/* ── شريط "الكواليس" في الصفحة الرئيسية لبوابة العميل ── */
+.bts-strip {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.bts-strip::-webkit-scrollbar { display: none; }
+.bts-strip-track {
+  display: flex;
+  gap: 12px;
+  width: max-content;
+}
+.bts-strip-auto .bts-strip-track {
+  animation: bts-marquee 45s linear infinite;
+}
+.bts-strip-auto:hover .bts-strip-track,
+.bts-strip-auto:focus-within .bts-strip-track {
+  animation-play-state: paused;
+}
+@keyframes bts-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.bts-strip-card {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: var(--bg-hover);
+  animation: bts-card-in 0.5s ease both;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.bts-strip-card:hover,
+.bts-strip-card:focus-visible {
+  transform: scale(1.045);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+@keyframes bts-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bts-strip-auto .bts-strip-track { animation: none; }
+  .bts-strip-card { animation: none; }
+}

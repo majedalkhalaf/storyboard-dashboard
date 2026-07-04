@@ -25,6 +25,15 @@ export interface BehindScenesFeedPost {
   comments: BehindScenesComment[];
 }
 
+// أحجام متفاوتة للبطاقات داخل الشريط — تكرار نمط بصري غير رتيب بدل شبكة موحّدة.
+const CARD_SIZES = [
+  { width: 168, height: 138 },
+  { width: 220, height: 168 },
+  { width: 190, height: 150 },
+  { width: 240, height: 180 },
+  { width: 200, height: 160 },
+];
+
 // يستمع لأي منشور كواليس جديد مشترك عبر كل مشاريع العميل النشطة ويعيد جلب
 // بيانات الصفحة — بلا فلترة على مستوى القناة لأن Realtime لا يدعم فلترة
 // project_id ضمن قائمة، بنفس النمط المتّبع أصلاً في مزامنة المشاريع (ClientDashboard).
@@ -43,26 +52,102 @@ function useBehindScenesRealtime() {
   }, []);
 }
 
+// شريط "الكواليس" — عرضي ومضغوط أسفل بطاقات المشاريع بدل مساحة كبيرة أعلى
+// الصفحة، ببطاقات صغيرة متفاوتة الحجم وحركة تمرير تلقائي بسيطة (تتوقف عند
+// التمرير فوقها بالماوس أو باللمس)، تكفي لجذب انتباه العميل دون إزعاج. الضغط
+// على أي بطاقة يفتح المنشور كاملاً بالتفاصيل والتفاعل (إعجاب/تعليق).
 export default function BehindScenesFeed({ posts, currentUserId, currentUserName }: { posts: BehindScenesFeedPost[]; currentUserId: string; currentUserName: string | null }) {
   useBehindScenesRealtime();
+  const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
+  const loop = posts.length > 3;
+  const items = loop ? [...posts, ...posts] : posts;
+
   return (
-    <div style={{ marginBottom: 22 }}>
-      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-        <Icon name="sparkles" size={17} className="nav-icon" />
+    <div style={{ marginTop: 24, marginBottom: 6 }}>
+      <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 10, display: "flex", alignItems: "center", gap: 7, color: "var(--text-secondary)" }}>
+        <Icon name="sparkles" size={15} className="nav-icon" />
         الكواليس
       </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {posts.map((p) => (
-          <PostCard key={p.id} post={p} currentUserId={currentUserId} currentUserName={currentUserName} />
-        ))}
+      <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
+        <div className="bts-strip-track">
+          {items.map((p, i) => (
+            <StripCard key={`${p.id}-${i}`} post={p} index={i} onOpen={() => setOpenPost(p)} />
+          ))}
+        </div>
       </div>
+
+      {openPost && (
+        <div className="modal-overlay" onClick={() => setOpenPost(null)}>
+          <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <PostDetail post={openPost} currentUserId={currentUserId} currentUserName={currentUserName} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function PostCard({ post, currentUserId, currentUserName }: { post: BehindScenesFeedPost; currentUserId: string; currentUserName: string | null }) {
+function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index: number; onOpen: () => void }) {
+  const size = CARD_SIZES[index % CARD_SIZES.length];
+  const cover = post.media[0];
+
+  return (
+    <button
+      className="bts-strip-card"
+      onClick={onOpen}
+      style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}
+    >
+      {cover ? (
+        cover.type === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover.url} alt={cover.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : cover.type === "video" ? (
+          <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
+            <Icon name="mic" size={22} className="nav-icon" />
+          </div>
+        )
+      ) : (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
+          <Icon name="sparkles" size={22} className="nav-icon" />
+        </div>
+      )}
+
+      {cover?.type === "video" && (
+        <span
+          style={{
+            position: "absolute",
+            top: "50%",
+            insetInlineStart: "50%",
+            transform: "translate(-50%,-50%)",
+            background: "rgba(0,0,0,0.55)",
+            borderRadius: "50%",
+            padding: 6,
+            display: "flex",
+            color: "#fff",
+          }}
+        >
+          <Icon name="play" size={14} />
+        </span>
+      )}
+
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent 55%)" }} />
+      <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
+        <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {projectHashtag(post.projectName)}
+        </div>
+        {post.title && (
+          <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function PostDetail({ post, currentUserId, currentUserName }: { post: BehindScenesFeedPost; currentUserId: string; currentUserName: string | null }) {
   const [liked, setLiked] = useState(post.hasLiked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [comments, setComments] = useState(post.comments);
@@ -103,7 +188,7 @@ function PostCard({ post, currentUserId, currentUserName }: { post: BehindScenes
   }
 
   return (
-    <div className="card" style={{ padding: 18 }}>
+    <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 11.5, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(post.projectName)}</div>
