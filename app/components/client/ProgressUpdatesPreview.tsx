@@ -8,6 +8,7 @@ import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
 import { projectHashtag } from "@/app/components/client/utils";
 import { createClient } from "@/app/lib/supabase/client";
+import type { ProgressUpdateMediaItem } from "@/app/lib/types";
 
 // أحجام متفاوتة، أصغر بوضوح من بطاقة المشروع — نفس منطق شريط الكواليس.
 const CARD_SIZES = [
@@ -15,6 +16,31 @@ const CARD_SIZES = [
   { width: 195, height: 145 },
   { width: 170, height: 130 },
 ];
+const MAX_UPDATES_SCANNED = 6;
+const MAX_MEDIA_CARDS = 10;
+const MIN_VISIBLE_TARGET = 5;
+
+interface StripMediaCard {
+  key: string;
+  update: ClientProgressUpdate;
+  media: ProgressUpdateMediaItem | null;
+}
+
+// نفس منطق تفكيك منشورات الكواليس: بطاقة واحدة لكل صورة/فيديو (باستثناء
+// صور "قبل" كي لا تظهر مكرَّرة بمعزل عن مقارنتها) بدل بطاقة غلاف واحدة لكل
+// تحديث — كي يظهر تحديث بعدة صور كمجموعة بطاقات بجانب بعضها.
+function flattenUpdatesToMediaCards(updates: ClientProgressUpdate[]): StripMediaCard[] {
+  const out: StripMediaCard[] = [];
+  for (const update of updates.slice(0, MAX_UPDATES_SCANNED)) {
+    const media = update.media.filter((m) => m.label !== "before");
+    const list = media.length > 0 ? media : [null];
+    for (const m of list) {
+      if (out.length >= MAX_MEDIA_CARDS) return out;
+      out.push({ key: `${update.id}-${m?.url ?? "none"}`, update, media: m });
+    }
+  }
+  return out;
+}
 
 // يستمع لأي تحديث "عمل جارٍ" جديد مشترك عبر كل مشاريع العميل ويعيد جلب بيانات
 // الصفحة الرئيسية — نفس نمط useBehindScenesRealtime (بلا فلترة على مستوى
@@ -43,8 +69,14 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
   const [openUpdate, setOpenUpdate] = useState<ClientProgressUpdate | null>(null);
   if (updates.length === 0) return null;
 
-  const loop = updates.length > 1;
-  const items = loop ? [...updates, ...updates] : updates;
+  // نفس منطق شريط الكواليس: بطاقة لكل صورة/فيديو، وتكرار الدورة عدداً كافياً
+  // من المرّات إن كان إجمالي البطاقات الحقيقية أقل من 5 كي لا تظهر أي مساحة
+  // فارغة بجانب بطاقة أو بطاقتين فقط.
+  const base = flattenUpdatesToMediaCards(updates);
+  const repeatCount = base.length === 0 ? 0 : base.length < MIN_VISIBLE_TARGET ? Math.max(2, Math.ceil(MIN_VISIBLE_TARGET / base.length)) : base.length > 1 ? 2 : 1;
+  const loop = repeatCount > 1;
+  const items = loop ? Array.from({ length: repeatCount }, () => base).flat() : base;
+  const trackStyle = loop ? ({ "--bts-shift": `-${100 / repeatCount}%` } as React.CSSProperties) : undefined;
 
   return (
     <div style={{ marginTop: 18, marginBottom: 6 }}>
@@ -59,9 +91,9 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
       </div>
 
       <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
-        <div className="bts-strip-track">
-          {items.map((u, i) => (
-            <StripCard key={`${u.id}-${i}`} update={u} index={i} onOpen={() => setOpenUpdate(u)} />
+        <div className="bts-strip-track" style={trackStyle}>
+          {items.map((item, i) => (
+            <StripCard key={`${item.key}-${i}`} media={item.media} update={item.update} index={i} onOpen={() => setOpenUpdate(item.update)} />
           ))}
         </div>
       </div>
@@ -77,19 +109,28 @@ export default function ProgressUpdatesPreview({ updates }: { updates: ClientPro
   );
 }
 
-function StripCard({ update, index, onOpen }: { update: ClientProgressUpdate; index: number; onOpen: () => void }) {
+function StripCard({
+  media,
+  update,
+  index,
+  onOpen,
+}: {
+  media: ProgressUpdateMediaItem | null;
+  update: ClientProgressUpdate;
+  index: number;
+  onOpen: () => void;
+}) {
   const size = CARD_SIZES[index % CARD_SIZES.length];
-  const cover = update.media.find((m) => m.label !== "before") ?? update.media[0];
   const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
 
   return (
     <button className="bts-strip-card" onClick={onOpen} style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}>
-      {cover ? (
-        cover.type === "image" ? (
+      {media ? (
+        media.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover.url} alt={cover.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : cover.type === "video" ? (
-          <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : media.type === "video" ? (
+          <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
             <Icon name="mic" size={20} className="nav-icon" />

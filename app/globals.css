@@ -612,7 +612,7 @@ body {
 }
 @keyframes bts-marquee {
   from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  to { transform: translateX(var(--bts-shift, -50%)); }
 }
 .bts-strip-card {
   position: relative;

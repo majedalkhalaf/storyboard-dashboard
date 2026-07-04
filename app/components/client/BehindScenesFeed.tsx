@@ -33,7 +33,30 @@ const CARD_SIZES = [
   { width: 160, height: 125 },
   { width: 200, height: 150 },
 ];
-const MAX_VISIBLE = 4;
+const MAX_POSTS_SCANNED = 6;
+const MAX_MEDIA_CARDS = 10;
+const MIN_VISIBLE_TARGET = 5;
+
+interface StripMediaCard {
+  key: string;
+  post: BehindScenesFeedPost;
+  media: BehindScenesMediaItem | null;
+}
+
+// يفكّك المنشورات إلى بطاقة واحدة لكل صورة/فيديو بدل بطاقة واحدة تمثّل الغلاف
+// فقط — هذا ما يجعل منشوراً واحداً يحتوي عدة صور يظهر كمجموعة بطاقات بجانب
+// بعضها بدل بطاقة يتيمة تترك مساحة فارغة كبيرة بجانبها.
+function flattenPostsToMediaCards(posts: BehindScenesFeedPost[]): StripMediaCard[] {
+  const out: StripMediaCard[] = [];
+  for (const post of posts.slice(0, MAX_POSTS_SCANNED)) {
+    const media = post.media.length > 0 ? post.media : [null];
+    for (const m of media) {
+      if (out.length >= MAX_MEDIA_CARDS) return out;
+      out.push({ key: `${post.id}-${m?.url ?? "none"}`, post, media: m });
+    }
+  }
+  return out;
+}
 
 // يستمع لأي منشور كواليس جديد مشترك عبر كل مشاريع العميل النشطة ويعيد جلب
 // بيانات الصفحة — بلا فلترة على مستوى القناة لأن Realtime لا يدعم فلترة
@@ -62,12 +85,17 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
   const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
-  // أحدث 4 منشورات فقط — الشريط ملخّص سريع وليس أرشيفاً كاملاً.
-  const visible = posts.slice(0, MAX_VISIBLE);
-  // حركة تلقائية دائمة طالما هناك أكثر من منشور واحد — بلا حدٍّ أدنى مرتفع
-  // للعدد، حتى لا يبقى الشريط ثابتاً بلا حركة عند وجود منشورين أو ثلاثة فقط.
-  const loop = visible.length > 1;
-  const items = loop ? [...visible, ...visible] : visible;
+  // بطاقة واحدة لكل صورة/فيديو (وليس لكل منشور) — كي يظهر منشور بعدة صور
+  // كمجموعة بطاقات بجانب بعضها. إن كان إجمالي البطاقات الحقيقية قليلاً
+  // (أقل من 5)، تُكرَّر الدورة عدداً كافياً من المرّات (repeatCount) بدل ترك
+  // مساحة فارغة كبيرة بجانب بطاقة أو بطاقتين فقط — بحسب طلب صريح بألا تظهر
+  // أي مساحة فارغة، مع تعديل مقدار انزياح حركة التمرير (bts-shift) ليطابق
+  // عدد التكرارات فتبقى الحلقة سلسة بلا قفزة مرئية.
+  const base = flattenPostsToMediaCards(posts);
+  const repeatCount = base.length === 0 ? 0 : base.length < MIN_VISIBLE_TARGET ? Math.max(2, Math.ceil(MIN_VISIBLE_TARGET / base.length)) : base.length > 1 ? 2 : 1;
+  const loop = repeatCount > 1;
+  const items = loop ? Array.from({ length: repeatCount }, () => base).flat() : base;
+  const trackStyle = loop ? ({ "--bts-shift": `-${100 / repeatCount}%` } as React.CSSProperties) : undefined;
 
   return (
     <div style={{ marginTop: 24, marginBottom: 6 }}>
@@ -76,9 +104,9 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
         الكواليس
       </h2>
       <div className={`bts-strip${loop ? " bts-strip-auto" : ""}`}>
-        <div className="bts-strip-track">
-          {items.map((p, i) => (
-            <StripCard key={`${p.id}-${i}`} post={p} index={i} onOpen={() => setOpenPost(p)} />
+        <div className="bts-strip-track" style={trackStyle}>
+          {items.map((item, i) => (
+            <StripCard key={`${item.key}-${i}`} media={item.media} name={item.post.title ?? "كواليس"} projectName={item.post.projectName} index={i} onOpen={() => setOpenPost(item.post)} />
           ))}
         </div>
       </div>
@@ -94,9 +122,20 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
   );
 }
 
-function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index: number; onOpen: () => void }) {
+function StripCard({
+  media,
+  name,
+  projectName,
+  index,
+  onOpen,
+}: {
+  media: BehindScenesMediaItem | null;
+  name: string;
+  projectName: string;
+  index: number;
+  onOpen: () => void;
+}) {
   const size = CARD_SIZES[index % CARD_SIZES.length];
-  const cover = post.media[0];
 
   return (
     <button
@@ -104,12 +143,12 @@ function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index:
       onClick={onOpen}
       style={{ width: size.width, height: size.height, animationDelay: `${(index % CARD_SIZES.length) * 70}ms` }}
     >
-      {cover ? (
-        cover.type === "image" ? (
+      {media ? (
+        media.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover.url} alt={cover.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : cover.type === "video" ? (
-          <video src={cover.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : media.type === "video" ? (
+          <video src={media.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}>
             <Icon name="mic" size={22} className="nav-icon" />
@@ -121,7 +160,7 @@ function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index:
         </div>
       )}
 
-      {cover?.type === "video" && (
+      {media?.type === "video" && (
         <span
           style={{
             position: "absolute",
@@ -157,11 +196,9 @@ function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index:
       </span>
       <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
         <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {projectHashtag(post.projectName)}
+          {projectHashtag(projectName)}
         </div>
-        {post.title && (
-          <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</div>
-        )}
+        <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
       </div>
     </button>
   );
