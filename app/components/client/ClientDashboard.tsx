@@ -150,8 +150,6 @@ export default function ClientDashboard({
         </div>
       </div>
 
-      <ProgressUpdatesPreview updates={progressUpdates} />
-
       {/* بطاقات إحصائية مجمَّعة عبر كل المشاريع */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 20 }}>
         <StatCard label="نسبة الإنجاز الإجمالية" value={`${overallProgress}%`} icon="barChart" color="var(--gold)" />
@@ -200,6 +198,7 @@ export default function ClientDashboard({
       )}
 
       <BehindScenesFeed posts={behindScenesPosts} currentUserId={userId} currentUserName={userName} />
+      <ProgressUpdatesPreview updates={progressUpdates} />
 
       {/* بطاقات مساندة */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>

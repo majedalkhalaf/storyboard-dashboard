@@ -61,7 +61,9 @@ export default function BehindScenesFeed({ posts, currentUserId, currentUserName
   const [openPost, setOpenPost] = useState<BehindScenesFeedPost | null>(null);
   if (posts.length === 0) return null;
 
-  const loop = posts.length > 3;
+  // حركة تلقائية دائمة طالما هناك أكثر من منشور واحد — بلا حدٍّ أدنى مرتفع
+  // للعدد، حتى لا يبقى الشريط ثابتاً بلا حركة عند وجود منشورين أو ثلاثة فقط.
+  const loop = posts.length > 1;
   const items = loop ? [...posts, ...posts] : posts;
 
   return (
@@ -135,6 +137,21 @@ function StripCard({ post, index, onOpen }: { post: BehindScenesFeedPost; index:
       )}
 
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent 55%)" }} />
+      <span
+        className="bts-strip-card-expand"
+        style={{
+          position: "absolute",
+          top: 8,
+          insetInlineEnd: 8,
+          background: "rgba(0,0,0,0.5)",
+          borderRadius: "50%",
+          padding: 5,
+          display: "flex",
+          color: "#fff",
+        }}
+      >
+        <Icon name="export" size={12} />
+      </span>
       <div style={{ position: "absolute", bottom: 8, insetInlineStart: 10, insetInlineEnd: 10, textAlign: "start" }}>
         <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {projectHashtag(post.projectName)}
