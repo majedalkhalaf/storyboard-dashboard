@@ -39,9 +39,9 @@ export default function AccountMenu({
       <button className="btn btn-ghost" onClick={() => setOpen((v) => !v)} style={{ gap: 8 }}>
         <div
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
+            width: logoUrl ? 42 : 30,
+            height: logoUrl ? 42 : 30,
+            borderRadius: logoUrl ? 12 : "50%",
             background: "linear-gradient(135deg, var(--gold-dark), var(--gold))",
             display: "flex",
             alignItems: "center",
@@ -54,8 +54,9 @@ export default function AccountMenu({
           }}
         >
           {logoUrl ? (
+            // شعار الشركة يظهر بحجم واضح وبارز هنا بدل حرف داخل دائرة صغيرة
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={logoAlt} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 3, background: "#fff" }} />
+            <img src={logoUrl} alt={logoAlt} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4, background: "#fff" }} />
           ) : profile.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

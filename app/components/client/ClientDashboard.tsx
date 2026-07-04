@@ -84,6 +84,7 @@ export default function ClientDashboard({
   financeTotals,
   behindScenesPosts,
   progressUpdates,
+  heroLogoUrl,
 }: {
   firstName: string;
   userId: string;
@@ -99,6 +100,7 @@ export default function ClientDashboard({
   financeTotals: { value: number; paid: number; remaining: number } | null;
   behindScenesPosts: BehindScenesFeedPost[];
   progressUpdates: ClientProgressUpdate[];
+  heroLogoUrl?: string | null;
 }) {
   useClientProjectsRealtime(userId);
 
@@ -144,11 +146,19 @@ export default function ClientDashboard({
             zIndex: 0,
           }}
         />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 className="page-title-size" style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
-            مرحباً {firstName} 👋
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>هنا يمكنك متابعة جميع مشاريعك وحالة أعمالك لحظة بلحظة.</p>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+          {heroLogoUrl && (
+            // شعار الشركة بحجم كبير بجانب رسالة الترحيب — بقدر حجمها تقريباً،
+            // حسب طلب صريح بألا يبقى الشعار مقتصراً على أيقونة صغيرة فقط.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={heroLogoUrl} alt="" style={{ height: 58, width: "auto", maxWidth: 180, objectFit: "contain", flexShrink: 0 }} />
+          )}
+          <div>
+            <h1 className="page-title-size" style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
+              مرحباً {firstName} 👋
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>هنا يمكنك متابعة جميع مشاريعك وحالة أعمالك لحظة بلحظة.</p>
+          </div>
         </div>
       </div>
 

@@ -236,35 +236,40 @@ export default function ClientShell({
           </div>
         </header>
 
-        {/* علامة مائية بهوية الشركة — ثابتة خلف المحتوى في كل صفحات البوابة،
-            بشفافية منخفضة جداً كي لا تؤثر على وضوح القراءة، وغير قابلة للنقر. */}
-        {(brandCompany?.logo_url || brandCompany?.name) && (
-          <div
-            aria-hidden
-            className="no-print"
-            style={{
-              position: "absolute",
-              inset: 0,
-              top: 60,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              pointerEvents: "none",
-              overflow: "hidden",
-              zIndex: 0,
-            }}
-          >
-            {brandCompany.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={brandCompany.logo_url} alt="" style={{ width: "46%", maxWidth: 560, height: "auto", objectFit: "contain", opacity: 0.045 }} />
-            ) : (
-              <span style={{ fontSize: "9vw", fontWeight: 900, opacity: 0.035, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
-            )}
-          </div>
-        )}
-
         <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)", position: "relative", zIndex: 1 }}>
-          {children}
+          {/* علامة مائية بهوية الشركة — ثابتة في زاوية الصفحة بحجم كبير وواضح،
+              خلف المحتوى الفعلي في كل صفحات البوابة، وغير قابلة للنقر. مصفوفة
+              كطبقة داخل <main> نفسها (لا كطبقة شقيقة له) لأن أي طبقة خارج
+              <main> كانت ستُحجب بالكامل خلف خلفيته الصلبة (خطأ منفصل عن مشكلة
+              RLS التي كانت تمنع وصول بيانات الشركة أصلاً). */}
+          {(brandCompany?.logo_url || brandCompany?.name) && (
+            <div
+              aria-hidden
+              className="no-print"
+              style={{
+                position: "fixed",
+                bottom: 0,
+                insetInlineEnd: 0,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "flex-end",
+                pointerEvents: "none",
+                overflow: "hidden",
+                width: "min(46vw, 640px)",
+                height: "min(46vw, 640px)",
+                zIndex: 0,
+              }}
+            >
+              {brandCompany.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={brandCompany.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom left", opacity: 0.08, transform: "translate(8%, 8%)" }} />
+              ) : (
+                <span style={{ fontSize: "7vw", fontWeight: 900, opacity: 0.06, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
+              )}
+            </div>
+          )}
+
+          <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
         </main>
       </div>
 
