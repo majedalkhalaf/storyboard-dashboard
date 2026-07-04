@@ -11,7 +11,7 @@ import EpisodeWorkspace from "./EpisodeWorkspace";
 import EpisodeFormModal from "@/app/components/episodes/EpisodeFormModal";
 import PresentationBuilderModal from "./presentation/PresentationBuilderModal";
 import Icon from "@/app/components/ui/Icon";
-import CollapsibleSection, { ExpandCollapseAllButton } from "@/app/components/ui/CollapsibleSection";
+import Tabs, { type TabDef } from "@/app/components/ui/Tabs";
 import { PROJECT_TYPES } from "@/app/lib/constants";
 import { formatDate } from "./utils";
 import ProjectFinanceSection from "./sections/ProjectFinanceSection";
@@ -22,7 +22,21 @@ import ProjectActivitySection from "./sections/ProjectActivitySection";
 import ProjectBehindScenesSection from "./sections/ProjectBehindScenesSection";
 import ProjectProgressUpdatesSection from "./sections/ProjectProgressUpdatesSection";
 
-const PROJECT_SECTION_IDS = ["info", "stats", "finance", "contracts", "proposals", "notes", "behind_scenes", "progress", "activity"];
+// مرتّبة حسب الأولوية الفعلية أثناء متابعة المشروع: معلومات المشروع
+// والإحصائيات كنقطة انطلاق سريعة، ثم ما يتحرك يومياً (العمل الجاري
+// والملاحظات والكواليس)، فالمالية والمستندات الرسمية، وأخيراً سجل النشاط.
+type DetailsTabKey = "info" | "stats" | "progress" | "notes" | "behind_scenes" | "finance" | "contracts" | "proposals" | "activity";
+const DETAILS_TABS: TabDef<DetailsTabKey>[] = [
+  { key: "info", label: "معلومات المشروع", icon: "info" },
+  { key: "stats", label: "الإحصائيات", icon: "barChart" },
+  { key: "progress", label: "العمل الجاري", icon: "timeline" },
+  { key: "notes", label: "الملاحظات", icon: "message" },
+  { key: "behind_scenes", label: "الكواليس", icon: "sparkles" },
+  { key: "finance", label: "المالية", icon: "money" },
+  { key: "contracts", label: "العقود", icon: "contracts" },
+  { key: "proposals", label: "العروض", icon: "proposals" },
+  { key: "activity", label: "سجل النشاط", icon: "clock" },
+];
 
 interface Props {
   project: Project;
@@ -42,6 +56,7 @@ export default function ProjectDetailView(props: Props) {
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"info" | "clients" | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<DetailsTabKey>("info");
 
   function patchProject(patch: Partial<Project>) {
     setProject((p) => ({ ...p, ...patch }));
@@ -62,46 +77,21 @@ export default function ProjectDetailView(props: Props) {
       <EpisodeWorkspace clientName={clientName} gallery={gallery} initialEpisodeId={initialEpisodeId} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700 }}>تفاصيل إضافية</h2>
-          <ExpandCollapseAllButton groupKey={`project:${project.id}`} sectionIds={PROJECT_SECTION_IDS} />
+        <h2 style={{ fontSize: 15, fontWeight: 700 }}>تفاصيل إضافية</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "190px 1fr", gap: 20, alignItems: "flex-start" }}>
+          <Tabs orientation="vertical" tabs={DETAILS_TABS} active={detailsTab} onChange={setDetailsTab} />
+          <div className="card animate-fade-in" style={{ padding: 18, minWidth: 0 }}>
+            {detailsTab === "info" && <ProjectInfoBlock project={project} clientName={clientName} />}
+            {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
+            {detailsTab === "progress" && <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />}
+            {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} />}
+            {detailsTab === "behind_scenes" && <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />}
+            {detailsTab === "finance" && <ProjectFinanceSection projectId={project.id} />}
+            {detailsTab === "contracts" && <ProjectContractsSection projectId={project.id} />}
+            {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}
+            {detailsTab === "activity" && <ProjectActivitySection projectId={project.id} />}
+          </div>
         </div>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="info" title="معلومات المشروع" icon="info" defaultOpen>
-          <ProjectInfoBlock project={project} clientName={clientName} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="stats" title="الإحصائيات" icon="barChart" defaultOpen>
-          <ProjectStatsBlock gallery={gallery} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="finance" title="المالية" icon="money" defaultOpen={false}>
-          <ProjectFinanceSection projectId={project.id} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="contracts" title="العقود" icon="contracts" defaultOpen={false}>
-          <ProjectContractsSection projectId={project.id} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="proposals" title="العروض" icon="proposals" defaultOpen={false}>
-          <ProjectProposalsSection projectId={project.id} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="notes" title="الملاحظات" icon="message" defaultOpen={false}>
-          <ProjectNotesSection projectId={project.id} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="behind_scenes" title="الكواليس" icon="sparkles" defaultOpen={false}>
-          <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="progress" title="العمل الجاري" icon="barChart" defaultOpen={false}>
-          <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />
-        </CollapsibleSection>
-
-        <CollapsibleSection groupKey={`project:${project.id}`} id="activity" title="سجل النشاط" icon="clock" defaultOpen={false}>
-          <ProjectActivitySection projectId={project.id} />
-        </CollapsibleSection>
       </div>
 
       {showEpisodeModal && (
