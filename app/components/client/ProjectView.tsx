@@ -9,7 +9,6 @@ import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
 import ProjectStageTimeline from "@/app/components/client/ProjectStageTimeline";
 import EpisodeGridCard from "@/app/components/client/EpisodeGridCard";
-import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import StatCard from "@/app/components/dashboard/StatCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
@@ -191,7 +190,6 @@ export default function ProjectView({
             <div style={{ position: "relative", flex: "1 1 320px", background: "#000", display: "flex", justifyContent: "center", alignItems: "center", minHeight: 220, maxHeight: 320, overflow: "hidden" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={project.cover_image_url} alt={project.name} style={{ maxWidth: "100%", maxHeight: 320, width: "auto", height: "auto", objectFit: "contain" }} />
-              <CoverLogoBadge logoUrl={company?.logo_url} name={company?.name ?? project.name} position="top-end" />
             </div>
           )}
           <div style={{ flex: "1.4 1 380px", padding: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -325,7 +323,6 @@ export default function ProjectView({
               episodeNoteCounts={episodeNoteCounts}
               userId={userId}
               permissions={permissions}
-              companyLogoUrl={company?.logo_url}
             />
           )}
 
@@ -464,7 +461,6 @@ function EpisodesTab({
   episodeNoteCounts,
   userId,
   permissions,
-  companyLogoUrl,
 }: {
   project: Project;
   episodes: Episode[];
@@ -473,7 +469,6 @@ function EpisodesTab({
   episodeNoteCounts: Record<string, number>;
   userId: string;
   permissions: ClientPermissions;
-  companyLogoUrl?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<EpisodeFilter>("all");
@@ -536,7 +531,6 @@ function EpisodesTab({
                 isApproved={isApproved}
                 fileCount={episodeFileCounts[ep.id] ?? 0}
                 noteCount={episodeNoteCounts[ep.id] ?? 0}
-                companyLogoUrl={companyLogoUrl}
               />
             );
           })

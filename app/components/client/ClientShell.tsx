@@ -222,40 +222,7 @@ export default function ClientShell({
         </header>
 
         <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)", position: "relative", zIndex: 1 }}>
-          {/* علامة مائية بهوية الشركة — ثابتة في زاوية الصفحة، خلف المحتوى
-              الفعلي في كل صفحات البوابة، وغير قابلة للنقر. مصفوفة كطبقة داخل
-              <main> نفسها (لا كطبقة شقيقة له) لأن أي طبقة خارج <main> كانت
-              ستُحجب بالكامل خلف خلفيته الصلبة. شفافية أعلى وزاوية مختلفة
-              (أعلى بدل أسفل) بناءً على طلب صريح بتخفيفها بعد أن بدت بارزة أكثر
-              من اللازم في أول نسخة.  */}
-          {(brandCompany?.logo_url || brandCompany?.name) && (
-            <div
-              aria-hidden
-              className="no-print"
-              style={{
-                position: "fixed",
-                top: 0,
-                insetInlineStart: 0,
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "flex-start",
-                pointerEvents: "none",
-                overflow: "hidden",
-                width: "min(38vw, 520px)",
-                height: "min(38vw, 520px)",
-                zIndex: 0,
-              }}
-            >
-              {brandCompany.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={brandCompany.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "top right", opacity: 0.035, transform: "translate(-8%, -8%)" }} />
-              ) : (
-                <span style={{ fontSize: "7vw", fontWeight: 900, opacity: 0.03, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
-              )}
-            </div>
-          )}
-
-          <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+          {children}
         </main>
       </div>
 

@@ -5,7 +5,6 @@ import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
-import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
@@ -25,7 +24,6 @@ export default function EpisodeGridCard({
   fileCount,
   noteCount,
   projectName,
-  companyLogoUrl,
 }: {
   episode: Episode;
   projectId: string;
@@ -36,7 +34,6 @@ export default function EpisodeGridCard({
   fileCount: number;
   noteCount: number;
   projectName?: string;
-  companyLogoUrl?: string | null;
 }) {
   const es = episodeStatusMeta(episode.status);
   const overdue = episode.delivery_date && new Date(episode.delivery_date) < new Date() && !isApproved;
@@ -77,7 +74,6 @@ export default function EpisodeGridCard({
             <StatusChip label={es.label} color={es.color} />
             {overdue && <StatusChip label="متأخرة" color="#EF4444" />}
           </div>
-          <CoverLogoBadge logoUrl={companyLogoUrl} name={projectName ?? episode.title} position="top-end" />
         </div>
         <div style={{ padding: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
