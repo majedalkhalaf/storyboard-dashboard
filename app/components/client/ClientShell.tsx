@@ -203,24 +203,66 @@ export default function ClientShell({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ position: "relative" }}>
+        {/* رأس كل صفحة — شعار واسم الشركة يبقيان ظاهرين حتى على الجوال حيث
+            تختفي القائمة الجانبية (desktop-sidebar) ويحل محلها شريط سفلي فقط. */}
         <header
           className="no-print"
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             gap: 10,
             padding: "12px 20px",
             borderBottom: "1px solid var(--border)",
             background: "var(--bg-secondary)",
           }}
         >
-          <ClientNotificationsBell />
-          <AccountMenu />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            {brandCompany?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brandCompany.logo_url} alt={brandCompany.name} style={{ height: 34, width: "auto", maxWidth: 140, objectFit: "contain", flexShrink: 0 }} />
+            ) : null}
+            {brandCompany?.name && (
+              <span className="logo-title" style={{ fontWeight: 800, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {brandCompany.name}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <ClientNotificationsBell />
+            <AccountMenu />
+          </div>
         </header>
 
-        <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)" }}>
+        {/* علامة مائية بهوية الشركة — ثابتة خلف المحتوى في كل صفحات البوابة،
+            بشفافية منخفضة جداً كي لا تؤثر على وضوح القراءة، وغير قابلة للنقر. */}
+        {(brandCompany?.logo_url || brandCompany?.name) && (
+          <div
+            aria-hidden
+            className="no-print"
+            style={{
+              position: "absolute",
+              inset: 0,
+              top: 60,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+              overflow: "hidden",
+              zIndex: 0,
+            }}
+          >
+            {brandCompany.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brandCompany.logo_url} alt="" style={{ width: "46%", maxWidth: 560, height: "auto", objectFit: "contain", opacity: 0.045 }} />
+            ) : (
+              <span style={{ fontSize: "9vw", fontWeight: 900, opacity: 0.035, whiteSpace: "nowrap" }}>{brandCompany.name}</span>
+            )}
+          </div>
+        )}
+
+        <main className="main-content flex-1 overflow-y-auto page-padding" style={{ padding: 24, background: "var(--bg-primary)", position: "relative", zIndex: 1 }}>
           {children}
         </main>
       </div>

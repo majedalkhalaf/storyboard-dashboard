@@ -96,6 +96,7 @@ export default async function ClientEpisodePage({
         daysToDelivery={daysToDelivery}
         userId={session.userId}
         userName={session.profile.full_name}
+        companyLogoUrl={companyData?.logo_url}
       />
     </>
   );

@@ -120,6 +120,15 @@ export default async function ClientDashboardPage() {
     }
   }
 
+  // شعار كل شركة — قد تنتمي مشاريع العميل لأكثر من شركة إنتاج، فيُجلب شعار كل
+  // شركة على حدة (بدفعة واحدة) ليظهر على غلاف بطاقة مشروعها تحديداً.
+  const companyIds = Array.from(new Set(projects.map((p) => p.company_id)));
+  const companyLogoById = new Map<string, string | null>();
+  if (companyIds.length > 0) {
+    const { data: companyRows } = await supabase.from("companies").select("id, logo_url").in("id", companyIds);
+    for (const c of companyRows ?? []) companyLogoById.set(c.id, c.logo_url);
+  }
+
   const cards: ClientProjectCard[] = rows.map((r) => {
     const project = r.project!;
     const eps = episodesByProject.get(project.id) ?? { total: 0, completed: 0 };
@@ -148,6 +157,7 @@ export default async function ClientDashboardPage() {
       finance,
       managerName: manager?.name ?? null,
       managerAvatarUrl: manager?.avatarUrl ?? null,
+      companyLogoUrl: companyLogoById.get(project.company_id) ?? null,
     };
   });
 

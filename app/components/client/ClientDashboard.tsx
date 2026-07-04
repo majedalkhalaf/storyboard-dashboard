@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
+import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
@@ -26,6 +27,7 @@ export interface ClientProjectCard {
   finance: { projectValue: number; paid: number; remaining: number } | null;
   managerName: string | null;
   managerAvatarUrl: string | null;
+  companyLogoUrl: string | null;
 }
 
 type SortKey = "status" | "updated" | "progress" | "created";
@@ -266,6 +268,7 @@ function ProjectCard({ card }: { card: ClientProjectCard }) {
         <span className="chip" style={{ position: "absolute", top: 10, insetInlineStart: 10, color: status.color, borderColor: status.color, background: "rgba(0,0,0,0.55)" }}>
           {status.label}
         </span>
+        <CoverLogoBadge logoUrl={card.companyLogoUrl} name={card.name} position="top-end" />
       </div>
 
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>

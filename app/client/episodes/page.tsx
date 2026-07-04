@@ -27,6 +27,12 @@ export default async function ClientEpisodesPage() {
     .filter((r) => r.project && !r.project.archived && canClient(r.permissions, "episodes"))
     .sort((a, b) => (b.project!.updated_at || "").localeCompare(a.project!.updated_at || ""));
 
+  const companyIds = [...new Set(rows.map((r) => r.project!.company_id))];
+  const { data: companyRows } = companyIds.length
+    ? await supabase.from("companies").select("id, logo_url").in("id", companyIds)
+    : { data: [] as { id: string; logo_url: string | null }[] };
+  const companyLogoById = new Map((companyRows ?? []).map((c) => [c.id, c.logo_url]));
+
   const perProject = await Promise.all(
     rows.map(async (r) => {
       const project = r.project!;
@@ -90,6 +96,7 @@ export default async function ClientEpisodesPage() {
                       isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
                       fileCount={p.episodeFileCounts[ep.id] ?? 0}
                       noteCount={p.episodeNoteCounts[ep.id] ?? 0}
+                      companyLogoUrl={companyLogoById.get(p.project.company_id)}
                     />
                   ))}
                 </div>

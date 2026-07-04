@@ -3,6 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireClient } from "@/app/components/client/guards";
 import { projectStatusMeta } from "@/app/components/client/utils";
 import Icon from "@/app/components/ui/Icon";
+import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import type { ClientPermissions, Project } from "@/app/lib/types";
 
 interface ProjectClientRow {
@@ -26,6 +27,12 @@ export default async function ClientProjectsPage() {
   const rows = ((data ?? []) as unknown as ProjectClientRow[])
     .filter((r) => r.project && !r.project.archived)
     .sort((a, b) => (b.project!.updated_at || "").localeCompare(a.project!.updated_at || ""));
+
+  const companyIds = [...new Set(rows.map((r) => r.project!.company_id))];
+  const { data: companyRows } = companyIds.length
+    ? await supabase.from("companies").select("id, logo_url").in("id", companyIds)
+    : { data: [] as { id: string; logo_url: string | null }[] };
+  const companyLogoById = new Map((companyRows ?? []).map((c) => [c.id, c.logo_url]));
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -65,6 +72,7 @@ export default async function ClientProjectsPage() {
                   >
                     {status.label}
                   </span>
+                  <CoverLogoBadge logoUrl={companyLogoById.get(project.company_id)} name={project.name} position="top-end" />
                 </div>
                 <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
                   <h3 style={{ fontSize: 15, fontWeight: 800 }}>{project.name}</h3>

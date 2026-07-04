@@ -8,6 +8,7 @@ import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
+import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
@@ -65,6 +66,7 @@ export default function EpisodeDetailView({
   daysToDelivery,
   userId,
   userName,
+  companyLogoUrl,
 }: {
   episode: Episode;
   projectName: string;
@@ -83,6 +85,7 @@ export default function EpisodeDetailView({
   daysToDelivery: number | null;
   userId: string;
   userName: string | null;
+  companyLogoUrl?: string | null;
 }) {
   useEpisodeRealtimeRefresh(episode.id);
   const es = episodeStatusMeta(episode.status);
@@ -145,9 +148,10 @@ export default function EpisodeDetailView({
       {/* رأس الحلقة */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
         {episode.cover_image_url && (
-          <div style={{ background: "#000", display: "flex", justifyContent: "center", alignItems: "center", maxHeight: 340, overflow: "hidden" }}>
+          <div style={{ position: "relative", background: "#000", display: "flex", justifyContent: "center", alignItems: "center", maxHeight: 340, overflow: "hidden" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={episode.cover_image_url} alt={episode.title} style={{ maxWidth: "100%", maxHeight: 340, width: "auto", height: "auto", objectFit: "contain" }} />
+            <CoverLogoBadge logoUrl={companyLogoUrl} name={projectName} position="top-end" />
           </div>
         )}
         <div style={{ padding: 20 }}>
