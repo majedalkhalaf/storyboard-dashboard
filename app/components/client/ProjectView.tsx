@@ -260,7 +260,7 @@ export default function ProjectView({
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
+      <div className="client-project-layout" style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
           {/* بطاقات الإحصائيات */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>

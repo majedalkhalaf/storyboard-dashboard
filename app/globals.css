@@ -545,6 +545,15 @@ body {
      is often under 340px) — force a single column that always fits. */
   .client-projects-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
 
+  /* Client project page: the 2.4fr/1fr two-column layout (main content +
+     sidebar) had no mobile override at all — fr units never collapse to 0,
+     so both columns were just squeezed narrow instead of stacking. Stacking
+     in DOM order already puts the important stuff first (stats, stage
+     timeline, tabs defaulting to episodes) followed by the sidebar
+     (activity, edit requests, accounts) — matching the requested priority
+     without needing to reorder any markup. */
+  .client-project-layout { grid-template-columns: 1fr !important; gap: 16px !important; }
+
   /* Episode picker (project workspace, team side): horizontal scroll strip of
      compact cards instead of a tall stack of full-width cards the user has to
      scroll past before reaching the actual workspace content below. */

@@ -243,7 +243,7 @@ export default function EpisodeDetailView({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
+      <div className="client-project-layout" style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
           {/* بطاقات الإحصائيات */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
