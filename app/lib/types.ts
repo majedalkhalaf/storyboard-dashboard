@@ -380,6 +380,17 @@ export interface BehindScenesLike {
   created_at: string;
 }
 
+export interface ProjectAnnouncement {
+  id: string;
+  company_id: string;
+  project_id: string;
+  title: string | null;
+  media: BehindScenesMediaItem[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ProgressUpdateStage = "shooting" | "editing" | "color" | "audio" | "graphics" | "review" | "delivery" | "other";
 export type ProgressUpdateContentType = "update" | "comparison";
 

@@ -8,7 +8,7 @@ import { currentPipelineStageKey } from "@/app/components/client/pipeline";
 import Icon from "@/app/components/ui/Icon";
 import { canClient } from "@/app/lib/permissions";
 import type { ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
-import type { Company, CompanyPipelineStage, Episode, Invoice, Note, Payment, Project, ProgressUpdate, ProjectClient, ProjectFile } from "@/app/lib/types";
+import type { Company, CompanyPipelineStage, Episode, Invoice, Note, Payment, Project, ProgressUpdate, ProjectAnnouncement, ProjectClient, ProjectFile } from "@/app/lib/types";
 
 export default async function ClientProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,6 +51,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     { data: paymentRows },
     { data: lastPaymentRow },
     { data: progressRows },
+    { data: announcementRow },
   ] = await Promise.all([
     supabase.from("companies").select("*").eq("id", proj.company_id).maybeSingle(),
     proj.client_id ? supabase.from("clients").select("name").eq("id", proj.client_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -73,6 +74,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     showProgress
       ? supabase.from("progress_updates").select("*, episode:episodes(title)").eq("project_id", id).eq("shared_with_client", true).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as (ProgressUpdate & { episode: { title: string } | null })[] }),
+    supabase.from("project_announcements").select("*").eq("project_id", id).maybeSingle(),
   ]);
 
   const company = (companyData ?? null) as Company | null;
@@ -165,6 +167,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         finance={finance}
         lastPayment={lastPayment}
         progressUpdates={progressUpdates}
+        announcement={announcementRow as ProjectAnnouncement | null}
         userId={session.userId}
         userName={session.profile.full_name}
       />

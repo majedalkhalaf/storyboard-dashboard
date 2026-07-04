@@ -1,7 +1,7 @@
 "use client";
 
 import JSZip from "jszip";
-import type { Contract, Episode, FileCategory, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
+import type { BehindScenesMediaItem, Contract, Episode, FileCategory, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 // تصدير مشروع العميل كملف ZIP — يعمل بالكامل داخل المتصفح، ويحترم صلاحيات العميل
 // فعلياً: كل ملف يُطلب رابط تحميله عبر /api/client-portal/files/[id]?download=1، وهذا
@@ -291,4 +291,33 @@ export function downloadClientQuickReport(
   const text = buildQuickReportText(project, episodes, notes, finance, lastPayment);
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   triggerDownload(blob, `${sanitizeName(project.name)}_تقرير_سريع.txt`);
+}
+
+// تحميل عنصر واحد من إعلان المشروع — الوسائط مرفوعة أصلاً إلى مساحة عامة
+// (نفس نموذج ثقة الكواليس)، فتُجلب مباشرة بالرابط العام بلا حاجة لمسار خادم
+// موقّع؛ التنزيل الفعلي (بدل مجرد فتح الرابط) يتطلب جلبها كـ blob أولاً لأن
+// الرابط من نطاق مختلف (Supabase Storage).
+export async function downloadAnnouncementMediaItem(item: BehindScenesMediaItem) {
+  const blob = await fetchBlobFromUrl(item.url);
+  if (blob) triggerDownload(blob, sanitizeName(item.name));
+}
+
+export async function exportAnnouncementMediaZip(title: string, media: BehindScenesMediaItem[], onProgress?: (p: ExportProgress) => void) {
+  if (media.length === 0) {
+    onProgress?.({ stage: "لا توجد وسائط لهذا الإعلان", percent: 100 });
+    return;
+  }
+  const zip = new JSZip();
+  for (let i = 0; i < media.length; i++) {
+    const item = media[i];
+    onProgress?.({ stage: `جاري تنزيل الملف ${i + 1} من ${media.length}...`, percent: Math.round((i / media.length) * 88) });
+    const blob = await fetchBlobFromUrl(item.url);
+    if (blob) zip.file(sanitizeName(item.name), blob);
+  }
+  onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 });
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
+    onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 + Math.round(meta.percent * 0.1) });
+  });
+  triggerDownload(blob, `${sanitizeName(title)}.zip`);
+  onProgress?.({ stage: "اكتمل التنزيل", percent: 100 });
 }

@@ -12,11 +12,12 @@ import EpisodeGridCard from "@/app/components/client/EpisodeGridCard";
 import ProgressUpdateCard, { type ClientProgressUpdate } from "@/app/components/client/ProgressUpdateCard";
 import StatCard from "@/app/components/dashboard/StatCard";
 import PerformanceRing from "@/app/components/dashboard/PerformanceRing";
+import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
 import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
-import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
-import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
+import { exportClientProjectZip, downloadClientQuickReport, exportAnnouncementMediaZip, downloadAnnouncementMediaItem, type ExportProgress } from "@/app/lib/client-zip-export";
+import type { BehindScenesMediaItem, ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectAnnouncement, ProjectFile } from "@/app/lib/types";
 
 interface FinanceSummary {
   projectValue: number;
@@ -24,7 +25,7 @@ interface FinanceSummary {
   remaining: number;
 }
 
-type TabKey = "overview" | "episodes" | "files" | "notes" | "progress";
+type TabKey = "overview" | "episodes" | "files" | "notes" | "progress" | "announcement";
 type EpisodeFilter = "all" | "completed" | "in_progress" | "overdue";
 type EpisodeSort = "newest" | "number" | "progress";
 
@@ -64,6 +65,7 @@ export default function ProjectView({
   finance,
   lastPayment,
   progressUpdates,
+  announcement,
   userId,
   userName,
 }: {
@@ -83,6 +85,7 @@ export default function ProjectView({
   finance: FinanceSummary | null;
   lastPayment: Payment | null;
   progressUpdates: ClientProgressUpdate[];
+  announcement: ProjectAnnouncement | null;
   userId: string;
   userName: string | null;
 }) {
@@ -100,6 +103,7 @@ export default function ProjectView({
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "episodes", label: "الحلقات", show: showEpisodes },
     { key: "overview", label: "نظرة عامة", show: true },
+    { key: "announcement", label: announcement?.title || "إعلان", show: Boolean(announcement) },
     { key: "progress", label: "العمل الجاري", show: progressUpdates.length > 0 },
     { key: "files", label: "الملفات", show: showFiles },
     { key: "notes", label: "طلبات التعديل", show: true },
@@ -326,6 +330,8 @@ export default function ProjectView({
             />
           )}
 
+          {active === "announcement" && announcement && <AnnouncementTab announcement={announcement} />}
+
           {active === "progress" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {progressUpdates.map((u) => (
@@ -536,6 +542,66 @@ function EpisodesTab({
           })
         )}
       </div>
+    </div>
+  );
+}
+
+function AnnouncementTab({ announcement }: { announcement: ProjectAnnouncement }) {
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [progress, setProgress] = useState<ExportProgress | null>(null);
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
+
+  async function handleDownloadAll() {
+    if (downloadingAll) return;
+    setDownloadingAll(true);
+    try {
+      await exportAnnouncementMediaZip(announcement.title || "إعلان", announcement.media, setProgress);
+    } finally {
+      setDownloadingAll(false);
+      setProgress(null);
+    }
+  }
+
+  async function handleDownloadItem(item: BehindScenesMediaItem) {
+    if (downloadingUrl) return;
+    setDownloadingUrl(item.url);
+    try {
+      await downloadAnnouncementMediaItem(item);
+    } finally {
+      setDownloadingUrl(null);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {announcement.media.length > 1 && (
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={handleDownloadAll} disabled={downloadingAll}>
+            <Icon name="archive" size={14} />
+            {downloadingAll ? `${progress?.stage ?? "جارٍ التحميل..."} ${progress?.percent ?? 0}%` : "تحميل الكل"}
+          </button>
+        </div>
+      )}
+      {announcement.media.map((m) => (
+        <div key={m.url} className="card" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          {m.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={m.url} alt={m.name} style={{ width: "100%", height: "auto", maxHeight: "80vh", objectFit: "contain", borderRadius: 8, background: "#000" }} />
+          ) : m.type === "video" ? (
+            <VideoWithMuteToggle src={m.url} style={{ maxHeight: 480, borderRadius: 8, background: "#000" }} />
+          ) : (
+            <audio src={m.url} controls style={{ width: "100%" }} />
+          )}
+          <button
+            className="btn btn-outline"
+            style={{ fontSize: 12.5, alignSelf: "flex-start" }}
+            onClick={() => handleDownloadItem(m)}
+            disabled={downloadingUrl === m.url}
+          >
+            <Icon name="export" size={13} /> {downloadingUrl === m.url ? "جارٍ التحميل..." : "تحميل"}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
