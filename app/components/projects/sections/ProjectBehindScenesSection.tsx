@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { relativeTime } from "../utils";
@@ -29,6 +30,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
   const { company } = useSession();
   const [posts, setPosts] = useState<PostRow[] | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<PostRow | null>(null);
 
   async function load() {
     const supabase = createClient();
@@ -98,13 +100,18 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
         </button>
       </div>
 
-      {composerOpen && (
+      {(composerOpen || editingPost) && (
         <PostComposer
           companyId={company?.id ?? ""}
           projectId={project.id}
-          onClose={() => setComposerOpen(false)}
+          editingPost={editingPost}
+          onClose={() => {
+            setComposerOpen(false);
+            setEditingPost(null);
+          }}
           onCreated={() => {
             setComposerOpen(false);
+            setEditingPost(null);
             load();
           }}
         />
@@ -117,7 +124,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} onDelete={() => deletePost(p.id)} />
+            <PostCard key={p.id} post={p} onEdit={() => setEditingPost(p)} onDelete={() => deletePost(p.id)} />
           ))}
         </div>
       )}
@@ -125,7 +132,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
   );
 }
 
-function PostCard({ post, onDelete }: { post: PostRow; onDelete: () => void }) {
+function PostCard({ post, onEdit, onDelete }: { post: PostRow; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="card" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
@@ -140,6 +147,9 @@ function PostCard({ post, onDelete }: { post: PostRow; onDelete: () => void }) {
           >
             {post.shared_with_client ? "مشترك مع العميل" : "خاص بفريق العمل"}
           </span>
+          <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={onEdit} aria-label="تعديل">
+            <Icon name="edit" size={14} className="text-muted" />
+          </button>
           <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={onDelete} aria-label="حذف">
             <Icon name="trash" size={14} className="text-muted" />
           </button>
@@ -212,7 +222,7 @@ export function MediaGallery({ media, variant = "grid" }: { media: BehindScenesM
       )}
       {others.map((m) =>
         m.type === "video" ? (
-          <video key={m.url} src={m.url} controls style={{ width: "100%", maxHeight: 420, borderRadius: 10, background: "#000" }} />
+          <VideoWithMuteToggle key={m.url} src={m.url} style={{ maxHeight: 420, borderRadius: 10, background: "#000" }} />
         ) : (
           <audio key={m.url} src={m.url} controls style={{ width: "100%" }} />
         )
@@ -258,18 +268,21 @@ export function MediaGallery({ media, variant = "grid" }: { media: BehindScenesM
 function PostComposer({
   companyId,
   projectId,
+  editingPost,
   onClose,
   onCreated,
 }: {
   companyId: string;
   projectId: string;
+  editingPost?: PostRow | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [shared, setShared] = useState(false);
-  const [media, setMedia] = useState<BehindScenesMediaItem[]>([]);
+  const isEditing = Boolean(editingPost);
+  const [title, setTitle] = useState(editingPost?.title ?? "");
+  const [body, setBody] = useState(editingPost?.body ?? "");
+  const [shared, setShared] = useState(editingPost?.shared_with_client ?? false);
+  const [media, setMedia] = useState<BehindScenesMediaItem[]>(editingPost?.media ?? []);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -304,6 +317,21 @@ function PostComposer({
     setBusy(true);
     setError(null);
     const supabase = createClient();
+
+    if (isEditing && editingPost) {
+      const { error: updateError } = await supabase
+        .from("behind_scenes_posts")
+        .update({ title: title.trim() || null, body: body.trim() || null, media, shared_with_client: shared })
+        .eq("id", editingPost.id);
+      setBusy(false);
+      if (updateError) {
+        setError("تعذّر حفظ التعديلات، حاول مرة أخرى.");
+        return;
+      }
+      onCreated();
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -328,8 +356,8 @@ function PostComposer({
     <div className="modal-overlay" onClick={() => !busy && onClose()}>
       <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <Icon name="sparkles" size={20} className="nav-icon" />
-          <h3 style={{ fontSize: 17, fontWeight: 800 }}>منشور كواليس جديد</h3>
+          <Icon name={isEditing ? "edit" : "sparkles"} size={20} className="nav-icon" />
+          <h3 style={{ fontSize: 17, fontWeight: 800 }}>{isEditing ? "تعديل منشور الكواليس" : "منشور كواليس جديد"}</h3>
         </div>
 
         <input className="input-field" placeholder="عنوان المنشور (اختياري)" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 10 }} />
@@ -382,8 +410,8 @@ function PostComposer({
             إلغاء
           </button>
           <button className="btn btn-gold" onClick={submit} disabled={busy || uploadingCount > 0}>
-            <Icon name="send" size={16} />
-            {busy ? "جارٍ النشر..." : "نشر"}
+            <Icon name={isEditing ? "check" : "send"} size={16} />
+            {busy ? (isEditing ? "جارٍ الحفظ..." : "جارٍ النشر...") : isEditing ? "حفظ التعديلات" : "نشر"}
           </button>
         </div>
       </div>

@@ -92,6 +92,8 @@ import {
   Play,
   RotateCcw,
   FolderUp,
+  Volume2,
+  VolumeX,
   type LucideIcon,
 } from "lucide-react";
 
@@ -187,6 +189,8 @@ export const ICONS = {
   play: Play,
   retry: RotateCcw,
   folderUp: FolderUp,
+  volume: Volume2,
+  volumeOff: VolumeX,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

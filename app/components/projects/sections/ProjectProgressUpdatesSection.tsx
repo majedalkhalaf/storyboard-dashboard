@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import BeforeAfterSlider from "@/app/components/ui/BeforeAfterSlider";
+import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
@@ -151,7 +152,7 @@ function UpdateCard({ update, onDelete }: { update: UpdateRow; onDelete: () => v
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {update.media.map((m) =>
               m.type === "video" ? (
-                <video key={m.url} src={m.url} controls style={{ width: "100%", maxHeight: 300, borderRadius: 10, background: "#000" }} />
+                <VideoWithMuteToggle key={m.url} src={m.url} style={{ maxHeight: 300, borderRadius: 10, background: "#000" }} />
               ) : m.type === "audio" ? (
                 <audio key={m.url} src={m.url} controls style={{ width: "100%" }} />
               ) : (
