@@ -8,10 +8,24 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { createClient } from "@/app/lib/supabase/client";
 import { USER_ROLE_LABELS } from "@/app/lib/constants";
 
-export default function AccountMenu() {
-  const { profile, theme, toggleTheme } = useSession();
+export default function AccountMenu({
+  companyLogoUrl,
+  companyName,
+}: {
+  /** تجاوز اختياري لشعار/اسم الشركة — تستخدمه بوابة العميل لأن جلسة العميل
+      غير مرتبطة بشركة واحدة ثابتة (useSession().company فارغة له دائماً). */
+  companyLogoUrl?: string | null;
+  companyName?: string | null;
+}) {
+  const { profile, company, theme, toggleTheme } = useSession();
   const [open, setOpen] = useState(false);
   const router = useRouter();
+
+  // شعار الشركة يحل محل الصورة الشخصية/الحرف الأول في دائرة الحساب — بحسب طلب
+  // صريح بجعل هوية الشركة ظاهرة بدل الاعتماد على اسم المستخدم، في لوحة الإدارة
+  // وبوابة العميل معاً. يُجلب تلقائياً من إعدادات الشركة فقط بلا أي إدخال يدوي.
+  const logoUrl = companyLogoUrl ?? company?.logo_url ?? null;
+  const logoAlt = companyName ?? company?.name ?? "";
 
   async function handleLogout() {
     const supabase = createClient();
@@ -39,7 +53,10 @@ export default function AccountMenu() {
             flexShrink: 0,
           }}
         >
-          {profile.avatar_url ? (
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={logoAlt} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 3, background: "#fff" }} />
+          ) : profile.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (

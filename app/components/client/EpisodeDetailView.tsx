@@ -8,9 +8,11 @@ import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
+import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
 import StatCard from "@/app/components/dashboard/StatCard";
 import { createClient } from "@/app/lib/supabase/client";
+import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { STAGE_STATUSES, STORYBOARD_SCENE_STATUSES } from "@/app/lib/constants";
@@ -99,7 +101,7 @@ export default function EpisodeDetailView({
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "overview", label: "نظرة عامة", show: true },
     { key: "files", label: "الملفات", show: showFiles },
-    { key: "notes", label: "الملاحظات", show: true },
+    { key: "notes", label: "طلبات التعديل", show: true },
     { key: "tasks", label: "المهام", show: showTasks },
     { key: "activity", label: "النشاطات", show: true },
     { key: "script", label: "السكربت", show: showScript },
@@ -109,12 +111,27 @@ export default function EpisodeDetailView({
   ];
   const visibleTabs = tabs.filter((t) => t.show);
   const [active, setActive] = useState<TabKey>("overview");
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<ExportProgress | null>(null);
+  const canDownloadFiles = canClient(permissions, "download_files");
+
+  async function handleDownloadAllFiles() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await exportEpisodeFilesZip(episode.title, files, setDownloadProgress);
+    } finally {
+      setDownloading(false);
+      setDownloadProgress(null);
+    }
+  }
 
 
   const activity: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [
       ...files.map((f) => ({ id: `file-${f.id}`, title: "تم رفع ملف", subtitle: f.name, icon: "fileUp" as const, color: "#3987e5", at: f.created_at })),
-      ...notes.map((n) => ({ id: `note-${n.id}`, title: "ملاحظة جديدة", subtitle: n.body, icon: "message" as const, color: "#F59E0B", at: n.created_at })),
+      ...notes.map((n) => ({ id: `note-${n.id}`, title: "طلب تعديل جديد", subtitle: n.body, icon: "edit" as const, color: "#F59E0B", at: n.created_at })),
       ...stages
         .filter((s) => s.status === "completed" && s.completed_at)
         .map((s) => ({ id: `stage-${s.id}`, title: `تم إنهاء مرحلة "${s.label}"`, subtitle: s.assigned_to ? stageAssigneeNames[s.assigned_to] ?? "" : "", icon: "checkCircle" as const, color: "var(--success)", at: s.completed_at! })),
@@ -132,18 +149,47 @@ export default function EpisodeDetailView({
           <Icon name="arrowRight" size={16} />
           العودة للمشروع
         </Link>
-        <ApproveEpisode
-          episodeId={episode.id}
-          projectId={projectId}
-          companyId={companyId}
-          currentUserId={userId}
-          status={episode.status}
-          alreadyApproved={alreadyApproved}
-          approvedAt={approvedAt}
-          canApprove={canClient(permissions, "approve_episodes")}
-          variant="hero"
-        />
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {canClient(permissions, "add_notes") && (
+            <button className="btn" style={{ justifyContent: "center", fontWeight: 800, fontSize: 14, padding: "10px 20px" }} onClick={() => setRequestOpen(true)}>
+              <Icon name="edit" size={18} />
+              طلب تعديل
+            </button>
+          )}
+          {canDownloadFiles && files.length > 0 && (
+            <button className="btn btn-outline" style={{ justifyContent: "center", fontSize: 13.5, padding: "10px 16px" }} onClick={handleDownloadAllFiles} disabled={downloading}>
+              <Icon name="archive" size={16} />
+              {downloading ? `${downloadProgress?.stage ?? "جارٍ التحميل..."} ${downloadProgress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+            </button>
+          )}
+          <ApproveEpisode
+            episodeId={episode.id}
+            projectId={projectId}
+            companyId={companyId}
+            currentUserId={userId}
+            status={episode.status}
+            alreadyApproved={alreadyApproved}
+            approvedAt={approvedAt}
+            canApprove={canClient(permissions, "approve_episodes")}
+            variant="hero"
+          />
+        </div>
       </div>
+
+      {requestOpen && (
+        <EditRequestComposer
+          open={requestOpen}
+          onClose={() => setRequestOpen(false)}
+          companyId={companyId}
+          projectId={projectId}
+          episodeId={episode.id}
+          targetType="episode"
+          targetId={episode.id}
+          currentUserId={userId}
+          canUploadAttachments={canClient(permissions, "upload_attachments")}
+          onCreated={() => setActive("notes")}
+        />
+      )}
 
       {/* رأس الحلقة */}
       <div className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
@@ -207,7 +253,7 @@ export default function EpisodeDetailView({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
             <StatCard label="نسبة الإنجاز" value={`${episode.progress ?? 0}%`} icon="barChart" color="var(--gold)" />
             {showFiles && <StatCard label="الملفات" value={files.length} icon="files" color="#3987e5" />}
-            <StatCard label="الملاحظات" value={notes.length} icon="message" color="#8B5CF6" />
+            <StatCard label="طلبات التعديل" value={notes.length} icon="edit" color="#8B5CF6" />
             {showTasks && <StatCard label="المهام" value={`${stages.filter((s) => s.status === "completed").length} من ${stages.length}`} icon="tasks" color="var(--success)" />}
             <StatCard
               label="الوقت المتبقي للتسليم"
@@ -248,7 +294,17 @@ export default function EpisodeDetailView({
             </div>
           )}
 
-          {active === "files" && <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." />}
+          {active === "files" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {canDownloadFiles && files.length > 0 && (
+                <button className="btn btn-outline" style={{ alignSelf: "flex-end", fontSize: 13 }} onClick={handleDownloadAllFiles} disabled={downloading}>
+                  <Icon name="archive" size={15} />
+                  {downloading ? `${downloadProgress?.stage ?? "جارٍ التحميل..."} ${downloadProgress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+                </button>
+              )}
+              <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." />
+            </div>
+          )}
 
           {active === "notes" && (
             <NotesThread
@@ -282,7 +338,7 @@ export default function EpisodeDetailView({
               <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>تقرير سريع</h3>
               <ReportRow label="نسبة الإنجاز" value={`${episode.progress ?? 0}%`} />
               {showFiles && <ReportRow label="عدد الملفات" value={String(files.length)} />}
-              <ReportRow label="عدد الملاحظات" value={String(notes.length)} />
+              <ReportRow label="عدد طلبات التعديل" value={String(notes.length)} />
               {showTasks && <ReportRow label="المهام المكتملة" value={`${stages.filter((s) => s.status === "completed").length} من ${stages.length}`} />}
               <ReportRow label="أُنشئت منذ" value={relativeTime(episode.created_at)} />
               <ReportRow label="آخر تحديث" value={relativeTime(episode.updated_at)} />

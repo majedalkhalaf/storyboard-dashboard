@@ -39,7 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/client/episodes", label: "الحلقات والإنتاج", icon: "episodes" },
   { href: "/client/reports", label: "التقارير", icon: "barChart" },
   { href: "/client/invoices", label: "الحسابات", icon: "finance" },
-  { href: "/client/notes", label: "الملاحظات", icon: "message" },
+  { href: "/client/notes", label: "طلبات التعديل", icon: "edit" },
   { href: "/client/meetings", label: "الاجتماعات", icon: "calendar" },
   { href: "/client/notifications", label: "التنبيهات", icon: "bell" },
   { href: "/client/support", label: "الدعم الفني", icon: "phone" },
@@ -231,7 +231,7 @@ export default function ClientShell({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <ClientNotificationsBell />
-            <AccountMenu />
+            <AccountMenu companyLogoUrl={brandCompany?.logo_url} companyName={brandCompany?.name} />
           </div>
         </header>
 

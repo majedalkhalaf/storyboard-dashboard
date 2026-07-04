@@ -16,7 +16,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
 import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
-import type { ClientPermissions, Company, CompanyPipelineStage, Episode, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
+import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 interface FinanceSummary {
   projectValue: number;
@@ -97,7 +97,7 @@ export default function ProjectView({
     { key: "episodes", label: "الحلقات", show: showEpisodes },
     { key: "overview", label: "نظرة عامة", show: true },
     { key: "files", label: "الملفات", show: showFiles },
-    { key: "notes", label: "الملاحظات", show: true },
+    { key: "notes", label: "طلبات التعديل", show: true },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
   const searchParams = useSearchParams();
@@ -122,14 +122,47 @@ export default function ProjectView({
     setExporting(true);
     try {
       const supabase = createClient();
-      const { data: allFiles } = await supabase.from("files").select("*").eq("project_id", project.id).eq("client_visible", true);
+      const [{ data: allFiles }, { data: allNotes }, { data: contractRows }, { data: invoiceRows }, { data: paymentRows }] = await Promise.all([
+        supabase.from("files").select("*").eq("project_id", project.id).eq("client_visible", true),
+        supabase.from("notes").select("*").eq("project_id", project.id),
+        canClient(permissions, "contracts") ? supabase.from("contracts").select("*").eq("project_id", project.id) : Promise.resolve({ data: [] as Contract[] }),
+        showFinance ? supabase.from("invoices").select("*").eq("project_id", project.id) : Promise.resolve({ data: [] as Invoice[] }),
+        showPayments ? supabase.from("payments").select("*").eq("project_id", project.id) : Promise.resolve({ data: [] as Payment[] }),
+      ]);
+
       const rows = (allFiles ?? []) as ProjectFile[];
       const projectFiles = rows.filter((f) => !f.episode_id);
       const episodeFilesByEpisode: Record<string, ProjectFile[]> = {};
       for (const f of rows) {
         if (f.episode_id) (episodeFilesByEpisode[f.episode_id] ??= []).push(f);
       }
-      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, setExportProgress);
+
+      const allNotesRows = (allNotes ?? []) as Note[];
+      const meetingNotes = allNotesRows.filter((n) => n.target_type === "meeting");
+      const otherNotes = allNotesRows.filter((n) => n.target_type !== "meeting");
+      const projectNotes = otherNotes.filter((n) => !n.episode_id);
+      const episodeNotesByEpisode: Record<string, Note[]> = {};
+      for (const n of otherNotes) {
+        if (n.episode_id) (episodeNotesByEpisode[n.episode_id] ??= []).push(n);
+      }
+
+      await exportClientProjectZip(
+        project,
+        episodes,
+        projectFiles,
+        episodeFilesByEpisode,
+        {
+          finance: showFinance ? finance : null,
+          lastPayment: showPayments ? lastPayment : null,
+          projectNotes,
+          episodeNotesByEpisode,
+          meetingNotes,
+          contracts: (contractRows ?? []) as Contract[],
+          invoices: (invoiceRows ?? []) as Invoice[],
+          payments: (paymentRows ?? []) as Payment[],
+        },
+        setExportProgress
+      );
     } finally {
       setExporting(false);
       setExportProgress(null);
@@ -185,17 +218,22 @@ export default function ProjectView({
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={() => setActive("notes")}>
-                <Icon name="message" size={14} /> إرسال ملاحظة
+              {canDownloadProject && (
+                <button
+                  className="btn"
+                  style={{ fontSize: 13, fontWeight: 800, background: "var(--gold)", color: "#0A0A0B" }}
+                  onClick={handleExportZip}
+                  disabled={exporting}
+                >
+                  <Icon name="archive" size={15} /> {exporting ? `${exportProgress?.stage ?? "جارٍ التحميل..."} ${exportProgress?.percent ?? 0}%` : "تحميل المشروع بالكامل"}
+                </button>
+              )}
+              <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={() => setActive("notes")}>
+                <Icon name="edit" size={14} /> طلب تعديل جديد
               </button>
               {showFiles && (
                 <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={() => setActive("files")}>
                   <Icon name="files" size={14} /> الملفات
-                </button>
-              )}
-              {canDownloadProject && (
-                <button className="btn btn-outline" style={{ fontSize: 12.5 }} onClick={handleExportZip} disabled={exporting}>
-                  <Icon name="archive" size={14} /> {exporting ? `${exportProgress?.stage ?? "جارٍ التحميل..."} ${exportProgress?.percent ?? 0}%` : "تحميل المشروع (ZIP)"}
                 </button>
               )}
               <button
@@ -231,7 +269,7 @@ export default function ProjectView({
               </>
             )}
             {showFiles && <StatCard label="الملفات" value={files.length} icon="files" color="#3987e5" />}
-            <StatCard label="الملاحظات" value={totalNotesCount} icon="message" color="#8B5CF6" />
+            <StatCard label="طلبات التعديل" value={totalNotesCount} icon="edit" color="#8B5CF6" />
             {showFinance && finance && (
               <>
                 <StatCard label="قيمة المشروع" value={formatCurrency(finance.projectValue)} icon="money" color="var(--gold)" />
@@ -331,10 +369,10 @@ export default function ProjectView({
             )}
           </div>
 
-          {/* الملاحظات — جارية ومنجزة */}
+          {/* طلبات التعديل — جارية ومنجزة */}
           <div className="card" style={{ padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800 }}>الملاحظات</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 800 }}>طلبات التعديل</h3>
               <button className="btn-ghost" style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }} onClick={() => setActive("notes")}>
                 عرض الكل
               </button>
@@ -546,7 +584,7 @@ interface ProjectActivityItem {
 function buildProjectActivity(files: ProjectFile[], notes: Note[], episodes: Episode[]): ProjectActivityItem[] {
   return [
     ...files.map((f) => ({ id: `file-${f.id}`, title: `تم رفع ملف: ${f.name}`, icon: "fileUp" as const, color: "#3987e5", at: f.created_at })),
-    ...notes.map((n) => ({ id: `note-${n.id}`, title: "ملاحظة جديدة من فريق العمل", icon: "message" as const, color: "#F59E0B", at: n.created_at })),
+    ...notes.map((n) => ({ id: `note-${n.id}`, title: "طلب تعديل جديد من فريق العمل", icon: "edit" as const, color: "#F59E0B", at: n.created_at })),
     ...episodes
       .filter((e) => e.status === "delivered" || e.status === "approved")
       .map((e) => ({ id: `episode-${e.id}`, title: `${e.status === "delivered" ? "تم تسليم" : "تم اعتماد"} حلقة "${e.title}"`, icon: "checkCircle" as const, color: "var(--success)", at: e.updated_at })),

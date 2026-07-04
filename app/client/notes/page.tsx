@@ -9,7 +9,7 @@ interface ProjectClientRow {
   project: Project | null;
 }
 
-// صفحة "الملاحظات" — محادثة ملاحظات مستقلة لكل مشروع نشط، مجمَّعة في صفحة
+// صفحة "طلبات التعديل" — سجل طلبات مستقل لكل مشروع نشط، مجمَّع في صفحة
 // واحدة بدل الاضطرار لفتح كل مشروع على حدة.
 export default async function ClientNotesPage() {
   const session = await requireClient();
@@ -41,7 +41,7 @@ export default async function ClientNotesPage() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: 900, margin: "0 auto" }}>
       <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>
-        الملاحظات
+        طلبات التعديل
       </h1>
 
       {perProject.length === 0 ? (

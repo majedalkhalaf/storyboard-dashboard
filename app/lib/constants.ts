@@ -3,6 +3,8 @@ import type {
   EpisodeStatus,
   StageStatus,
   NoteStatus,
+  NoteRequestType,
+  NotePriority,
   ClientPermissions,
   InvoiceStatus,
   PaymentStatus,
@@ -14,6 +16,7 @@ import type {
   ClientType,
   ClientCrmStatus,
 } from "./types";
+import type { IconName } from "@/app/components/ui/Icon";
 
 export const PROJECT_TYPES: { value: string; label: string }[] = [
   { value: "podcast", label: "بودكاست" },
@@ -61,8 +64,26 @@ export const NOTE_STATUSES: { value: NoteStatus; label: string; color: string }[
   { value: "in_review", label: "قيد المراجعة", color: "#06B6D4" },
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },
   { value: "done", label: "تم التنفيذ", color: "#1DB954" },
-  { value: "closed", label: "مغلقة", color: "#6B7280" },
+  { value: "closed", label: "مكتملة", color: "#6B7280" },
   { value: "rejected", label: "مرفوضة", color: "#EF4444" },
+];
+
+// أنواع وأولويات "طلبات التعديل" — القسم الذي كان اسمه "الملاحظات" في بوابة العميل
+export const NOTE_REQUEST_TYPES: { value: NoteRequestType; label: string; icon: IconName }[] = [
+  { value: "content", label: "تعديل محتوى", icon: "edit" },
+  { value: "editing", label: "تعديل مونتاج", icon: "video" },
+  { value: "audio", label: "تعديل صوت", icon: "mic" },
+  { value: "color", label: "تعديل ألوان", icon: "palette" },
+  { value: "text", label: "تعديل نصوص", icon: "fileCheck" },
+  { value: "design", label: "تعديل تصميم", icon: "wand" },
+  { value: "general", label: "ملاحظة عامة", icon: "message" },
+  { value: "other", label: "أخرى", icon: "more" },
+];
+
+export const NOTE_PRIORITIES: { value: NotePriority; label: string; color: string }[] = [
+  { value: "urgent", label: "عاجل", color: "#EF4444" },
+  { value: "medium", label: "متوسط", color: "#F59E0B" },
+  { value: "low", label: "منخفض", color: "#6B7280" },
 ];
 
 // المراحل الافتراضية لكل حلقة جديدة — يمكن تعديلها/حذفها لاحقاً لكل حلقة

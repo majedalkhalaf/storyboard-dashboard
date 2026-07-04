@@ -1,11 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import CoverLogoBadge from "@/app/components/client/CoverLogoBadge";
+import EditRequestComposer from "@/app/components/client/EditRequestComposer";
+import { createClient } from "@/app/lib/supabase/client";
+import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
-import type { ClientPermissions, Episode } from "@/app/lib/types";
+import type { ClientPermissions, Episode, ProjectFile } from "@/app/lib/types";
 
 // بطاقة حلقة قابلة لإعادة الاستخدام — الشكل نفسه المستخدم في تبويب "الحلقات"
 // داخل صفحة المشروع، وأيضاً في صفحة "الحلقات والإنتاج" المجمّعة عبر كل المشاريع.
@@ -34,6 +40,26 @@ export default function EpisodeGridCard({
 }) {
   const es = episodeStatusMeta(episode.status);
   const overdue = episode.delivery_date && new Date(episode.delivery_date) < new Date() && !isApproved;
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState<ExportProgress | null>(null);
+  const canDownload = canClient(permissions, "download_files");
+
+  async function handleDownloadAll(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from("files").select("*").eq("episode_id", episode.id).eq("client_visible", true);
+      await exportEpisodeFilesZip(episode.title, (data ?? []) as ProjectFile[], setProgress);
+    } finally {
+      setDownloading(false);
+      setProgress(null);
+    }
+  }
 
   return (
     <div className="shot-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -81,7 +107,28 @@ export default function EpisodeGridCard({
           </div>
         </div>
       </Link>
-      <div style={{ padding: "0 14px 14px", marginTop: "auto" }}>
+      <div style={{ padding: "0 14px 14px", marginTop: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {canClient(permissions, "add_notes") && (
+          <button
+            className="btn btn-outline"
+            style={{ fontSize: 13, padding: "8px 12px" }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSent(false);
+              setRequestOpen(true);
+            }}
+          >
+            <Icon name="edit" size={15} />
+            {sent ? "تم الإرسال ✓" : "طلب تعديل"}
+          </button>
+        )}
+        {canDownload && fileCount > 0 && (
+          <button className="btn btn-outline" style={{ fontSize: 13, padding: "8px 12px" }} onClick={handleDownloadAll} disabled={downloading}>
+            <Icon name="archive" size={15} />
+            {downloading ? `${progress?.stage ?? "جارٍ التحميل..."} ${progress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+          </button>
+        )}
         <ApproveEpisode
           episodeId={episode.id}
           projectId={projectId}
@@ -93,6 +140,21 @@ export default function EpisodeGridCard({
           variant="card"
         />
       </div>
+
+      {requestOpen && (
+        <EditRequestComposer
+          open={requestOpen}
+          onClose={() => setRequestOpen(false)}
+          companyId={companyId}
+          projectId={projectId}
+          episodeId={episode.id}
+          targetType="episode"
+          targetId={episode.id}
+          currentUserId={userId}
+          canUploadAttachments={canClient(permissions, "upload_attachments")}
+          onCreated={() => setSent(true)}
+        />
+      )}
     </div>
   );
 }

@@ -23,6 +23,9 @@ export type StageStatus = "pending" | "in_progress" | "completed" | "skipped";
 
 export type NoteStatus = "new" | "in_review" | "in_progress" | "done" | "closed" | "rejected";
 
+export type NoteRequestType = "content" | "editing" | "audio" | "color" | "text" | "design" | "general" | "other";
+export type NotePriority = "urgent" | "medium" | "low";
+
 export type NoteTargetType =
   | "project"
   | "episode"
@@ -317,9 +320,12 @@ export interface Note {
   author_id: string;
   author_role: string | null;
   body: string;
+  body_html: string | null;
   status: NoteStatus;
+  request_type: NoteRequestType | null;
+  priority: NotePriority;
   mentions: string[];
-  attachments: { name: string; url: string }[];
+  attachments: { name: string; url: string; type?: string }[];
   video_timestamp_seconds: number | null;
   created_at: string;
   updated_at: string;

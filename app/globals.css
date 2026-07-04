@@ -171,6 +171,13 @@ body {
 }
 .mobile-nav-overlay.is-open .mobile-nav-drawer { transform: translateX(0); }
 
+/* ── محرر النص المنسّق لطلبات التعديل ── */
+.rich-text-editable:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+.rich-text-editable ul, .rich-text-editable ol { margin-inline-start: 20px; }
+
 /* ── INPUTS ── */
 .input-field {
   background: var(--bg-secondary);

@@ -44,7 +44,7 @@ export default function ReportProjectCard({
       for (const f of files) {
         if (f.episode_id) (episodeFilesByEpisode[f.episode_id] ??= []).push(f);
       }
-      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, setProgress);
+      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, {}, setProgress);
     } finally {
       setBusyKind(null);
       setProgress(null);

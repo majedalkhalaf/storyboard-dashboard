@@ -146,7 +146,7 @@ export default function ClientDashboard({
         <StatCard label="نسبة الإنجاز الإجمالية" value={`${overallProgress}%`} icon="barChart" color="var(--gold)" />
         <StatCard label="المشاريع النشطة" value={activeProjectsCount} icon="projects" color="#3987e5" />
         <StatCard label="الحلقات المكتملة" value={episodesCompletedTotal} icon="checkCircle" color="var(--success)" />
-        <StatCard label="الملاحظات المفتوحة" value={openNotesTotal} icon="message" color="#F59E0B" />
+        <StatCard label="طلبات التعديل المفتوحة" value={openNotesTotal} icon="edit" color="#F59E0B" />
         <StatCard label="ملفات هذا الشهر" value={filesThisMonthCount} icon="fileUp" color="#8B5CF6" />
         <StatCard label="طلبات اجتماع مفتوحة" value={openMeetingRequestsCount} icon="calendar" color="#06B6D4" />
       </div>
