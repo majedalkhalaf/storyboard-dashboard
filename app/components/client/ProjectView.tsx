@@ -511,7 +511,7 @@ function EpisodesTab({
         </select>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+      <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {filtered.length === 0 ? (
           <div className="empty-state" style={{ gridColumn: "1 / -1", padding: 40 }}>
             <Icon name="video" size={34} className="nav-icon" />

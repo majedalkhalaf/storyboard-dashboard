@@ -414,26 +414,30 @@ body {
     min-width: 64px !important;
     overflow: hidden;
   }
-  /* Hide text labels in sidebar, keep icons */
-  .sidebar-link span:last-child,
-  .sidebar-text,
-  .sidebar-stats,
-  .sidebar-progress,
-  .sidebar-bottom-label,
-  .logo-title,
-  .logo-sub,
-  .sidebar-collapse-btn { display: none !important; }
+  /* Hide text labels in the collapsible desktop sidebar only, keep icons.
+     Scoped to .desktop-sidebar — .sidebar-link/.sidebar-text are reused as a
+     generic list-item style by AccountMenu, MobileNavDrawer, Tabs and others
+     that must keep their labels at this width; only the real collapsible
+     sidebar should turn into an icon rail here. */
+  .desktop-sidebar .sidebar-link span:last-child,
+  .desktop-sidebar .sidebar-text,
+  .desktop-sidebar .sidebar-stats,
+  .desktop-sidebar .sidebar-progress,
+  .desktop-sidebar .sidebar-bottom-label,
+  .desktop-sidebar .logo-title,
+  .desktop-sidebar .logo-sub,
+  .desktop-sidebar .sidebar-collapse-btn { display: none !important; }
 
-  .sidebar-link {
+  .desktop-sidebar .sidebar-link {
     justify-content: center;
     padding: 12px 8px;
     border-right: none !important;
   }
-  .sidebar-link.active { border-right: none !important; border-bottom: 2px solid var(--gold); }
-  .sidebar-link .nav-icon { font-size: 20px; width: auto; }
+  .desktop-sidebar .sidebar-link.active { border-right: none !important; border-bottom: 2px solid var(--gold); }
+  .desktop-sidebar .sidebar-link .nav-icon { font-size: 20px; width: auto; }
 
   /* Logo shrinks to just "S" circle */
-  .logo-wrap { justify-content: center !important; }
+  .desktop-sidebar .logo-wrap { justify-content: center !important; }
 
   /* Header: hide date, shrink search, icon-only company badge */
   .header-date { display: none !important; }
@@ -532,6 +536,9 @@ body {
 
   /* Projects grid: 1 col */
   .projects-grid { grid-template-columns: 1fr !important; }
+
+  /* Client episode cards: 2 side-by-side within the frame instead of 1 full-width */
+  .client-episodes-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
 
   /* Kanban: horizontal scroll */
   .kanban-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }

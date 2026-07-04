@@ -78,7 +78,7 @@ export default async function ClientEpisodesPage() {
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
                   {p.project.name} <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>({p.episodes.length})</span>
                 </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
                   {p.episodes.map((ep) => (
                     <EpisodeGridCard
                       key={ep.id}

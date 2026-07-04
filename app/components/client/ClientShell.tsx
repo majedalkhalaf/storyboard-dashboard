@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
@@ -52,6 +53,12 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+// الشريط السفلي (الجوال) يتّسع لعدد محدود من التبويبات فقط قبل أن تتزاحم
+// الأيقونات وتختفي أسماؤها — لذا يعرض أهم 4 وجهات مباشرة، وكل الباقي يظهر
+// خلف تبويب "المزيد" الذي يفتح قائمة كاملة، بنفس فكرة القائمة الجانبية
+// المنبثقة في لوحة الفريق الداخلي (MobileNavDrawer).
+const BOTTOM_NAV_PRIMARY_HREFS = ["/client", "/client/projects", "/client/episodes", "/client/files"];
+
 export default function ClientShell({
   children,
   brandCompany,
@@ -68,6 +75,11 @@ export default function ClientShell({
   const { theme, profile } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const primaryNavItems = BOTTOM_NAV_PRIMARY_HREFS.map((href) => NAV_ITEMS.find((item) => item.href === href)!);
+  const moreNavItems = NAV_ITEMS.filter((item) => !BOTTOM_NAV_PRIMARY_HREFS.includes(item.href));
+  const moreActive = moreNavItems.some((item) => isActive(pathname, item.href));
 
   function openActivity(a: ActivityRailItem) {
     router.push(a.episodeId ? `/client/projects/${a.projectId}/episodes/${a.episodeId}` : `/client/projects/${a.projectId}`);
@@ -280,9 +292,9 @@ export default function ClientShell({
         </aside>
       )}
 
-      {/* شريط تنقّل سفلي (الجوال) */}
+      {/* شريط تنقّل سفلي (الجوال) — 4 وجهات أساسية + "المزيد" لبقية القوائم */}
       <nav className="bottom-nav no-print">
-        {NAV_ITEMS.map((item) => {
+        {primaryNavItems.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link key={item.href} href={item.href} className={`bottom-nav-item ${active ? "active" : ""}`}>
@@ -291,7 +303,35 @@ export default function ClientShell({
             </Link>
           );
         })}
+        <button type="button" className={`bottom-nav-item ${moreActive ? "active" : ""}`} onClick={() => setMoreOpen(true)}>
+          <Icon name="more" size={20} />
+          <span className="nav-label-small">المزيد</span>
+        </button>
       </nav>
+
+      {/* قائمة "المزيد" المنبثقة (الجوال) — تضم كل الوجهات غير الأساسية */}
+      <div className={`mobile-nav-overlay${moreOpen ? " is-open" : ""}`} aria-hidden={!moreOpen}>
+        <div className="mobile-nav-backdrop" onClick={() => setMoreOpen(false)} />
+        <div className="mobile-nav-drawer">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 14px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ fontWeight: 800, fontSize: 14 }}>المزيد من الخيارات</div>
+            <button type="button" className="btn-ghost" style={{ padding: 6, borderRadius: 8 }} onClick={() => setMoreOpen(false)}>
+              <Icon name="close" size={20} />
+            </button>
+          </div>
+          <div style={{ padding: "10px 12px 16px", flex: 1, overflowY: "auto" }}>
+            {moreNavItems.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link key={item.href} href={item.href} className={`sidebar-link${active ? " active" : ""}`} onClick={() => setMoreOpen(false)}>
+                  <Icon name={item.icon} size={18} className="nav-icon" />
+                  <span className="sidebar-text">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
