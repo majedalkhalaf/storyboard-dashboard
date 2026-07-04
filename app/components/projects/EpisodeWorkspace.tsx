@@ -28,12 +28,12 @@ import StoryboardTab from "./storyboard/StoryboardTab";
 // الملفات في FilesTab.tsx (نفس مشغّل الفيديو والتعليقات الموقوتة، بلا تبويب مستقل)،
 // والأصول أُزيل نهائياً لأنه كان بالحرف نفس ملفات "الملفات" مُجمّعة حسب التصنيف فقط —
 // وتصنيف/تحميل الملفات متاح بالفعل من داخل تبويب الملفات نفسه.
-type TabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity";
+export type EpisodeTabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity";
 
 // مرتّبة حسب الأولوية الفعلية أثناء تنفيذ الحلقة: نظرة عامة أولاً كنقطة انطلاق،
 // ثم مراحل التنفيذ والملفات والملاحظات (الأكثر استخداماً يومياً)، فمواد ما قبل
 // الإنتاج (ستوري بورد/سكربت)، وأخيراً سجل النشاط كأقل الأقسام مراجعة.
-const TABS: TabDef<TabKey>[] = [
+export const EPISODE_TABS: TabDef<EpisodeTabKey>[] = [
   { key: "overview", label: "نظرة عامة", icon: "info" },
   { key: "stages", label: "مراحل التنفيذ", icon: "timeline" },
   { key: "files", label: "الملفات", icon: "attachment" },
@@ -47,10 +47,21 @@ export default function EpisodeWorkspace({
   clientName,
   gallery,
   initialEpisodeId,
+  extraTabs,
+  extraActiveKey,
+  onExtraTabChange,
+  extraContent,
 }: {
   clientName: string | null;
   gallery: EpisodeGalleryItem[];
   initialEpisodeId: string | null;
+  /** عناصر إضافية تُلحق أسفل قائمة تبويبات الحلقة لتكوّن قائمة جانبية واحدة
+      منضمّة بلا فاصل مسافة (تبويبات "تفاصيل إضافية" لمستوى المشروع كاملاً). */
+  extraTabs?: TabDef<string>[];
+  /** المفتاح النشط من extraTabs، أو null إن كان أحد تبويبات الحلقة نفسها هو النشط. */
+  extraActiveKey?: string | null;
+  onExtraTabChange?: (key: string | null) => void;
+  extraContent?: React.ReactNode;
 }) {
   const { company } = useSession();
   const companyId = company!.id;
@@ -71,7 +82,7 @@ export default function EpisodeWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(initialEpisodeId ?? gallery[0]?.id ?? null);
   const [detail, setDetail] = useState<EpisodeFullDetail | null>(null);
   const [loading, setLoading] = useState(Boolean(selectedId));
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<EpisodeTabKey>("overview");
   const latestRequestRef = useRef<string | null>(null);
 
   const load = useCallback(
@@ -96,6 +107,7 @@ export default function EpisodeWorkspace({
   function selectEpisode(id: string) {
     setSelectedId(id);
     setTab("overview");
+    onExtraTabChange?.(null);
     const url = new URL(window.location.href);
     url.searchParams.set("episode", id);
     window.history.replaceState(null, "", url.toString());
@@ -133,6 +145,32 @@ export default function EpisodeWorkspace({
   }
 
   const activeGalleryItem = galleryItems.find((e) => e.id === selectedId);
+  const showingExtra = Boolean(extraActiveKey);
+  const activeKey = extraActiveKey ?? tab;
+
+  function handleTabChange(key: string) {
+    if ((EPISODE_TABS as TabDef<string>[]).some((t) => t.key === key)) {
+      setTab(key as EpisodeTabKey);
+      onExtraTabChange?.(null);
+    } else {
+      onExtraTabChange?.(key);
+    }
+  }
+
+  const mergedTabs: TabDef<string>[] = [
+    ...EPISODE_TABS.map((t) => ({
+      ...t,
+      badge:
+        t.key === "files"
+          ? activeGalleryItem?.filesCount
+          : t.key === "notes"
+            ? (activeGalleryItem?.notesCount ?? 0) + (activeGalleryItem?.commentsCount ?? 0)
+            : t.key === "script"
+              ? activeGalleryItem?.versionsCount
+              : undefined,
+    })),
+    ...(extraTabs ?? []),
+  ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -141,9 +179,9 @@ export default function EpisodeWorkspace({
         <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
       </div>
 
-      {selectedId && (
+      {(selectedId || extraTabs?.length) && (
         <div className="animate-fade-in">
-          {detail && (
+          {detail && !showingExtra && (
             <div
               className="card"
               style={{
@@ -178,44 +216,33 @@ export default function EpisodeWorkspace({
             </div>
           )}
 
-          {loading || !detail ? (
+          {!showingExtra && (loading || !detail) ? (
             <WorkspaceSkeleton />
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: tab === "storyboard" ? "190px 1fr" : "190px 1fr 280px", gap: 20, alignItems: "flex-start" }}>
-              <Tabs
-                orientation="vertical"
-                tabs={TABS.map((t) => ({
-                  ...t,
-                  badge:
-                    t.key === "files"
-                      ? activeGalleryItem?.filesCount
-                      : t.key === "notes"
-                        ? (activeGalleryItem?.notesCount ?? 0) + (activeGalleryItem?.commentsCount ?? 0)
-                        : t.key === "script"
-                          ? activeGalleryItem?.versionsCount
-                          : undefined,
-                }))}
-                active={tab}
-                onChange={setTab}
-              />
+            <div style={{ display: "grid", gridTemplateColumns: !showingExtra && tab === "storyboard" ? "190px 1fr" : "190px 1fr 280px", gap: 20, alignItems: "flex-start" }}>
+              <Tabs orientation="vertical" tabs={mergedTabs} active={activeKey} onChange={handleTabChange} />
 
-              {tab === "storyboard" ? (
+              {showingExtra ? (
+                <div className="animate-fade-in" style={{ minWidth: 0, gridColumn: "2 / span 2" }}>
+                  {extraContent}
+                </div>
+              ) : tab === "storyboard" ? (
                 // ستوري بورد له تخطيطه الداخلي الخاص (معرض + لوحة تفاصيل + شريط مشاهد جانبي + Timeline)
                 // فلا حاجة لعمود الشريط الجانبي العام للحلقة هنا — يأخذ باقي العرض كاملاً.
-                <div className="animate-fade-in">
-                  <StoryboardTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />
+                <div className="animate-fade-in" style={{ gridColumn: "2 / span 2" }}>
+                  <StoryboardTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />
                 </div>
               ) : (
                 <>
                   <div className="animate-fade-in">
-                    {tab === "overview" && <OverviewTab episode={detail} onChanged={applyPatch} />}
-                    {tab === "script" && <ScriptTab episode={detail} onChanged={applyPatch} />}
-                    {tab === "files" && <FilesTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
-                    {tab === "notes" && <NotesTab episode={detail} onChanged={() => fetchEpisodeDetail(detail.id, companyId).then(setDetail)} />}
-                    {tab === "stages" && <StagesTab episode={detail} onChanged={applyPatch} />}
-                    {tab === "activity" && <ActivityTab episode={detail} />}
+                    {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "activity" && <ActivityTab episode={detail!} />}
                   </div>
-                  <EpisodeSidebar episode={detail} clientName={clientName} />
+                  <EpisodeSidebar episode={detail!} clientName={clientName} />
                 </>
               )}
             </div>

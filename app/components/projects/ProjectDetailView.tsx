@@ -11,7 +11,7 @@ import EpisodeWorkspace from "./EpisodeWorkspace";
 import EpisodeFormModal from "@/app/components/episodes/EpisodeFormModal";
 import PresentationBuilderModal from "./presentation/PresentationBuilderModal";
 import Icon from "@/app/components/ui/Icon";
-import Tabs, { type TabDef } from "@/app/components/ui/Tabs";
+import { type TabDef } from "@/app/components/ui/Tabs";
 import { PROJECT_TYPES } from "@/app/lib/constants";
 import { formatDate } from "./utils";
 import ProjectFinanceSection from "./sections/ProjectFinanceSection";
@@ -56,7 +56,10 @@ export default function ProjectDetailView(props: Props) {
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"info" | "clients" | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<DetailsTabKey>("info");
+  // null يعني أن أحد تبويبات الحلقة هو النشط بدل تبويبات "تفاصيل إضافية" —
+  // القائمتان مدموجتان بصرياً في شريط جانبي واحد داخل EpisodeWorkspace، فلا
+  // تُفتح تبويبات المشروع افتراضياً إلا إن كان المشروع بلا حلقات إطلاقاً.
+  const [detailsTab, setDetailsTab] = useState<DetailsTabKey | null>(gallery.length === 0 ? "info" : null);
 
   function patchProject(patch: Partial<Project>) {
     setProject((p) => ({ ...p, ...patch }));
@@ -74,12 +77,14 @@ export default function ProjectDetailView(props: Props) {
         onProjectChanged={patchProject}
       />
 
-      <EpisodeWorkspace clientName={clientName} gallery={gallery} initialEpisodeId={initialEpisodeId} />
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700 }}>تفاصيل إضافية</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "190px 1fr", gap: 20, alignItems: "flex-start" }}>
-          <Tabs orientation="vertical" tabs={DETAILS_TABS} active={detailsTab} onChange={setDetailsTab} />
+      <EpisodeWorkspace
+        clientName={clientName}
+        gallery={gallery}
+        initialEpisodeId={initialEpisodeId}
+        extraTabs={DETAILS_TABS}
+        extraActiveKey={detailsTab}
+        onExtraTabChange={(key) => setDetailsTab(key as DetailsTabKey | null)}
+        extraContent={
           <div className="card animate-fade-in" style={{ padding: 18, minWidth: 0 }}>
             {detailsTab === "info" && <ProjectInfoBlock project={project} clientName={clientName} />}
             {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
@@ -91,8 +96,8 @@ export default function ProjectDetailView(props: Props) {
             {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}
             {detailsTab === "activity" && <ProjectActivitySection projectId={project.id} />}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {showEpisodeModal && (
         <EpisodeFormModal
