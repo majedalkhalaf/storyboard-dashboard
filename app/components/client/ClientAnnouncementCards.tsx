@@ -16,54 +16,93 @@ export default function ClientAnnouncementCards({ announcements }: { announcemen
 
   return (
     <>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 22 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 22 }}>
         {announcements.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setOpen(a)}
-            className="card"
-            style={{
-              padding: 18,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              textAlign: "start",
-              cursor: "pointer",
-              border: "1px solid var(--gold)",
-              background: "rgba(var(--gold-rgb),0.06)",
-            }}
-          >
-            <span
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: "var(--gold)",
-                color: "#0A0A0B",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Icon name="megaphone" size={20} />
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800 }}>{a.title || "إعلان جديد"}</div>
-              <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
-                {a.media.length > 0 ? `${a.media.length} عنصر مرفق · ` : ""}
-                {relativeTime(a.created_at)}
-              </div>
-            </div>
-            <span className="btn btn-gold" style={{ fontSize: 12.5, flexShrink: 0, pointerEvents: "none" }}>
-              عرض الإعلان
-            </span>
-          </button>
+          <AnnouncementBanner key={a.id} announcement={a} onOpen={() => setOpen(a)} />
         ))}
       </div>
 
       {open && <AnnouncementModal announcement={open} onClose={() => setOpen(null)} />}
     </>
+  );
+}
+
+// بانر إعلاني لامع بمعاينة حقيقية لأول وسيط مرفق (صورة أو فيديو) بدل أيقونة
+// عامة — ما يجعله يلفت الانتباه فعلياً كإعلان، لا مجرد شريط نصي.
+function AnnouncementBanner({ announcement: a, onOpen }: { announcement: ClientAnnouncement; onOpen: () => void }) {
+  const preview = a.media[0];
+
+  return (
+    <button
+      onClick={onOpen}
+      className="announcement-banner"
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        padding: 0,
+        minHeight: 128,
+        borderRadius: 16,
+        cursor: "pointer",
+        textAlign: "start",
+        border: "1px solid var(--gold)",
+        boxShadow: "0 8px 28px rgba(var(--gold-rgb),0.18), inset 0 0 0 1px rgba(var(--gold-rgb),0.15)",
+        background: "linear-gradient(135deg, #2a2110, #0A0A0B)",
+      }}
+    >
+      {preview && (
+        <div style={{ position: "absolute", inset: 0 }}>
+          {preview.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview.url} alt={preview.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : preview.type === "video" ? (
+            <video src={preview.url} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : null}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,11,0.92) 15%, rgba(10,10,11,0.45) 60%, rgba(10,10,11,0.15))" }} />
+        </div>
+      )}
+
+      {/* لمعة زجاجية قطرية أعلى البطاقة — تعطي الإحساس "اللامع" المطلوب دون تعقيد */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 22%, transparent 45%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, padding: 18, minHeight: 128 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 11,
+              background: "var(--gold)",
+              color: "#0A0A0B",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.4)",
+            }}
+          >
+            <Icon name="megaphone" size={18} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}>{a.title || "إعلان جديد"}</div>
+            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
+              {a.media.length > 0 ? `${a.media.length} عنصر مرفق · ` : ""}
+              {relativeTime(a.created_at)}
+            </div>
+          </div>
+        </div>
+        <span className="btn btn-gold" style={{ fontSize: 12.5, flexShrink: 0, pointerEvents: "none" }}>
+          عرض الإعلان
+        </span>
+      </div>
+    </button>
   );
 }
 
