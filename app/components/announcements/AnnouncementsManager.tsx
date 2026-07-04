@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
@@ -224,7 +225,8 @@ function AnnouncementComposer({
 }) {
   const { profile } = useSession();
   const isEditing = Boolean(existing);
-  const [clientUserId, setClientUserId] = useState(existing?.client_user_id ?? "");
+  const [selectedIds, setSelectedIds] = useState<string[]>(existing ? [existing.client_user_id] : []);
+  const [clientQuery, setClientQuery] = useState("");
   const [title, setTitle] = useState(existing?.title ?? "");
   const [ctaLabel, setCtaLabel] = useState(existing?.cta_label ?? DEFAULT_CTA_LABEL);
   const [durationDays, setDurationDays] = useState<number | null>(existing ? existing.duration_days : 30);
@@ -259,9 +261,28 @@ function AnnouncementComposer({
     setMedia((prev) => prev.filter((m) => m.url !== url));
   }
 
+  const filteredClients = clientAccounts.filter((c) => {
+    const q = clientQuery.trim().toLowerCase();
+    return !q || c.name.toLowerCase().includes(q) || (c.email ?? "").toLowerCase().includes(q);
+  });
+  const allFilteredSelected = filteredClients.length > 0 && filteredClients.every((c) => selectedIds.includes(c.clientUserId));
+
+  function toggleClient(id: string) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filteredClients.map((c) => c.clientUserId));
+      setSelectedIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...filteredClients.map((c) => c.clientUserId)])));
+    }
+  }
+
   async function submit() {
-    if (!clientUserId) {
-      setError("اختر العميل الذي تريد إرسال الإعلان إليه.");
+    if (selectedIds.length === 0) {
+      setError("اختر عميلاً واحداً على الأقل لإرسال الإعلان إليه.");
       return;
     }
     if (!title.trim() && media.length === 0) {
@@ -271,7 +292,6 @@ function AnnouncementComposer({
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const selected = clientAccounts.find((c) => c.clientUserId === clientUserId);
     // إعادة حساب تاريخ الانتهاء فقط عند إنشاء إعلان جديد أو عند تغيير المدة فعلياً
     // أثناء التعديل — كي لا يُعاد ضبط عدّاد الأيام من الصفر بمجرد تعديل العنوان فقط.
     const durationChanged = !isEditing || durationDays !== (existing?.duration_days ?? null);
@@ -292,17 +312,23 @@ function AnnouncementComposer({
       return;
     }
 
-    const { error: insertError } = await supabase.from("client_announcements").insert({
-      company_id: companyId,
-      client_user_id: clientUserId,
-      client_id: selected?.clientId ?? null,
-      title: title.trim() || null,
-      media,
-      duration_days: durationDays,
-      expires_at: expiresAt,
-      cta_label: ctaLabelToSave,
-      created_by: profile.id,
+    // إعلان مستقل لكل عميل مُحدَّد — نفس العنوان/الوسائط/المدة، بصفوف منفصلة
+    // (لا يوجد مفهوم "إعلان جماعي" في قاعدة البيانات، كل صف مرتبط بعميل واحد).
+    const rows = selectedIds.map((id) => {
+      const selected = clientAccounts.find((c) => c.clientUserId === id);
+      return {
+        company_id: companyId,
+        client_user_id: id,
+        client_id: selected?.clientId ?? null,
+        title: title.trim() || null,
+        media,
+        duration_days: durationDays,
+        expires_at: expiresAt,
+        cta_label: ctaLabelToSave,
+        created_by: profile.id,
+      };
     });
+    const { error: insertError } = await supabase.from("client_announcements").insert(rows);
     setBusy(false);
     if (insertError) {
       setError("تعذّر إنشاء الإعلان، حاول مرة أخرى.");
@@ -312,6 +338,7 @@ function AnnouncementComposer({
   }
 
   return (
+    <ModalPortal>
     <div className="modal-overlay" onClick={() => !busy && onClose()}>
       <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -319,16 +346,60 @@ function AnnouncementComposer({
           <h3 style={{ fontSize: 17, fontWeight: 800 }}>{isEditing ? "تعديل الإعلان" : "إنشاء إعلان جديد"}</h3>
         </div>
 
-        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>إرسال إلى</label>
-        <select className="input-field" value={clientUserId} onChange={(e) => setClientUserId(e.target.value)} disabled={isEditing} style={{ marginBottom: 14 }}>
-          <option value="">اختر عميلاً...</option>
-          {clientAccounts.map((c) => (
-            <option key={c.clientUserId} value={c.clientUserId}>
-              {c.name}
-              {c.email ? ` — ${c.email}` : ""}
-            </option>
-          ))}
-        </select>
+        <label style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>
+          إرسال إلى {!isEditing && selectedIds.length > 0 ? `(${selectedIds.length} محدَّد)` : ""}
+        </label>
+        {isEditing ? (
+          <div className="input-field" style={{ marginBottom: 14, display: "flex", alignItems: "center", color: "var(--text-secondary)" }}>
+            {clientAccounts.find((c) => c.clientUserId === existing?.client_user_id)?.name ?? "عميل"}
+          </div>
+        ) : (
+          <div style={{ border: "1px solid var(--border)", borderRadius: 10, marginBottom: 14, overflow: "hidden" }}>
+            <div style={{ padding: 8, borderBottom: "1px solid var(--border)" }}>
+              <input
+                className="input-field"
+                placeholder="ابحث عن عميل بالاسم أو البريد..."
+                value={clientQuery}
+                onChange={(e) => setClientQuery(e.target.value)}
+                style={{ fontSize: 12.5 }}
+              />
+            </div>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "9px 12px",
+                borderBottom: "1px solid var(--border)",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 12.5,
+                background: "var(--bg-secondary)",
+              }}
+            >
+              <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} style={{ accentColor: "var(--gold)" }} />
+              تحديد الكل {filteredClients.length > 0 ? `(${filteredClients.length})` : ""}
+            </label>
+            <div style={{ maxHeight: 190, overflowY: "auto" }}>
+              {filteredClients.length === 0 ? (
+                <p style={{ padding: 14, fontSize: 12.5, color: "var(--text-muted)", textAlign: "center" }}>لا يوجد عملاء مطابقون</p>
+              ) : (
+                filteredClients.map((c) => (
+                  <label
+                    key={c.clientUserId}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid var(--border)" }}
+                  >
+                    <input type="checkbox" checked={selectedIds.includes(c.clientUserId)} onChange={() => toggleClient(c.clientUserId)} style={{ accentColor: "var(--gold)" }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {c.name}
+                      {c.email ? ` — ${c.email}` : ""}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         <input className="input-field" placeholder="عنوان الإعلان" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 14 }} />
 
@@ -416,10 +487,17 @@ function AnnouncementComposer({
           </button>
           <button className="btn btn-gold" onClick={submit} disabled={busy || uploadingCount > 0}>
             <Icon name={isEditing ? "check" : "send"} size={16} />
-            {busy ? "جارٍ الحفظ..." : isEditing ? "حفظ التعديلات" : "إنشاء وإرسال"}
+            {busy
+              ? "جارٍ الحفظ..."
+              : isEditing
+                ? "حفظ التعديلات"
+                : selectedIds.length > 1
+                  ? `إنشاء وإرسال إلى ${selectedIds.length} عملاء`
+                  : "إنشاء وإرسال"}
           </button>
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
