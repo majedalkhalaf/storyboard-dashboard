@@ -86,6 +86,7 @@ export default function EpisodeWorkspace({
   const [loading, setLoading] = useState(Boolean(selectedId));
   const [tab, setTab] = useState<EpisodeTabKey>("overview");
   const latestRequestRef = useRef<string | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(
     async (id: string) => {
@@ -113,6 +114,8 @@ export default function EpisodeWorkspace({
     const url = new URL(window.location.href);
     url.searchParams.set("episode", id);
     window.history.replaceState(null, "", url.toString());
+    // القفز مباشرة لقسم إعدادات/تبويبات الحلقة بدل تركه للمستخدم لينزل يدوياً كل مرة
+    workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function applyPatch(patch: Partial<EpisodeFullDetail>) {
@@ -182,7 +185,7 @@ export default function EpisodeWorkspace({
       </div>
 
       {(selectedId || extraTabs?.length) && (
-        <div className="animate-fade-in">
+        <div ref={workspaceRef} className="animate-fade-in" style={{ scrollMarginTop: 84 }}>
           {detail && !showingExtra && (
             <div
               className="card"
