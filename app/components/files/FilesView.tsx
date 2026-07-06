@@ -26,6 +26,7 @@ export interface FileListItem {
   episode_id: string | null;
   name: string;
   storage_path: string | null;
+  bucket_name: string | null;
   external_url: string | null;
   file_type: string | null;
   category: FileCategory;
@@ -88,7 +89,12 @@ export default function FilesView({
       return;
     }
     if (!f.storage_path) return;
-    const { data } = await supabase.storage.from("project-files").createSignedUrl(f.storage_path, 300);
+    if (f.bucket_name === "r2") {
+      const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+      if (base) window.open(`${base.replace(/\/+$/, "")}/${f.storage_path}`, "_blank");
+      return;
+    }
+    const { data } = await supabase.storage.from(f.bucket_name || "project-files").createSignedUrl(f.storage_path, 300);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 

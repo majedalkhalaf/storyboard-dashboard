@@ -142,7 +142,13 @@ export default function EpisodeGalleryCard({
         const bucket = f.bucket_name || "project-files";
         byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), f.storage_path]);
       }
-      await Promise.all([...byBucket.entries()].map(([bucket, paths]) => supabase.storage.from(bucket).remove(paths)));
+      await Promise.all(
+        [...byBucket.entries()].map(([bucket, paths]) =>
+          bucket === "r2"
+            ? fetch("/api/uploads/r2/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys: paths }) })
+            : supabase.storage.from(bucket).remove(paths)
+        )
+      );
       // حذف صف الحلقة نفسه يحذف تلقائياً (on delete cascade) كل الصفوف المرتبطة بها:
       // episode_stages وfiles وnotes وapprovals وepisode_script_versions — راجع
       // supabase/migrations/0001_init_multi_tenant.sql وsupabase/migrations/0010_episode_workspace_columns.sql.

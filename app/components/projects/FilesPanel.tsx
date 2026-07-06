@@ -8,6 +8,7 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { logActivity } from "@/app/lib/activity";
 import { extractVideoMetadata, uploadFile, RESUMABLE_UPLOAD_THRESHOLD, type UploadController } from "@/app/lib/storage-upload";
+import { startR2Upload } from "@/app/lib/r2-upload";
 import { buildFilePath, safeStorageKey } from "@/app/lib/storage-path";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanEta, humanFileSize, humanSpeed, inferCategory, relativeTime } from "./utils";
@@ -44,6 +45,23 @@ export function previewKind(file: ProjectFile): PreviewKind {
 export async function resolveFileUrl(supabase: SupabaseClient, file: ProjectFile, options?: { download?: boolean }): Promise<string | null> {
   if (file.external_url) return file.external_url;
   if (!file.storage_path) return null;
+  // ملفات الفيديو الكبيرة تُرفع إلى Cloudflare R2 بدل Supabase Storage. التشغيل/العرض
+  // يستخدم الرابط العام المباشر (bucket عام، أمنه يعتمد على عشوائية اسم الملف)،
+  // أما التحميل القسري بالاسم الأصلي فيحتاج رابطاً موقّعاً من مسار خادم مخصص
+  // (الرابط العام لا يدعم فرض Content-Disposition).
+  if (file.bucket_name === "r2") {
+    if (options?.download) {
+      const res = await fetch("/api/uploads/r2/download-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: file.storage_path, fileName: file.original_name || file.name }),
+      });
+      const json = (await res.json()) as { url?: string };
+      return json.url ?? null;
+    }
+    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+    return base ? `${base.replace(/\/+$/, "")}/${file.storage_path}` : null;
+  }
   const { data } = await supabase.storage
     .from(file.bucket_name || "project-files")
     .createSignedUrl(file.storage_path, 300, options?.download ? { download: true } : undefined);
@@ -189,7 +207,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     load();
   }, [load]);
 
-  async function finalizeUpload(item: QueueItem, category: FileCategory, path: string) {
+  async function finalizeUpload(item: QueueItem, category: FileCategory, path: string, bucketName: string) {
     let thumbnailUrl: string | null = null;
     let duration: number | null = null;
     let width: number | null = null;
@@ -223,7 +241,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
       name: item.file.name,
       original_name: item.file.name,
       storage_path: path,
-      bucket_name: "project-files",
+      bucket_name: bucketName,
       file_type: item.file.type || null,
       mime_type: item.file.type || null,
       file_extension: ext,
@@ -256,30 +274,60 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "uploading" } : q)));
 
     const category = forceCategory ?? inferCategory(item.file.type, item.file.name);
-    const path = buildFilePath({ companyId, projectId, episodeId, category, originalName: item.file.name });
     speedTrackRef.current.set(item.id, { time: Date.now(), loaded: 0 });
 
-    const controller = uploadFile(supabase, "project-files", path, item.file, {
-      onProgress: (loaded, total) => {
-        const track = speedTrackRef.current.get(item.id);
-        const now = Date.now();
-        let nextSpeed: number | null = null;
-        if (track) {
-          const dt = (now - track.time) / 1000;
-          if (dt >= 0.5) {
-            nextSpeed = Math.max(0, (loaded - track.loaded) / dt);
-            speedTrackRef.current.set(item.id, { time: now, loaded });
-          }
+    const onProgress = (loaded: number, total: number) => {
+      const track = speedTrackRef.current.get(item.id);
+      const now = Date.now();
+      let nextSpeed: number | null = null;
+      if (track) {
+        const dt = (now - track.time) / 1000;
+        if (dt >= 0.5) {
+          nextSpeed = Math.max(0, (loaded - track.loaded) / dt);
+          speedTrackRef.current.set(item.id, { time: now, loaded });
         }
-        setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, loaded, total, speedBps: nextSpeed ?? q.speedBps } : q)));
-      },
-      onError: (message) => {
-        startedIdsRef.current.delete(item.id);
-        setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: q.status === "paused" ? "paused" : "error", error: message } : q)));
-      },
+      }
+      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, loaded, total, speedBps: nextSpeed ?? q.speedBps } : q)));
+    };
+    const onError = (message: string) => {
+      startedIdsRef.current.delete(item.id);
+      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: q.status === "paused" ? "paused" : "error", error: message } : q)));
+    };
+
+    // ملفات الفيديو تُرفع إلى Cloudflare R2 (رفع مجزّأ مباشر من المتصفح، بلا
+    // حد حجم من جهة Netlify) بدل Supabase Storage — بقية الأنواع تبقى كما هي.
+    if (category === "video") {
+      let key = "";
+      startR2Upload(
+        { file: item.file, projectId, episodeId, category },
+        {
+          onProgress,
+          onError,
+          onSuccess: async () => {
+            try {
+              await finalizeUpload(item, category, key, "r2");
+              setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "success", loaded: q.total } : q)));
+            } catch {
+              setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "error", error: "تم رفع الملف لكن فشل حفظ بياناته" } : q)));
+            }
+          },
+        }
+      )
+        .then(({ key: resolvedKey, controller }) => {
+          key = resolvedKey;
+          controllersRef.current.set(item.id, controller);
+        })
+        .catch((err) => onError(err instanceof Error ? err.message : "تعذّر بدء الرفع"));
+      return;
+    }
+
+    const path = buildFilePath({ companyId, projectId, episodeId, category, originalName: item.file.name });
+    const controller = uploadFile(supabase, "project-files", path, item.file, {
+      onProgress,
+      onError,
       onSuccess: async () => {
         try {
-          await finalizeUpload(item, category, path);
+          await finalizeUpload(item, category, path, "project-files");
           setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "success", loaded: q.total } : q)));
         } catch {
           setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "error", error: "تم رفع الملف لكن فشل حفظ بياناته" } : q)));
@@ -425,7 +473,13 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
       const bucket = f.bucket_name || "project-files";
       byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), f.storage_path]);
     }
-    await Promise.all([...byBucket.entries()].map(([bucket, paths]) => supabase.storage.from(bucket).remove(paths)));
+    await Promise.all(
+      [...byBucket.entries()].map(([bucket, paths]) =>
+        bucket === "r2"
+          ? fetch("/api/uploads/r2/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys: paths }) })
+          : supabase.storage.from(bucket).remove(paths)
+      )
+    );
     const ids = list.map((f) => f.id);
     await supabase.from("files").delete().in("id", ids);
     // إشعار العميل عند حذف ملف كان مرئياً له يتم تلقائياً عبر trigger في قاعدة البيانات

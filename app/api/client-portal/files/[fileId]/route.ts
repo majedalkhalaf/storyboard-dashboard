@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { canClient } from "@/app/lib/permissions";
+import { createR2Client, r2BucketName, r2PublicUrl } from "@/app/lib/r2-client";
 
 // يُرجع رابطاً موقّتاً موقّعاً (signed URL) لملف من مساحة project-files الخاصة،
 // بعد التحقق أن المستخدم عميل نشط على المشروع ولديه صلاحية الملفات (وصلاحية
@@ -42,6 +45,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
 
     if (!pc || !canClient(pc.permissions, "files") || (isDownload && !canClient(pc.permissions, "download_files"))) {
       return NextResponse.json({ error: "غير مصرح بالوصول لهذا الملف" }, { status: 403 });
+    }
+
+    // ملفات الفيديو الكبيرة مخزَّنة على Cloudflare R2 بدل Supabase Storage. العرض/التشغيل
+    // يستخدم الرابط العام المباشر (bucket عام)، والتحميل القسري بالاسم الأصلي يحتاج
+    // رابطاً موقّعاً (الرابط العام لا يفرض Content-Disposition).
+    if (file.bucket_name === "r2") {
+      if (isDownload) {
+        const r2 = createR2Client();
+        const command = new GetObjectCommand({
+          Bucket: r2BucketName(),
+          Key: file.storage_path,
+          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.original_name || file.name)}"`,
+        });
+        const url = await getSignedUrl(r2, command, { expiresIn: 3600 });
+        return NextResponse.json({ url });
+      }
+      return NextResponse.json({ url: r2PublicUrl(file.storage_path) });
     }
 
     // ساعة كاملة بدل 5 دقائق — مدة قصيرة كانت تكفي لفتح مستند لكن تنقطع أثناء

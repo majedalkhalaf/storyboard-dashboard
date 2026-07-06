@@ -31,6 +31,7 @@ export default async function FilesPage() {
       episode_id: f.episode_id,
       name: f.name,
       storage_path: f.storage_path,
+      bucket_name: f.bucket_name,
       external_url: f.external_url,
       file_type: f.file_type,
       category: f.category,

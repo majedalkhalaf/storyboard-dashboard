@@ -57,7 +57,10 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
       }
       setLoadingSrc(true);
       let url: string | null = file.external_url ?? null;
-      if (!url && file.storage_path) {
+      if (!url && file.storage_path && file.bucket_name === "r2") {
+        const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+        url = base ? `${base.replace(/\/+$/, "")}/${file.storage_path}` : null;
+      } else if (!url && file.storage_path) {
         const { data } = await supabase.storage.from("project-files").createSignedUrl(file.storage_path, 3600);
         url = data?.signedUrl ?? null;
       }
