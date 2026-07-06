@@ -6,11 +6,12 @@ import Icon from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
+import { VideoPlayerModal } from "@/app/components/client/ClientVideoPlayer";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
-import type { ClientPermissions, Episode, ProjectFile } from "@/app/lib/types";
+import type { ClientPermissions, Episode, Note, ProjectFile } from "@/app/lib/types";
 
 // بطاقة حلقة قابلة لإعادة الاستخدام — الشكل نفسه المستخدم في تبويب "الحلقات"
 // داخل صفحة المشروع، وأيضاً في صفحة "الحلقات والإنتاج" المجمّعة عبر كل المشاريع.
@@ -19,6 +20,7 @@ export default function EpisodeGridCard({
   projectId,
   companyId,
   userId,
+  userName,
   permissions,
   isApproved,
   fileCount,
@@ -30,6 +32,7 @@ export default function EpisodeGridCard({
   projectId: string;
   companyId: string;
   userId: string;
+  userName: string | null;
   permissions: ClientPermissions;
   isApproved: boolean;
   fileCount: number;
@@ -44,6 +47,37 @@ export default function EpisodeGridCard({
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const canDownload = canClient(permissions, "download_episode_zip");
+  const [loadingVideo, setLoadingVideo] = useState(false);
+  const [videoFile, setVideoFile] = useState<ProjectFile | null>(null);
+  const [videoComments, setVideoComments] = useState<Note[]>([]);
+
+  // تشغيل الفيديو مباشرة من البطاقة (بلا الانتقال لصفحة الحلقة الكاملة) — يجلب
+  // ملف الفيديو الأول فقط عند الحاجة الفعلية (لا يُحمَّل مسبقاً لكل بطاقات
+  // الشبكة دفعة واحدة)، بنفس مشغّل الفيديو المستخدم داخل صفحة الحلقة.
+  async function openVideo(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (loadingVideo) return;
+    setLoadingVideo(true);
+    try {
+      const supabase = createClient();
+      const { data: fileRows } = await supabase
+        .from("files")
+        .select("*")
+        .eq("episode_id", episode.id)
+        .eq("client_visible", true)
+        .eq("category", "video")
+        .order("created_at", { ascending: true })
+        .limit(1);
+      const file = (fileRows ?? [])[0] as ProjectFile | undefined;
+      if (!file) return;
+      const { data: noteRows } = await supabase.from("notes").select("*").eq("target_type", "video").eq("target_id", file.id);
+      setVideoComments((noteRows ?? []) as Note[]);
+      setVideoFile(file);
+    } finally {
+      setLoadingVideo(false);
+    }
+  }
 
   async function handleDownloadAll(e: React.MouseEvent) {
     e.preventDefault();
@@ -76,6 +110,28 @@ export default function EpisodeGridCard({
             <StatusChip label={es.label} color={es.color} />
             {overdue && <StatusChip label="متأخرة" color="#EF4444" />}
           </div>
+          <button
+            type="button"
+            onClick={openVideo}
+            aria-label="تشغيل الفيديو"
+            style={{
+              position: "absolute",
+              inset: 0,
+              margin: "auto",
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.55)",
+              border: "2px solid rgba(255,255,255,0.85)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: loadingVideo ? "wait" : "pointer",
+            }}
+          >
+            {loadingVideo ? <span className="skeleton" style={{ width: 16, height: 16, borderRadius: "50%" }} /> : <Icon name="play" size={22} />}
+          </button>
         </div>
         <div style={{ padding: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
@@ -152,6 +208,21 @@ export default function EpisodeGridCard({
           currentUserId={userId}
           canUploadAttachments={canClient(permissions, "upload_attachments")}
           onCreated={() => setSent(true)}
+        />
+      )}
+
+      {videoFile && (
+        <VideoPlayerModal
+          file={videoFile}
+          comments={videoComments}
+          companyId={companyId}
+          projectId={projectId}
+          episodeId={episode.id}
+          userId={userId}
+          userName={userName}
+          canComment={canClient(permissions, "add_notes")}
+          canDownload={canClient(permissions, "download_files")}
+          onClose={() => setVideoFile(null)}
         />
       )}
     </div>

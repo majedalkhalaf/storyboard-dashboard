@@ -89,6 +89,7 @@ export default async function ClientEpisodesPage() {
                       projectId={p.project.id}
                       companyId={p.project.company_id}
                       userId={session.userId}
+                      userName={session.profile.full_name}
                       permissions={p.permissions}
                       isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
                       fileCount={p.episodeFileCounts[ep.id] ?? 0}

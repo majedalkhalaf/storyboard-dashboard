@@ -126,7 +126,7 @@ function VideoThumbCard({ file, onOpen }: { file: ProjectFile; onOpen: () => voi
   );
 }
 
-function VideoPlayerModal({
+export function VideoPlayerModal({
   file,
   comments: initialComments,
   companyId,

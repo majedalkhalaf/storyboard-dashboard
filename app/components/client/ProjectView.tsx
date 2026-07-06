@@ -340,6 +340,7 @@ export default function ProjectView({
               episodeNoteCounts={episodeNoteCounts}
               openRequestSet={openRequestSet}
               userId={userId}
+              userName={userName}
               permissions={permissions}
             />
           )}
@@ -480,6 +481,7 @@ function EpisodesTab({
   episodeNoteCounts,
   openRequestSet,
   userId,
+  userName,
   permissions,
 }: {
   project: Project;
@@ -489,6 +491,7 @@ function EpisodesTab({
   episodeNoteCounts: Record<string, number>;
   openRequestSet: Set<string>;
   userId: string;
+  userName: string | null;
   permissions: ClientPermissions;
 }) {
   const [query, setQuery] = useState("");
@@ -548,6 +551,7 @@ function EpisodesTab({
                 projectId={project.id}
                 companyId={project.company_id}
                 userId={userId}
+                userName={userName}
                 permissions={permissions}
                 isApproved={isApproved}
                 fileCount={episodeFileCounts[ep.id] ?? 0}
