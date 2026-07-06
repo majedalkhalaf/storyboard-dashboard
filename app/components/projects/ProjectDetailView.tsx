@@ -90,7 +90,9 @@ export default function ProjectDetailView(props: Props) {
             {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
             {detailsTab === "progress" && <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />}
             {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} />}
-            {detailsTab === "behind_scenes" && <ProjectBehindScenesSection project={project} onProjectChanged={patchProject} />}
+            {detailsTab === "behind_scenes" && (
+              <ProjectBehindScenesSection project={project} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} onProjectChanged={patchProject} />
+            )}
             {detailsTab === "finance" && <ProjectFinanceSection projectId={project.id} />}
             {detailsTab === "contracts" && <ProjectContractsSection projectId={project.id} />}
             {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}

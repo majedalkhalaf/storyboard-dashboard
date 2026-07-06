@@ -24,16 +24,23 @@ import NotesTab from "./episode-tabs/NotesTab";
 import StagesTab from "./episode-tabs/StagesTab";
 import ActivityTab from "./episode-tabs/ActivityTab";
 import StoryboardTab from "./storyboard/StoryboardTab";
+import EpisodeBehindScenesTab from "./episode-tabs/EpisodeBehindScenesTab";
+import EpisodeProgressTab from "./episode-tabs/EpisodeProgressTab";
 
 // دُمج تبويبا "الفيديو" و"الأصول" السابقان داخل "الملفات": الفيديو أصبح قسماً أعلى قائمة
 // الملفات في FilesTab.tsx (نفس مشغّل الفيديو والتعليقات الموقوتة، بلا تبويب مستقل)،
 // والأصول أُزيل نهائياً لأنه كان بالحرف نفس ملفات "الملفات" مُجمّعة حسب التصنيف فقط —
 // وتصنيف/تحميل الملفات متاح بالفعل من داخل تبويب الملفات نفسه.
-export type EpisodeTabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity";
+// "episode_bts"/"episode_progress" بمفتاح مختلف عمداً عن "behind_scenes"/"progress" في
+// DETAILS_TABS (ProjectDetailView.tsx) رغم تشابه التسمية الظاهرة — القائمة المدموجة في
+// mergedTabs تفرّق بين نوعي التبويبات بمطابقة المفتاح فقط، فتصادم المفاتيح كان سيُخرِج
+// أحدهما عن العمل.
+export type EpisodeTabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity" | "episode_bts" | "episode_progress";
 
 // مرتّبة حسب الأولوية الفعلية أثناء تنفيذ الحلقة: نظرة عامة أولاً كنقطة انطلاق،
 // ثم مراحل التنفيذ والملفات والملاحظات (الأكثر استخداماً يومياً)، فمواد ما قبل
-// الإنتاج (ستوري بورد/سكربت)، وأخيراً سجل النشاط كأقل الأقسام مراجعة.
+// الإنتاج (ستوري بورد/سكربت)، وأخيراً سجل النشاط كأقل الأقسام مراجعة. الكواليس/العمل
+// الجاري الخاصان بهذه الحلقة تحديداً في آخر القائمة — محتوى تكميلي وليس أساسياً لتنفيذها.
 export const EPISODE_TABS: TabDef<EpisodeTabKey>[] = [
   { key: "overview", label: "نظرة عامة", icon: "info" },
   { key: "stages", label: "مراحل التنفيذ", icon: "timeline" },
@@ -41,6 +48,8 @@ export const EPISODE_TABS: TabDef<EpisodeTabKey>[] = [
   { key: "notes", label: "الملاحظات", icon: "message" },
   { key: "storyboard", label: "ستوري بورد", icon: "palette" },
   { key: "script", label: "السكربت", icon: "fileCheck" },
+  { key: "episode_bts", label: "كواليس الحلقة", icon: "sparkles" },
+  { key: "episode_progress", label: "عمل جارٍ للحلقة", icon: "timeline" },
   { key: "activity", label: "سجل النشاط", icon: "clock" },
 ];
 
@@ -270,6 +279,8 @@ export default function EpisodeWorkspace({
                     {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
+                    {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}
                     {tab === "activity" && <ActivityTab episode={detail!} />}
                   </div>
                   <EpisodeSidebar episode={detail!} clientName={clientName} />
@@ -298,6 +309,8 @@ export default function EpisodeWorkspace({
                     {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
+                    {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}
                     {tab === "activity" && <ActivityTab episode={detail!} />}
                   </div>
                   <EpisodeSidebar episode={detail!} clientName={clientName} />

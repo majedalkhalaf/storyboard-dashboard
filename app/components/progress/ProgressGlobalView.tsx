@@ -5,13 +5,24 @@ import Icon from "@/app/components/ui/Icon";
 import BeforeAfterSlider from "@/app/components/ui/BeforeAfterSlider";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
-import { useSession } from "@/app/providers/SessionProvider";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
-import { relativeTime } from "../utils";
+import { relativeTime } from "@/app/components/projects/utils";
 import type { BehindScenesMediaType, ProgressUpdate, ProgressUpdateContentType, ProgressUpdateMediaItem, ProgressUpdateStage } from "@/app/lib/types";
 
-export interface UpdateRow extends ProgressUpdate {
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+interface EpisodeOption {
+  id: string;
+  project_id: string;
+  title: string;
+}
+
+interface UpdateRow extends ProgressUpdate {
   author_name: string | null;
+  project_name: string | null;
   episode_title: string | null;
 }
 
@@ -21,50 +32,55 @@ function mediaType(file: File): BehindScenesMediaType {
   return "image";
 }
 
-// قسم "العمل الجاري" — توثيق احترافي لمراحل التنفيذ الفعلية (وليس محتوى
-// ترفيهي كالكواليس)، مع دعم منشورات "مقارنة قبل/بعد" لإظهار أثر التلوين أو
-// المونتاج أو المؤثرات بوضوح للعميل.
-export default function ProjectProgressUpdatesSection({
-  projectId,
+// النسخة الشاملة لكل المشاريع من قسم "العمل الجاري" — عنصر أساسي في القائمة
+// الجانبية، يعرض تحديثات كل المشاريع مع شارة المشروع/الحلقة على كل بطاقة.
+// نفس منطق النشر متعدد المشاريع المتّبع في الكواليس الشاملة: يمكن اختيار أكثر
+// من مشروع فيُنشر التحديث نفسه لكل مشروع مستقلاً، وتحديد حلقة بعينها فقط
+// عند اختيار مشروع واحد بالضبط.
+export default function ProgressGlobalView({
+  companyId,
+  projects,
   episodes,
 }: {
-  projectId: string;
-  episodes: { id: string; title: string }[];
+  companyId: string;
+  projects: ProjectOption[];
+  episodes: EpisodeOption[];
 }) {
-  const { company } = useSession();
   const [updates, setUpdates] = useState<UpdateRow[] | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("");
 
   async function load() {
     const supabase = createClient();
     const { data } = await supabase
       .from("progress_updates")
-      .select("*, author:profiles!author_id(full_name), episode:episodes(title)")
-      .eq("project_id", projectId)
+      .select("*, author:profiles!author_id(full_name), project:projects(name), episode:episodes(title)")
+      .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 
     const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
     const rows = ((data ?? []) as Record<string, unknown>[]).map((u) => ({
       ...(u as unknown as ProgressUpdate),
       author_name: one<{ full_name: string | null }>(u.author as never)?.full_name ?? null,
+      project_name: one<{ name: string | null }>(u.project as never)?.name ?? null,
       episode_title: one<{ title: string | null }>(u.episode as never)?.title ?? null,
     })) as UpdateRow[];
     setUpdates(rows);
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل تحديثات العمل الجاري عند فتح القسم، النمط القياسي في هذا المشروع
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل تحديثات العمل الجاري الشاملة عند فتح الصفحة، النمط القياسي في هذا المشروع
     load();
     const supabase = createClient();
     const channel = supabase
-      .channel(`progress-internal:${projectId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "progress_updates", filter: `project_id=eq.${projectId}` }, load)
+      .channel(`progress-global:${companyId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "progress_updates", filter: `company_id=eq.${companyId}` }, load)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load مُعاد إنشاؤه كل عرض عمداً ليقرأ projectId الحالي دوماً
-  }, [projectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load مُعاد إنشاؤه كل عرض عمداً ليقرأ companyId الحالي دوماً
+  }, [companyId]);
 
   async function deleteUpdate(id: string) {
     if (!confirm("حذف هذا التحديث نهائياً؟")) return;
@@ -73,18 +89,37 @@ export default function ProjectProgressUpdatesSection({
     load();
   }
 
+  const filtered = (updates ?? []).filter((u) => !projectFilter || u.project_id === projectFilter);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button className="btn btn-gold" style={{ fontSize: 12.5 }} onClick={() => setComposerOpen(true)}>
-          <Icon name="plus" size={15} /> تحديث جديد
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 className="page-title-size" style={{ fontSize: 24, fontWeight: 800 }}>
+            العمل الجاري
+          </h1>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+            كل تحديثات العمل الجاري عبر كل المشاريع
+          </p>
+        </div>
+        <button className="btn btn-gold" onClick={() => setComposerOpen(true)}>
+          <Icon name="plus" size={16} /> تحديث جديد
         </button>
       </div>
 
+      <select className="input-field" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} style={{ width: "auto", minWidth: 180 }}>
+        <option value="">كل المشاريع</option>
+        {projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
       {composerOpen && (
         <UpdateComposer
-          companyId={company?.id ?? ""}
-          projectId={projectId}
+          companyId={companyId}
+          projects={projects}
           episodes={episodes}
           onClose={() => setComposerOpen(false)}
           onCreated={() => {
@@ -95,12 +130,15 @@ export default function ProjectProgressUpdatesSection({
       )}
 
       {!updates ? (
-        <div className="skeleton" style={{ height: 120, borderRadius: 10 }} />
-      ) : updates.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>لا توجد تحديثات عمل جارٍ بعد.</p>
+        <div className="skeleton" style={{ height: 160, borderRadius: 10 }} />
+      ) : filtered.length === 0 ? (
+        <div className="empty-state card">
+          <Icon name="timeline" size={30} className="text-muted" />
+          <p style={{ marginTop: 10 }}>لا توجد تحديثات عمل جارٍ بعد</p>
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {updates.map((u) => (
+          {filtered.map((u) => (
             <UpdateCard key={u.id} update={u} onDelete={() => deleteUpdate(u.id)} />
           ))}
         </div>
@@ -109,7 +147,7 @@ export default function ProjectProgressUpdatesSection({
   );
 }
 
-export function UpdateCard({ update, onDelete }: { update: UpdateRow; onDelete: () => void }) {
+function UpdateCard({ update, onDelete }: { update: UpdateRow; onDelete: () => void }) {
   const stageMeta = PROGRESS_UPDATE_STAGES.find((s) => s.value === update.stage);
   const before = update.media.find((m) => m.label === "before") ?? update.media[0];
   const after = update.media.find((m) => m.label === "after") ?? update.media[1];
@@ -118,7 +156,12 @@ export function UpdateCard({ update, onDelete }: { update: UpdateRow; onDelete: 
     <div className="card" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
         <div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+            {update.project_name && (
+              <span className="chip chip-gold" style={{ fontSize: 10.5 }}>
+                {update.project_name}
+              </span>
+            )}
             {stageMeta && (
               <span className="chip" style={{ fontSize: 10.5, color: stageMeta.color, borderColor: stageMeta.color }}>
                 <Icon name={stageMeta.icon} size={11} /> {stageMeta.label}
@@ -167,19 +210,16 @@ export function UpdateCard({ update, onDelete }: { update: UpdateRow; onDelete: 
   );
 }
 
-export function UpdateComposer({
+function UpdateComposer({
   companyId,
-  projectId,
+  projects,
   episodes,
-  lockEpisodeId,
   onClose,
   onCreated,
 }: {
   companyId: string;
-  projectId: string;
-  episodes: { id: string; title: string }[];
-  /** عند تمريره، الحلقة تُثبَّت ولا يظهر منتقي الحلقة — يُستخدم عند فتح المُركِّب من داخل صفحة حلقة بعينها. */
-  lockEpisodeId?: string;
+  projects: ProjectOption[];
+  episodes: EpisodeOption[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -187,7 +227,8 @@ export function UpdateComposer({
   const [description, setDescription] = useState("");
   const [stage, setStage] = useState<ProgressUpdateStage>("shooting");
   const [contentType, setContentType] = useState<ProgressUpdateContentType>("update");
-  const [episodeId, setEpisodeId] = useState<string>(lockEpisodeId ?? "");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [episodeId, setEpisodeId] = useState<string>("");
   const [shared, setShared] = useState(false);
   const [media, setMedia] = useState<ProgressUpdateMediaItem[]>([]);
   const [beforeItem, setBeforeItem] = useState<ProgressUpdateMediaItem | null>(null);
@@ -196,10 +237,18 @@ export function UpdateComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const singleProjectId = selectedProjectIds.length === 1 ? selectedProjectIds[0] : null;
+  const availableEpisodes = singleProjectId ? episodes.filter((e) => e.project_id === singleProjectId) : [];
+
+  function toggleProject(id: string) {
+    setEpisodeId("");
+    setSelectedProjectIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
+
   async function uploadOne(file: File): Promise<ProgressUpdateMediaItem | null> {
     const supabase = createClient();
     const type = mediaType(file);
-    const path = `${companyId}/progress-updates/${projectId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const path = `${companyId}/progress-updates/global/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
     const { error: uploadError } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (uploadError) return null;
     const { data } = supabase.storage.from("public-assets").getPublicUrl(path);
@@ -239,24 +288,30 @@ export function UpdateComposer({
       setError("أضف عنواناً أو وصفاً أو وسائط على الأقل.");
       return;
     }
+    if (selectedProjectIds.length === 0) {
+      setError("اختر مشروعاً واحداً على الأقل.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const { error: insertError } = await supabase.from("progress_updates").insert({
-      company_id: companyId,
-      project_id: projectId,
-      episode_id: episodeId || null,
-      author_id: user?.id,
-      title: title.trim() || null,
-      description: description.trim() || null,
-      stage,
-      content_type: contentType,
-      media: finalMedia,
-      shared_with_client: shared,
-    });
+    const { error: insertError } = await supabase.from("progress_updates").insert(
+      selectedProjectIds.map((projectId) => ({
+        company_id: companyId,
+        project_id: projectId,
+        episode_id: singleProjectId === projectId ? episodeId || null : null,
+        author_id: user?.id,
+        title: title.trim() || null,
+        description: description.trim() || null,
+        stage,
+        content_type: contentType,
+        media: finalMedia,
+        shared_with_client: shared,
+      }))
+    );
     setBusy(false);
     if (insertError) {
       setError("تعذّر نشر التحديث، حاول مرة أخرى.");
@@ -273,6 +328,35 @@ export function UpdateComposer({
           <h3 style={{ fontSize: 17, fontWeight: 800 }}>تحديث عمل جارٍ جديد</h3>
         </div>
 
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>المشاريع (اختر واحداً أو أكثر)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 140, overflowY: "auto", padding: 4, border: "1px solid var(--border)", borderRadius: 8 }}>
+            {projects.map((p) => {
+              const checked = selectedProjectIds.includes(p.id);
+              return (
+                <label
+                  key={p.id}
+                  className="chip"
+                  style={{
+                    cursor: "pointer",
+                    background: checked ? "rgba(var(--gold-rgb),0.12)" : undefined,
+                    borderColor: checked ? "var(--gold)" : undefined,
+                    color: checked ? "var(--gold)" : undefined,
+                  }}
+                >
+                  <input type="checkbox" checked={checked} onChange={() => toggleProject(p.id)} style={{ accentColor: "var(--gold)" }} />
+                  {p.name}
+                </label>
+              );
+            })}
+          </div>
+          {selectedProjectIds.length > 1 && (
+            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
+              عند اختيار أكثر من مشروع يُنشر نفس التحديث بشكل مستقل في كل مشروع، دون تحديد حلقة.
+            </p>
+          )}
+        </div>
+
         <input className="input-field" placeholder="عنوان التحديث (اختياري)" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 10 }} />
         <textarea className="input-field" rows={3} placeholder="وصف مختصر لهذه المرحلة..." value={description} onChange={(e) => setDescription(e.target.value)} style={{ marginBottom: 10 }} />
 
@@ -284,16 +368,20 @@ export function UpdateComposer({
               </option>
             ))}
           </select>
-          {!lockEpisodeId && (
-            <select className="input-field" style={{ flex: "1 1 160px" }} value={episodeId} onChange={(e) => setEpisodeId(e.target.value)}>
-              <option value="">مستوى المشروع العام</option>
-              {episodes.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.title}
-                </option>
-              ))}
-            </select>
-          )}
+          <select
+            className="input-field"
+            style={{ flex: "1 1 160px" }}
+            value={episodeId}
+            onChange={(e) => setEpisodeId(e.target.value)}
+            disabled={!singleProjectId || availableEpisodes.length === 0}
+          >
+            <option value="">مستوى المشروع العام</option>
+            {availableEpisodes.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>

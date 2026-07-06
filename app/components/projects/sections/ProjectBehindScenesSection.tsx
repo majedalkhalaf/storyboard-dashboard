@@ -8,8 +8,9 @@ import { useSession } from "@/app/providers/SessionProvider";
 import { relativeTime } from "../utils";
 import type { BehindScenesComment, BehindScenesMediaItem, BehindScenesMediaType, BehindScenesPost, Project } from "@/app/lib/types";
 
-interface PostRow extends BehindScenesPost {
+export interface PostRow extends BehindScenesPost {
   author_name: string | null;
+  episode_title: string | null;
   comments: (BehindScenesComment & { author_name: string | null })[];
   likes_count: number;
 }
@@ -26,7 +27,15 @@ function mediaType(file: File): BehindScenesMediaType {
 // من هنا. الوسائط تُرفع مباشرة إلى مساحة عامة (نفس مساحة شعار الشركة
 // والصور الشخصية) لتُعرض فوراً بلا حاجة لروابط موقّعة تنتهي صلاحيتها —
 // بنفس نموذج الثقة المتّبع أصلاً لكل الأصول العامة في النظام.
-export default function ProjectBehindScenesSection({ project, onProjectChanged }: { project: Project; onProjectChanged: (patch: Partial<Project>) => void }) {
+export default function ProjectBehindScenesSection({
+  project,
+  episodes,
+  onProjectChanged,
+}: {
+  project: Project;
+  episodes: { id: string; title: string }[];
+  onProjectChanged: (patch: Partial<Project>) => void;
+}) {
   const { company } = useSession();
   const [posts, setPosts] = useState<PostRow[] | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -36,7 +45,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
     const supabase = createClient();
     const { data } = await supabase
       .from("behind_scenes_posts")
-      .select("*, author:profiles!author_id(full_name), comments:behind_scenes_comments(*, author:profiles!author_id(full_name)), likes:behind_scenes_likes(id)")
+      .select("*, author:profiles!author_id(full_name), episode:episodes(title), comments:behind_scenes_comments(*, author:profiles!author_id(full_name)), likes:behind_scenes_likes(id)")
       .eq("project_id", project.id)
       .order("created_at", { ascending: false });
 
@@ -44,6 +53,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
     const rows = ((data ?? []) as Record<string, unknown>[]).map((p) => ({
       ...(p as unknown as BehindScenesPost),
       author_name: one<{ full_name: string | null }>(p.author as never)?.full_name ?? null,
+      episode_title: one<{ title: string | null }>(p.episode as never)?.title ?? null,
       comments: ((p.comments as Record<string, unknown>[]) ?? []).map((c) => ({
         ...(c as unknown as BehindScenesComment),
         author_name: one<{ full_name: string | null }>(c.author as never)?.full_name ?? null,
@@ -104,6 +114,7 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
         <PostComposer
           companyId={company?.id ?? ""}
           projectId={project.id}
+          episodes={episodes}
           editingPost={editingPost}
           onClose={() => {
             setComposerOpen(false);
@@ -132,11 +143,16 @@ export default function ProjectBehindScenesSection({ project, onProjectChanged }
   );
 }
 
-function PostCard({ post, onEdit, onDelete }: { post: PostRow; onEdit: () => void; onDelete: () => void }) {
+export function PostCard({ post, onEdit, onDelete }: { post: PostRow; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="card" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
         <div>
+          {post.episode_title && (
+            <span className="chip" style={{ fontSize: 10.5, marginBottom: 4, display: "inline-flex" }}>
+              {post.episode_title}
+            </span>
+          )}
           <div style={{ fontSize: 13, fontWeight: 700 }}>{post.author_name ?? "عضو الفريق"}</div>
           <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{relativeTime(post.created_at)}</div>
         </div>
@@ -265,15 +281,20 @@ export function MediaGallery({ media, variant = "grid" }: { media: BehindScenesM
   );
 }
 
-function PostComposer({
+export function PostComposer({
   companyId,
   projectId,
+  episodes,
+  lockEpisodeId,
   editingPost,
   onClose,
   onCreated,
 }: {
   companyId: string;
   projectId: string;
+  episodes: { id: string; title: string }[];
+  /** عند تمريره، الحلقة تُثبَّت ولا يظهر منتقي الحلقة — يُستخدم عند فتح المُركِّب من داخل صفحة حلقة بعينها. */
+  lockEpisodeId?: string;
   editingPost?: PostRow | null;
   onClose: () => void;
   onCreated: () => void;
@@ -283,6 +304,7 @@ function PostComposer({
   const [body, setBody] = useState(editingPost?.body ?? "");
   const [shared, setShared] = useState(editingPost?.shared_with_client ?? false);
   const [media, setMedia] = useState<BehindScenesMediaItem[]>(editingPost?.media ?? []);
+  const [episodeId, setEpisodeId] = useState<string>(lockEpisodeId ?? editingPost?.episode_id ?? "");
   const [uploadingCount, setUploadingCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -321,7 +343,7 @@ function PostComposer({
     if (isEditing && editingPost) {
       const { error: updateError } = await supabase
         .from("behind_scenes_posts")
-        .update({ title: title.trim() || null, body: body.trim() || null, media, shared_with_client: shared })
+        .update({ title: title.trim() || null, body: body.trim() || null, media, shared_with_client: shared, episode_id: episodeId || null })
         .eq("id", editingPost.id);
       setBusy(false);
       if (updateError) {
@@ -338,6 +360,7 @@ function PostComposer({
     const { error: insertError } = await supabase.from("behind_scenes_posts").insert({
       company_id: companyId,
       project_id: projectId,
+      episode_id: episodeId || null,
       author_id: user?.id,
       title: title.trim() || null,
       body: body.trim() || null,
@@ -361,7 +384,18 @@ function PostComposer({
         </div>
 
         <input className="input-field" placeholder="عنوان المنشور (اختياري)" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 10 }} />
-        <textarea className="input-field" rows={3} placeholder="اكتب تعليقاً يشرح هذه اللحظة..." value={body} onChange={(e) => setBody(e.target.value)} style={{ marginBottom: 14 }} />
+        <textarea className="input-field" rows={3} placeholder="اكتب تعليقاً يشرح هذه اللحظة..." value={body} onChange={(e) => setBody(e.target.value)} style={{ marginBottom: 10 }} />
+
+        {!lockEpisodeId && episodes.length > 0 && (
+          <select className="input-field" value={episodeId} onChange={(e) => setEpisodeId(e.target.value)} style={{ marginBottom: 14 }}>
+            <option value="">مستوى المشروع العام (بدون حلقة محددة)</option>
+            {episodes.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.title}
+              </option>
+            ))}
+          </select>
+        )}
 
         <div
           onDragOver={(e) => {

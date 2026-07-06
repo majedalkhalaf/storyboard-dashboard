@@ -351,6 +351,7 @@ export interface BehindScenesPost {
   id: string;
   company_id: string;
   project_id: string;
+  episode_id: string | null;
   author_id: string;
   title: string | null;
   body: string | null;

@@ -66,6 +66,8 @@ export const SIDEBAR_NAV: SidebarEntry[] = [
   },
   { type: "link", href: "/files", label: "الملفات", icon: "files" },
   { type: "link", href: "/notes", label: "الملاحظات", icon: "message" },
+  { type: "link", href: "/behind-scenes", label: "الكواليس", icon: "sparkles" },
+  { type: "link", href: "/progress", label: "العمل الجاري", icon: "timeline" },
   { type: "link", href: "/export", label: "التقارير", icon: "export" },
   { type: "link", href: "/notifications", label: "الإشعارات", icon: "bell" },
   {
