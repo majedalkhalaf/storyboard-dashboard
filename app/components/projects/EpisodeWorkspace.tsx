@@ -87,6 +87,9 @@ export default function EpisodeWorkspace({
   const [tab, setTab] = useState<EpisodeTabKey>("overview");
   const latestRequestRef = useRef<string | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  // مطوية افتراضياً كلما كانت هناك حلقة مختارة أصلاً — يظهر شريط تنقل مصغّر بدل شبكة
+  // البطاقات الكاملة، فتنتقل تبويبات/إعدادات الحلقة للأعلى مباشرة دون تمرير طويل.
+  const [galleryExpanded, setGalleryExpanded] = useState(!selectedId);
 
   const load = useCallback(
     async (id: string) => {
@@ -111,6 +114,7 @@ export default function EpisodeWorkspace({
     setSelectedId(id);
     setTab("overview");
     onExtraTabChange?.(null);
+    setGalleryExpanded(false);
     const url = new URL(window.location.href);
     url.searchParams.set("episode", id);
     window.history.replaceState(null, "", url.toString());
@@ -180,8 +184,26 @@ export default function EpisodeWorkspace({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>الحلقات</h2>
-        <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700 }}>الحلقات</h2>
+          {galleryItems.length > 0 && (
+            <button
+              className="btn-ghost"
+              onClick={() => setGalleryExpanded((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12 }}
+            >
+              {galleryExpanded ? "إخفاء القائمة" : "عرض كل الحلقات"}
+              <span style={{ display: "flex", transform: galleryExpanded ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+                <Icon name="chevronDown" size={13} />
+              </span>
+            </button>
+          )}
+        </div>
+        {galleryExpanded || galleryItems.length === 0 ? (
+          <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
+        ) : (
+          <CompactEpisodeStrip episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
+        )}
       </div>
 
       {(selectedId || extraTabs?.length) && (
@@ -285,6 +307,49 @@ export default function EpisodeWorkspace({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// شريط تنقل مصغّر يحل محل شبكة البطاقات الكاملة بعد اختيار حلقة — يبقي التبديل بين
+// الحلقات ممكناً بضغطة واحدة دون إعادة إظهار الشبكة الكبيرة التي تدفع الإعدادات للأسفل.
+function CompactEpisodeStrip({
+  episodes,
+  selectedId,
+  onSelect,
+}: {
+  episodes: EpisodeGalleryItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+      {episodes.map((ep) => {
+        const active = ep.id === selectedId;
+        return (
+          <button
+            key={ep.id}
+            onClick={() => onSelect(ep.id)}
+            className="chip"
+            title={ep.title}
+            style={{
+              flexShrink: 0,
+              cursor: "pointer",
+              fontSize: 12,
+              padding: "7px 14px",
+              maxWidth: 200,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              borderColor: active ? "var(--gold)" : "var(--border)",
+              background: active ? "rgba(212,175,55,0.12)" : "transparent",
+              color: active ? "var(--gold)" : "var(--text-primary)",
+            }}
+          >
+            {ep.number != null ? `حلقة ${ep.number}: ${ep.title}` : ep.title}
+          </button>
+        );
+      })}
     </div>
   );
 }
