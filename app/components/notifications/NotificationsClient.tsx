@@ -39,7 +39,8 @@ export default function NotificationsClient({
       await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
     }
     if (n.project_id) {
-      router.push(n.episode_id ? `/projects/${n.project_id}/episodes/${n.episode_id}` : `/projects/${n.project_id}`);
+      const base = n.episode_id ? `/projects/${n.project_id}/episodes/${n.episode_id}` : `/projects/${n.project_id}`;
+      router.push(n.note_id ? `${base}?note=${n.note_id}` : base);
     }
   }
 
@@ -118,7 +119,7 @@ export default function NotificationsClient({
                   <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--text-primary)" }}>{n.title ?? "إشعار"}</span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{relativeTime(n.created_at)}</span>
                 </div>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6 }}>{n.message}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.message}</p>
               </div>
             </button>
           ))}

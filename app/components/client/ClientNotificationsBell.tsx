@@ -40,6 +40,9 @@ export default function ClientNotificationsBell() {
         .order("created_at", { ascending: false })
         .limit(20);
       setItems((data ?? []) as ClientNotification[]);
+      // صوت تنبيه واحد فور الدخول إن وُجدت إشعارات سابقة لم تُقرأ بعد — بخلاف صوت
+      // الإشعار الحي الجديد أدناه الذي يبقى مستقلاً عن هذا.
+      if ((data ?? []).some((n) => !n.is_read)) playNotificationSound();
     }
     load();
 
@@ -88,11 +91,10 @@ export default function ClientNotificationsBell() {
       return;
     }
     if (n.project_id) {
-      router.push(
-        n.episode_id
-          ? `/client/projects/${n.project_id}/episodes/${n.episode_id}`
-          : `/client/projects/${n.project_id}`
-      );
+      const base = n.episode_id
+        ? `/client/projects/${n.project_id}/episodes/${n.episode_id}`
+        : `/client/projects/${n.project_id}`;
+      router.push(n.note_id ? `${base}?note=${n.note_id}` : base);
     }
   }
 
@@ -163,8 +165,8 @@ export default function ClientNotificationsBell() {
                     }}
                   >
                     {projectName && <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(projectName)}</div>}
-                    {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{n.message}</div>
+                    {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.title}</div>}
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.message}</div>
                   </button>
                 );
               })

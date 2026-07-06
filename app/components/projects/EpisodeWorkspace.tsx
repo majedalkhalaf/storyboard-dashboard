@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Tabs, { type TabDef } from "@/app/components/ui/Tabs";
 import Icon from "@/app/components/ui/Icon";
 import EditableTitle from "@/app/components/ui/EditableTitle";
@@ -77,6 +78,10 @@ export default function EpisodeWorkspace({
   const companyId = company!.id;
   const supabase = createClient();
   const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
+  // يُقرأ مرة واحدة فقط عند أول تحميل — رابط إشعار "طلب تعديل" يحمل ?note=<id>
+  // فيُنقل المستخدم مباشرة لتبويب الملاحظات مع تمييز الملاحظة المقصودة تحديداً.
+  const [highlightNoteId] = useState<string | null>(() => searchParams.get("note"));
 
   const [pipelineStages, setPipelineStages] = useState<CompanyPipelineStage[]>([]);
   useEffect(() => {
@@ -93,7 +98,7 @@ export default function EpisodeWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(initialEpisodeId ?? gallery[0]?.id ?? null);
   const [detail, setDetail] = useState<EpisodeFullDetail | null>(null);
   const [loading, setLoading] = useState(Boolean(selectedId));
-  const [tab, setTab] = useState<EpisodeTabKey>("overview");
+  const [tab, setTab] = useState<EpisodeTabKey>(() => (highlightNoteId ? "notes" : "overview"));
   const latestRequestRef = useRef<string | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   // مطوية افتراضياً كلما كانت هناك حلقة مختارة أصلاً — يظهر شريط تنقل مصغّر بدل شبكة
@@ -277,7 +282,9 @@ export default function EpisodeWorkspace({
                     {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
-                    {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "notes" && (
+                      <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
+                    )}
                     {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
                     {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}
@@ -307,7 +314,9 @@ export default function EpisodeWorkspace({
                     {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
-                    {tab === "notes" && <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "notes" && (
+                      <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
+                    )}
                     {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
                     {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}

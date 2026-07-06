@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
@@ -101,6 +101,7 @@ export default function EpisodeDetailView({
   const canEditEpisode = canClient(permissions, "edit_episode");
   const videoFiles = useMemo(() => files.filter((f) => f.category === "video"), [files]);
   const videoComments = useMemo(() => notes.filter((n) => n.target_type === "video"), [notes]);
+  const hasOpenEditRequest = useMemo(() => notes.some((n) => n.status === "new" && n.request_type), [notes]);
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "overview", label: "نظرة عامة", show: true },
@@ -115,7 +116,10 @@ export default function EpisodeDetailView({
     { key: "reports", label: "التقارير", show: true },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
-  const [active, setActive] = useState<TabKey>("overview");
+  const searchParams = useSearchParams();
+  // رابط إشعار "طلب تعديل" يحمل ?note=<id> فيُفتح تبويب طلبات التعديل مباشرة.
+  const [highlightNoteId] = useState<string | null>(() => searchParams.get("note"));
+  const [active, setActive] = useState<TabKey>(() => (highlightNoteId ? "notes" : "overview"));
   const [requestOpen, setRequestOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -177,6 +181,7 @@ export default function EpisodeDetailView({
             alreadyApproved={alreadyApproved}
             approvedAt={approvedAt}
             canApprove={canClient(permissions, "approve_episodes")}
+            hasOpenEditRequest={hasOpenEditRequest}
             variant="hero"
           />
         </div>
@@ -366,6 +371,7 @@ export default function EpisodeDetailView({
               currentUserName={userName}
               permissions={permissions}
               initialNotes={notes}
+              highlightNoteId={highlightNoteId}
             />
           )}
 

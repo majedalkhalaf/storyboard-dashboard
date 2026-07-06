@@ -21,6 +21,7 @@ export default function ApproveEpisode({
   alreadyApproved,
   approvedAt,
   canApprove,
+  hasOpenEditRequest = false,
   variant = "detail",
 }: {
   episodeId: string;
@@ -31,6 +32,9 @@ export default function ApproveEpisode({
   alreadyApproved: boolean;
   approvedAt?: string | null;
   canApprove: boolean;
+  /** إخفاء زر الاعتماد طالما هناك طلب تعديل مفتوح (لم يُحلّ بعد) على هذه الحلقة —
+      لا معنى لاعتماد حلقة بينما طلب تعديل عليها لا يزال قيد المعالجة. */
+  hasOpenEditRequest?: boolean;
   variant?: "detail" | "card" | "hero";
 }) {
   const [approved, setApproved] = useState(alreadyApproved);
@@ -58,6 +62,10 @@ export default function ApproveEpisode({
   );
 
   if (approved) return badge;
+
+  // يُخفى الزر بالكامل (بلا بديل) طالما هناك طلب تعديل مفتوح على الحلقة — يظهر
+  // مجدداً تلقائياً بمجرد حلّ الطلب (تغيير حالته إلى "done" من فريق العمل).
+  if (hasOpenEditRequest) return null;
 
   // الزر يظهر على كل بطاقة حلقة طالما لم تُعتمد/تُسلَّم بعد والعميل يملك
   // صلاحية الاعتماد — بلا اشتراط أن يضعها الفريق الداخلي "جاهزة للاعتماد"

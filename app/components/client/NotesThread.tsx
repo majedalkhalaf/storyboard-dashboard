@@ -7,6 +7,7 @@ import { sanitizeRichText } from "@/app/components/client/RichTextEditor";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime, formatDateTime } from "@/app/components/client/utils";
 import { canClient } from "@/app/lib/permissions";
+import { useScrollHighlight } from "@/app/lib/use-scroll-highlight";
 import { NOTE_STATUSES, NOTE_REQUEST_TYPES, NOTE_PRIORITIES } from "@/app/lib/constants";
 import type { ClientPermissions, Note, NoteTargetType } from "@/app/lib/types";
 
@@ -20,6 +21,7 @@ interface NotesThreadProps {
   currentUserName: string | null;
   permissions: ClientPermissions;
   initialNotes: Note[];
+  highlightNoteId?: string | null;
 }
 
 function formatTimestamp(seconds: number): string {
@@ -41,7 +43,9 @@ export default function NotesThread({
   currentUserName,
   permissions,
   initialNotes,
+  highlightNoteId,
 }: NotesThreadProps) {
+  const highlightedId = useScrollHighlight(highlightNoteId, "note");
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [prevInitialNotes, setPrevInitialNotes] = useState(initialNotes);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -115,12 +119,15 @@ export default function NotesThread({
 
     return (
       <div
+        id={`note-${note.id}`}
         style={{
           background: mine ? "rgba(var(--gold-rgb),0.08)" : "var(--bg-secondary)",
-          border: "1px solid var(--border)",
+          border: highlightedId === note.id ? "1px solid var(--gold)" : "1px solid var(--border)",
           borderRadius: 12,
           padding: "12px 14px",
           marginInlineStart: isReply ? 24 : 0,
+          boxShadow: highlightedId === note.id ? "0 0 0 2px var(--gold)" : undefined,
+          transition: "box-shadow .3s, border-color .3s",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>

@@ -656,6 +656,7 @@ export interface AppNotification {
   user_id: string;
   project_id: string | null;
   episode_id: string | null;
+  note_id: string | null;
   type: string;
   title: string | null;
   message: string;

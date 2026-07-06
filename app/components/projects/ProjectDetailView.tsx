@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ClientRecord, Project, ProjectServiceItem } from "@/app/lib/types";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { ProjectClientRow } from "./ClientsTab";
@@ -51,6 +51,10 @@ interface Props {
 export default function ProjectDetailView(props: Props) {
   const { project: initialProject, clientName, services, gallery, projectClients, companyClients, initialEpisodeId } = props;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // رابط إشعار "ملاحظة على مستوى المشروع" (بلا حلقة) يحمل ?note=<id> بدون ?episode= —
+  // في هذه الحالة تحديداً نفتح تبويب "الملاحظات" مباشرة بدل تبويبات الحلقة الافتراضية.
+  const [highlightNoteId] = useState<string | null>(() => searchParams.get("note"));
 
   const [project, setProject] = useState(initialProject);
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
@@ -59,7 +63,9 @@ export default function ProjectDetailView(props: Props) {
   // null يعني أن أحد تبويبات الحلقة هو النشط بدل تبويبات "تفاصيل إضافية" —
   // القائمتان مدموجتان بصرياً في شريط جانبي واحد داخل EpisodeWorkspace، فلا
   // تُفتح تبويبات المشروع افتراضياً إلا إن كان المشروع بلا حلقات إطلاقاً.
-  const [detailsTab, setDetailsTab] = useState<DetailsTabKey | null>(gallery.length === 0 ? "info" : null);
+  const [detailsTab, setDetailsTab] = useState<DetailsTabKey | null>(
+    highlightNoteId && !searchParams.get("episode") ? "notes" : gallery.length === 0 ? "info" : null
+  );
 
   function patchProject(patch: Partial<Project>) {
     setProject((p) => ({ ...p, ...patch }));
@@ -89,7 +95,7 @@ export default function ProjectDetailView(props: Props) {
             {detailsTab === "info" && <ProjectInfoBlock project={project} clientName={clientName} />}
             {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
             {detailsTab === "progress" && <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />}
-            {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} />}
+            {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} highlightNoteId={highlightNoteId} />}
             {detailsTab === "behind_scenes" && (
               <ProjectBehindScenesSection project={project} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} onProjectChanged={patchProject} />
             )}

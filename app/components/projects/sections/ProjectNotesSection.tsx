@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { NOTE_STATUSES } from "@/app/lib/constants";
+import { useScrollHighlight } from "@/app/lib/use-scroll-highlight";
 import { relativeTime } from "../utils";
 import type { Note } from "@/app/lib/types";
 
@@ -13,7 +14,8 @@ interface ProjectNoteRow extends Note {
 
 // ملاحظات على مستوى المشروع فقط (episode_id = null) — ملاحظات الحلقات معروضة
 // بالفعل داخل تبويب "الملاحظات" الخاص بكل حلقة، فلا داعي لتكرارها هنا.
-export default function ProjectNotesSection({ projectId }: { projectId: string }) {
+export default function ProjectNotesSection({ projectId, highlightNoteId }: { projectId: string; highlightNoteId?: string | null }) {
+  const highlightedId = useScrollHighlight(highlightNoteId, "note");
   const [notes, setNotes] = useState<ProjectNoteRow[] | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,19 @@ export default function ProjectNotesSection({ projectId }: { projectId: string }
       {notes.map((n) => {
         const info = NOTE_STATUSES.find((s) => s.value === n.status);
         return (
-          <div key={n.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+          <div
+            key={n.id}
+            id={`note-${n.id}`}
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "10px 0",
+              borderBottom: "1px solid var(--border)",
+              transition: "box-shadow .3s",
+              boxShadow: highlightedId === n.id ? "inset 0 0 0 2px var(--gold)" : undefined,
+              borderRadius: highlightedId === n.id ? 8 : undefined,
+            }}
+          >
             <span style={{ marginTop: 2 }}>
               <Icon name="message" size={15} className="text-muted" />
             </span>

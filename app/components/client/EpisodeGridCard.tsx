@@ -23,6 +23,7 @@ export default function EpisodeGridCard({
   isApproved,
   fileCount,
   noteCount,
+  hasOpenEditRequest,
   projectName,
 }: {
   episode: Episode;
@@ -33,6 +34,7 @@ export default function EpisodeGridCard({
   isApproved: boolean;
   fileCount: number;
   noteCount: number;
+  hasOpenEditRequest: boolean;
   projectName?: string;
 }) {
   const es = episodeStatusMeta(episode.status);
@@ -133,6 +135,7 @@ export default function EpisodeGridCard({
           status={episode.status}
           alreadyApproved={isApproved}
           canApprove={canClient(permissions, "approve_episodes")}
+          hasOpenEditRequest={hasOpenEditRequest}
           variant="card"
         />
       </div>

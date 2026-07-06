@@ -57,6 +57,7 @@ export default function ProjectView({
   approvedEpisodeIds,
   episodeFileCounts,
   episodeNoteCounts,
+  episodeIdsWithOpenRequest,
   pipelineStages,
   currentStageKey,
   files,
@@ -76,6 +77,7 @@ export default function ProjectView({
   approvedEpisodeIds: string[];
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
+  episodeIdsWithOpenRequest: string[];
   pipelineStages: CompanyPipelineStage[];
   currentStageKey: string | null;
   files: ProjectFile[];
@@ -90,6 +92,7 @@ export default function ProjectView({
   useProjectRealtimeRefresh(project.id);
   const isMobile = useIsMobile();
   const approvedSet = new Set(approvedEpisodeIds);
+  const openRequestSet = new Set(episodeIdsWithOpenRequest);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
   const showPayments = canClient(permissions, "payments");
@@ -109,7 +112,15 @@ export default function ProjectView({
   const visibleTabs = tabs.filter((t) => t.show);
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab") as TabKey | null;
-  const initialTab = requestedTab && tabs.some((t) => t.key === requestedTab && t.show) ? requestedTab : showEpisodes ? "episodes" : "overview";
+  const highlightNoteId = searchParams.get("note");
+  const initialTab =
+    requestedTab && tabs.some((t) => t.key === requestedTab && t.show)
+      ? requestedTab
+      : highlightNoteId
+        ? "notes"
+        : showEpisodes
+          ? "episodes"
+          : "overview";
   const [active, setActive] = useState<TabKey>(initialTab);
 
   const episodesCompleted = episodes.filter((e) => e.status === "delivered" || e.status === "approved").length;
@@ -327,6 +338,7 @@ export default function ProjectView({
               approvedSet={approvedSet}
               episodeFileCounts={episodeFileCounts}
               episodeNoteCounts={episodeNoteCounts}
+              openRequestSet={openRequestSet}
               userId={userId}
               permissions={permissions}
             />
@@ -353,6 +365,7 @@ export default function ProjectView({
               currentUserName={userName}
               permissions={permissions}
               initialNotes={notes}
+              highlightNoteId={highlightNoteId}
             />
           )}
         </div>
@@ -465,6 +478,7 @@ function EpisodesTab({
   approvedSet,
   episodeFileCounts,
   episodeNoteCounts,
+  openRequestSet,
   userId,
   permissions,
 }: {
@@ -473,6 +487,7 @@ function EpisodesTab({
   approvedSet: Set<string>;
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
+  openRequestSet: Set<string>;
   userId: string;
   permissions: ClientPermissions;
 }) {
@@ -537,6 +552,7 @@ function EpisodesTab({
                 isApproved={isApproved}
                 fileCount={episodeFileCounts[ep.id] ?? 0}
                 noteCount={episodeNoteCounts[ep.id] ?? 0}
+                hasOpenEditRequest={openRequestSet.has(ep.id)}
               />
             );
           })

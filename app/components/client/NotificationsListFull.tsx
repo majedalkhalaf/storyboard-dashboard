@@ -104,7 +104,8 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
       return;
     }
     if (n.project_id) {
-      router.push(n.episode_id ? `/client/projects/${n.project_id}/episodes/${n.episode_id}` : `/client/projects/${n.project_id}`);
+      const base = n.episode_id ? `/client/projects/${n.project_id}/episodes/${n.episode_id}` : `/client/projects/${n.project_id}`;
+      router.push(n.note_id ? `${base}?note=${n.note_id}` : base);
     }
   }
 
@@ -184,8 +185,8 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
                   </span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     {projectName && <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(projectName)}</div>}
-                    {n.title && <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 3 }}>{n.title}</div>}
-                    <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{n.message}</div>
+                    {n.title && <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.title}</div>}
+                    <div style={{ fontSize: 12.5, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.message}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{relativeTime(n.created_at)}</div>
                   </div>
                   {!n.is_read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", flexShrink: 0, marginTop: 6 }} />}

@@ -8,6 +8,7 @@ import { logActivity } from "@/app/lib/activity";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { NOTE_STATUSES } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
+import { useScrollHighlight } from "@/app/lib/use-scroll-highlight";
 import type { NoteStatus } from "@/app/lib/types";
 import type { EpisodeFullDetail, NoteWithAuthor } from "@/app/lib/episode-detail";
 import { relativeTime, formatDateTime } from "../utils";
@@ -16,7 +17,16 @@ function isImageAttachment(name: string): boolean {
   return /\.(png|jpe?g|gif|webp|svg|heic)$/i.test(name);
 }
 
-export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullDetail; onChanged: () => void }) {
+export default function NotesTab({
+  episode,
+  onChanged,
+  highlightNoteId,
+}: {
+  episode: EpisodeFullDetail;
+  onChanged: () => void;
+  highlightNoteId?: string | null;
+}) {
+  const highlightedId = useScrollHighlight(highlightNoteId, "note");
   const supabase = createClient();
   const { userId, company, profile } = useSession();
   const companyId = company!.id;
@@ -200,7 +210,17 @@ export default function NotesTab({ episode, onChanged }: { episode: EpisodeFullD
     const isEditing = editingId === note.id;
     const isDeleting = deletingId === note.id;
     return (
-      <div className="card" style={{ padding: 14, marginInlineStart: isReply ? 28 : 0 }}>
+      <div
+        id={`note-${note.id}`}
+        className="card"
+        style={{
+          padding: 14,
+          marginInlineStart: isReply ? 28 : 0,
+          transition: "box-shadow .3s, border-color .3s",
+          boxShadow: highlightedId === note.id ? "0 0 0 2px var(--gold)" : undefined,
+          borderColor: highlightedId === note.id ? "var(--gold)" : undefined,
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontWeight: 700, fontSize: 13 }}>

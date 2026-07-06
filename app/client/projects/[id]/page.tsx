@@ -64,7 +64,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       ? supabase.from("files").select("episode_id").eq("project_id", id).eq("client_visible", true).not("episode_id", "is", null)
       : Promise.resolve({ data: [] as { episode_id: string }[] }),
     supabase.from("notes").select("*").eq("project_id", id).is("episode_id", null).order("created_at", { ascending: true }),
-    supabase.from("notes").select("episode_id").eq("project_id", id),
+    supabase.from("notes").select("episode_id, status, request_type").eq("project_id", id),
     showFinance ? supabase.from("invoices").select("amount, tax, status").eq("project_id", id) : Promise.resolve({ data: [] as Pick<Invoice, "amount" | "tax" | "status">[] }),
     showFinance ? supabase.from("payments").select("amount, status").eq("project_id", id) : Promise.resolve({ data: [] as Pick<Payment, "amount" | "status">[] }),
     showPayments
@@ -97,9 +97,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   const notes = (noteRows ?? []) as Note[];
   const totalNotesCount = allNoteRows?.length ?? notes.length;
   const episodeNoteCounts: Record<string, number> = {};
+  const episodesWithOpenRequest = new Set<string>();
   for (const row of allNoteRows ?? []) {
-    const epId = (row as { episode_id: string | null }).episode_id;
-    if (epId) episodeNoteCounts[epId] = (episodeNoteCounts[epId] ?? 0) + 1;
+    const r = row as { episode_id: string | null; status: string; request_type: string | null };
+    if (!r.episode_id) continue;
+    episodeNoteCounts[r.episode_id] = (episodeNoteCounts[r.episode_id] ?? 0) + 1;
+    if (r.status === "new" && r.request_type) episodesWithOpenRequest.add(r.episode_id);
   }
 
   // الملخّص المالي (بدون أي بيانات أرباح/مصاريف داخلية)
@@ -157,6 +160,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         approvedEpisodeIds={approvedEpisodeIds}
         episodeFileCounts={episodeFileCounts}
         episodeNoteCounts={episodeNoteCounts}
+        episodeIdsWithOpenRequest={Array.from(episodesWithOpenRequest)}
         pipelineStages={pipelineStages}
         currentStageKey={currentStageKey}
         files={files}
