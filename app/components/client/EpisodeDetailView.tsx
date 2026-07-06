@@ -6,6 +6,7 @@ import Link from "next/link";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
+import ClientVideoPlayer from "@/app/components/client/ClientVideoPlayer";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
@@ -19,7 +20,7 @@ import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/cl
 import { STAGE_STATUSES, STORYBOARD_SCENE_STATUSES } from "@/app/lib/constants";
 import type { ClientPermissions, Episode, EpisodeStage, Note, ProjectFile, StoryboardScene } from "@/app/lib/types";
 
-type TabKey = "overview" | "files" | "notes" | "tasks" | "activity" | "script" | "scenario" | "storyboard" | "reports";
+type TabKey = "overview" | "video" | "files" | "notes" | "tasks" | "activity" | "script" | "scenario" | "storyboard" | "reports";
 
 // يستمع لأي تعديل حي (من لوحة الفريق الداخلية أو العميل نفسه) على بيانات هذه
 // الحلقة تحديداً — مراحل التنفيذ، الملاحظات، الملفات، أو صف الحلقة نفسه — ويعيد
@@ -98,9 +99,12 @@ export default function EpisodeDetailView({
   const showStoryboard = canClient(permissions, "storyboard");
   const showTasks = canClient(permissions, "execution_phases") && stages.length > 0;
   const canEditEpisode = canClient(permissions, "edit_episode");
+  const videoFiles = useMemo(() => files.filter((f) => f.category === "video"), [files]);
+  const videoComments = useMemo(() => notes.filter((n) => n.target_type === "video"), [notes]);
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "overview", label: "نظرة عامة", show: true },
+    { key: "video", label: "الفيديو", show: videoFiles.length > 0 },
     { key: "files", label: "الملفات", show: showFiles },
     { key: "notes", label: "طلبات التعديل", show: true },
     { key: "tasks", label: "المهام", show: showTasks },
@@ -323,6 +327,20 @@ export default function EpisodeDetailView({
                 activity.slice(0, 5).map((a) => <ActivityRow key={a.id} item={a} />)
               )}
             </div>
+          )}
+
+          {active === "video" && (
+            <ClientVideoPlayer
+              files={videoFiles}
+              comments={videoComments}
+              companyId={companyId}
+              projectId={projectId}
+              episodeId={episode.id}
+              userId={userId}
+              userName={userName}
+              canComment={canClient(permissions, "add_notes")}
+              canDownload={canClient(permissions, "download_files")}
+            />
           )}
 
           {active === "files" && (

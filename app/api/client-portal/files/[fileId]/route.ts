@@ -44,7 +44,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
       return NextResponse.json({ error: "غير مصرح بالوصول لهذا الملف" }, { status: 403 });
     }
 
-    const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 300);
+    // ساعة كاملة بدل 5 دقائق — مدة قصيرة كانت تكفي لفتح مستند لكن تنقطع أثناء
+    // مشاهدة فيديو طويل (المتصفح يعيد طلب الرابط نفسه لكل طلب Range أثناء التقديم).
+    const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 3600);
     if (error || !signed) {
       return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
     }
