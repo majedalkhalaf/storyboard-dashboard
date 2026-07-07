@@ -49,7 +49,7 @@ function MediaPane({ item, label }: { item: ProgressUpdateMediaItem; label: stri
   return (
     <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", background: "#000" }}>
       {item.type === "video" ? (
-        <video src={item.url} controls style={{ width: "100%", display: "block" }} />
+        <video src={item.url} controls playsInline style={{ width: "100%", display: "block" }} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={item.url} alt={item.name} style={{ width: "100%", display: "block" }} />

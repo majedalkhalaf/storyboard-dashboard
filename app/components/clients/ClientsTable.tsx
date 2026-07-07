@@ -150,10 +150,10 @@ export default function ClientsTable({
                   <td style={{ color: "#3B82F6" }}>{r.activeProjects}</td>
                   <td style={{ color: "#22C55E" }}>{r.completedProjects}</td>
                   <td style={{ color: r.lateProjects ? "#EF4444" : "var(--text-muted)" }}>{r.lateProjects}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{r.contractsValue.toLocaleString()} ر.س</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{r.invoicesTotal.toLocaleString()} ر.س</td>
-                  <td style={{ whiteSpace: "nowrap", color: "#22C55E" }}>{r.paidTotal.toLocaleString()} ر.س</td>
-                  <td style={{ whiteSpace: "nowrap", color: r.remaining ? "#EF4444" : "var(--text-muted)" }}>{r.remaining.toLocaleString()} ر.س</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.contractsValue.toLocaleString("en-US")} ر.س</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.invoicesTotal.toLocaleString("en-US")} ر.س</td>
+                  <td style={{ whiteSpace: "nowrap", color: "#22C55E" }}>{r.paidTotal.toLocaleString("en-US")} ر.س</td>
+                  <td style={{ whiteSpace: "nowrap", color: r.remaining ? "#EF4444" : "var(--text-muted)" }}>{r.remaining.toLocaleString("en-US")} ر.س</td>
                   <td>
                     <PerformanceRing percent={r.completionPct} label="" size={40} />
                   </td>

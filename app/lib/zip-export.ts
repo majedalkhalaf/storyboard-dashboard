@@ -30,7 +30,7 @@ function jsonFile(obj: unknown): string {
 function formatDateAr(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("ar-EG");
+    return new Date(iso).toLocaleString("ar-EG-u-nu-latn");
   } catch {
     return iso;
   }

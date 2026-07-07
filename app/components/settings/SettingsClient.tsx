@@ -294,7 +294,7 @@ function IdentityTab({ company, admin }: { company: Company; admin: boolean }) {
       .update({ ...restForm, founded_date: founded_date || null, ...assets, social_links: social })
       .eq("id", company.id);
     setSaving(false);
-    if (!error) setSavedAt(new Date().toLocaleTimeString("ar"));
+    if (!error) setSavedAt(new Date().toLocaleTimeString("ar-u-nu-latn"));
   }
 
   return (

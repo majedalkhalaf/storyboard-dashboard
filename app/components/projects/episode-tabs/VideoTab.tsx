@@ -228,6 +228,7 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
                   ref={videoRef}
                   src={src}
                   controls
+                  playsInline
                   onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
                   onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
                   style={{ width: "100%", maxHeight: 480, borderRadius: 12, background: "#000", display: "block" }}

@@ -131,7 +131,7 @@ export default function ProjectGridCard({ project, compact = false }: { project:
             <MiniStat icon="files" value={project.filesCount} label="ملف" />
             <MiniStat icon="message" value={project.notesCount} label="ملاحظة" />
             <MiniStat icon="team" value={project.contributorsCount} label="مساهم" />
-            <MiniStat icon="money" value={`${project.revenue.toLocaleString()}`} label="ر.س" />
+            <MiniStat icon="money" value={`${project.revenue.toLocaleString("en-US")}`} label="ر.س" />
           </div>
         )}
 

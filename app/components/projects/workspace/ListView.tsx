@@ -152,7 +152,7 @@ export default function ListView({ projects }: { projects: WorkspaceProject[] })
                 </td>
                 <td>{project.episodeCount}</td>
                 <td>{project.filesCount}</td>
-                <td>{project.revenue.toLocaleString()} ر.س</td>
+                <td>{project.revenue.toLocaleString("en-US")} ر.س</td>
                 <td style={{ whiteSpace: "nowrap", color: "var(--text-muted)", fontSize: 12.5 }}>{relativeTime(project.updated_at)}</td>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

@@ -149,7 +149,7 @@ export async function exportClientProjectZip(
   );
 
   if (extras.meetingNotes && extras.meetingNotes.length > 0) {
-    const lines = extras.meetingNotes.map((n) => `- [${n.status}] ${new Date(n.created_at).toLocaleDateString("ar")}\n  ${n.body}`);
+    const lines = extras.meetingNotes.map((n) => `- [${n.status}] ${new Date(n.created_at).toLocaleDateString("ar-u-nu-latn")}\n  ${n.body}`);
     root.folder("الاجتماعات")!.file("طلبات_الاجتماعات.txt", lines.join("\n\n"));
   }
 
@@ -162,7 +162,7 @@ export async function exportClientProjectZip(
   ].sort((a, b) => a.note.created_at.localeCompare(b.note.created_at));
   if (labeledNotes.length > 0) {
     const lines = labeledNotes.map(
-      ({ note: n, label }) => `- [${label}] [${n.status}]${n.request_type ? ` (${n.request_type})` : ""} ${new Date(n.created_at).toLocaleDateString("ar")}\n  ${n.body}`
+      ({ note: n, label }) => `- [${label}] [${n.status}]${n.request_type ? ` (${n.request_type})` : ""} ${new Date(n.created_at).toLocaleDateString("ar-u-nu-latn")}\n  ${n.body}`
     );
     root.folder("طلبات_التعديل")!.file("سجل_الطلبات.txt", lines.join("\n\n"));
   }
@@ -170,7 +170,7 @@ export async function exportClientProjectZip(
   if (extras.contracts && extras.contracts.length > 0) {
     const folder = root.folder("العقود")!;
     for (const c of extras.contracts) {
-      const summary = `العقد: ${c.title}\nالحالة: ${c.status}\nالقيمة: ${c.amount != null ? `${c.amount.toLocaleString("ar-SA")} ر.س` : "—"}\nتاريخ آخر تحديث: ${c.updated_at}`;
+      const summary = `العقد: ${c.title}\nالحالة: ${c.status}\nالقيمة: ${c.amount != null ? `${c.amount.toLocaleString("ar-SA-u-nu-latn")} ر.س` : "—"}\nتاريخ آخر تحديث: ${c.updated_at}`;
       if (c.pdf_url) {
         const blob = await fetchBlobFromUrl(c.pdf_url);
         if (blob) folder.file(`${sanitizeName(c.title)}.pdf`, blob);
@@ -184,7 +184,7 @@ export async function exportClientProjectZip(
   if ((extras.invoices && extras.invoices.length > 0) || (extras.payments && extras.payments.length > 0)) {
     const folder = root.folder("الفواتير")!;
     for (const inv of extras.invoices ?? []) {
-      const summary = `فاتورة رقم: ${inv.number}\nتاريخ الإصدار: ${inv.issue_date}\nالمبلغ: ${(inv.amount + inv.tax).toLocaleString("ar-SA")} ر.س\nالحالة: ${inv.status}`;
+      const summary = `فاتورة رقم: ${inv.number}\nتاريخ الإصدار: ${inv.issue_date}\nالمبلغ: ${(inv.amount + inv.tax).toLocaleString("ar-SA-u-nu-latn")} ر.س\nالحالة: ${inv.status}`;
       if (inv.pdf_url) {
         const blob = await fetchBlobFromUrl(inv.pdf_url);
         if (blob) folder.file(`فاتورة_${sanitizeName(inv.number)}.pdf`, blob);
@@ -195,7 +195,7 @@ export async function exportClientProjectZip(
     }
     if (extras.payments && extras.payments.length > 0) {
       const lines = extras.payments.map(
-        (p) => `- ${p.paid_date ?? "غير مدفوعة بعد"} — ${p.amount.toLocaleString("ar-SA")} ر.س — ${p.status}${p.reference_number ? ` — مرجع: ${p.reference_number}` : ""}`
+        (p) => `- ${p.paid_date ?? "غير مدفوعة بعد"} — ${p.amount.toLocaleString("ar-SA-u-nu-latn")} ر.س — ${p.status}${p.reference_number ? ` — مرجع: ${p.reference_number}` : ""}`
       );
       folder.file("سجل_الدفعات.txt", lines.join("\n"));
     }
@@ -248,7 +248,7 @@ function buildQuickReportText(
 
   const lines: string[] = [
     `تقرير سريع — ${project.name}`,
-    `تاريخ التقرير: ${new Date().toLocaleDateString("ar")}`,
+    `تاريخ التقرير: ${new Date().toLocaleDateString("ar-u-nu-latn")}`,
     "",
     `نسبة الإنجاز الكلية: ${project.progress ?? 0}%`,
     `الحالة: ${project.status}`,
@@ -269,11 +269,11 @@ function buildQuickReportText(
     lines.push(
       "",
       "— الملخص المالي —",
-      `قيمة المشروع: ${finance.projectValue.toLocaleString("ar-SA")} ر.س`,
-      `المدفوع: ${finance.paid.toLocaleString("ar-SA")} ر.س`,
-      `المتبقي: ${finance.remaining.toLocaleString("ar-SA")} ر.س`
+      `قيمة المشروع: ${finance.projectValue.toLocaleString("ar-SA-u-nu-latn")} ر.س`,
+      `المدفوع: ${finance.paid.toLocaleString("ar-SA-u-nu-latn")} ر.س`,
+      `المتبقي: ${finance.remaining.toLocaleString("ar-SA-u-nu-latn")} ر.س`
     );
-    if (lastPayment?.paid_date) lines.push(`آخر دفعة: ${lastPayment.paid_date} — ${lastPayment.amount.toLocaleString("ar-SA")} ر.س`);
+    if (lastPayment?.paid_date) lines.push(`آخر دفعة: ${lastPayment.paid_date} — ${lastPayment.amount.toLocaleString("ar-SA-u-nu-latn")} ر.س`);
   }
 
   return lines.join("\n");

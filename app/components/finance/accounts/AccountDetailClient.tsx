@@ -11,6 +11,7 @@ import { fmtMoney, fmtDate } from "@/app/components/finance/format";
 import { PAYMENT_METHODS, PAYMENT_STATUSES, PROJECT_STATUSES } from "@/app/lib/constants";
 import { FINANCIAL_HEALTH_META } from "@/app/lib/chart-colors";
 import AddProjectPaymentButton from "@/app/components/finance/accounts/AddProjectPaymentButton";
+import EditProjectPaymentButton from "@/app/components/finance/accounts/EditProjectPaymentButton";
 import AddProjectExpenseButton from "@/app/components/finance/accounts/AddProjectExpenseButton";
 import type { ProjectAccountData } from "@/app/lib/project-account";
 
@@ -76,7 +77,7 @@ export default function AccountDetailClient({ data, companyId, vendors }: { data
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <AddProjectPaymentButton companyId={companyId} projectId={data.project.id} />
           </div>
-          <PaymentsTable payments={data.payments} />
+          <PaymentsTable payments={data.payments} companyId={companyId} projectId={data.project.id} />
         </div>
       )}
 
@@ -109,7 +110,7 @@ export default function AccountDetailClient({ data, companyId, vendors }: { data
   );
 }
 
-function PaymentsTable({ payments }: { payments: ProjectAccountData["payments"] }) {
+function PaymentsTable({ payments, companyId, projectId }: { payments: ProjectAccountData["payments"]; companyId: string; projectId: string }) {
   if (payments.length === 0) {
     return (
       <div className="empty-state card">
@@ -130,6 +131,7 @@ function PaymentsTable({ payments }: { payments: ProjectAccountData["payments"] 
             <th>تاريخ الدفع</th>
             <th>الحالة</th>
             <th>مرفق</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -158,6 +160,9 @@ function PaymentsTable({ payments }: { payments: ProjectAccountData["payments"] 
                   ) : (
                     <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
                   )}
+                </td>
+                <td>
+                  <EditProjectPaymentButton companyId={companyId} projectId={projectId} payment={p} />
                 </td>
               </tr>
             );

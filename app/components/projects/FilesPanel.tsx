@@ -101,7 +101,7 @@ export function FilePreviewModal({
   const kind = previewKind(file);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: 820, padding: 16 }} onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content${kind === "video" ? " modal-content-video" : ""}`} style={{ maxWidth: 820, padding: 16 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, wordBreak: "break-word" }}>{file.name}</div>
           <button className="btn-ghost" onClick={onClose} style={{ padding: 6, borderRadius: 8, flexShrink: 0 }}>
@@ -122,7 +122,7 @@ export function FilePreviewModal({
             style={{ display: "block", width: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 10, margin: "0 auto" }}
           />
         ) : kind === "video" ? (
-          <video src={url} controls style={{ width: "100%", maxHeight: "70vh", borderRadius: 10 }} />
+          <video src={url} controls playsInline style={{ width: "100%", maxHeight: "70vh", borderRadius: 10 }} />
         ) : kind === "pdf" ? (
           <iframe src={url} title={file.name} style={{ width: "100%", height: "70vh", border: "none", borderRadius: 10 }} />
         ) : null}
