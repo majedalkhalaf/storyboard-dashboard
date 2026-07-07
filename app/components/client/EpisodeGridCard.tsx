@@ -67,7 +67,8 @@ export default function EpisodeGridCard({
         .eq("episode_id", episode.id)
         .eq("client_visible", true)
         .eq("category", "video")
-        .order("created_at", { ascending: true })
+        .not("storage_path", "is", null)
+        .order("created_at", { ascending: false })
         .limit(1);
       const file = (fileRows ?? [])[0] as ProjectFile | undefined;
       if (!file) return;
@@ -222,6 +223,8 @@ export default function EpisodeGridCard({
           userName={userName}
           canComment={canClient(permissions, "add_notes")}
           canDownload={canClient(permissions, "download_files")}
+          canRequestEdit={canClient(permissions, "add_notes")}
+          canUploadAttachments={canClient(permissions, "upload_attachments")}
           onClose={() => setVideoFile(null)}
         />
       )}

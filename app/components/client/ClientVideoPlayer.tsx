@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import { createClient } from "@/app/lib/supabase/client";
+import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
 import type { Note, ProjectFile } from "@/app/lib/types";
 
@@ -23,6 +24,8 @@ export default function ClientVideoPlayer({
   userName,
   canComment,
   canDownload,
+  canRequestEdit,
+  canUploadAttachments,
 }: {
   files: ProjectFile[];
   comments: Note[];
@@ -33,6 +36,8 @@ export default function ClientVideoPlayer({
   userName: string | null;
   canComment: boolean;
   canDownload: boolean;
+  canRequestEdit: boolean;
+  canUploadAttachments: boolean;
 }) {
   const [openFile, setOpenFile] = useState<ProjectFile | null>(null);
 
@@ -64,6 +69,8 @@ export default function ClientVideoPlayer({
           userName={userName}
           canComment={canComment}
           canDownload={canDownload}
+          canRequestEdit={canRequestEdit}
+          canUploadAttachments={canUploadAttachments}
           onClose={() => setOpenFile(null)}
         />
       )}
@@ -136,6 +143,8 @@ export function VideoPlayerModal({
   userName,
   canComment,
   canDownload,
+  canRequestEdit,
+  canUploadAttachments,
   onClose,
 }: {
   file: ProjectFile;
@@ -147,6 +156,8 @@ export function VideoPlayerModal({
   userName: string | null;
   canComment: boolean;
   canDownload: boolean;
+  canRequestEdit: boolean;
+  canUploadAttachments: boolean;
   onClose: () => void;
 }) {
   const [comments, setComments] = useState(initialComments);
@@ -159,6 +170,7 @@ export function VideoPlayerModal({
   const [commentText, setCommentText] = useState("");
   const [posting, setPosting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [editRequestOpen, setEditRequestOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -254,6 +266,11 @@ export function VideoPlayerModal({
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <Icon name="video" size={20} className="nav-icon" />
             <h3 style={{ fontSize: 16, fontWeight: 800, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</h3>
+            {canRequestEdit && (
+              <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }} onClick={() => setEditRequestOpen(true)}>
+                <Icon name="edit" size={14} /> طلب تعديل
+              </button>
+            )}
             {canDownload && file.client_can_download && !file.external_url && (
               <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }} onClick={handleDownload} disabled={downloading}>
                 <Icon name="export" size={14} /> {downloading ? "جارٍ التحضير..." : "تحميل بالجودة الأصلية"}
@@ -371,6 +388,22 @@ export function VideoPlayerModal({
           )}
         </div>
       </div>
+
+      {editRequestOpen && (
+        <EditRequestComposer
+          open={editRequestOpen}
+          onClose={() => setEditRequestOpen(false)}
+          companyId={companyId}
+          projectId={projectId}
+          episodeId={episodeId}
+          targetType="video"
+          targetId={file.id}
+          currentUserId={userId}
+          canUploadAttachments={canUploadAttachments}
+          initialTimestampSeconds={Math.floor(currentTime)}
+          onCreated={(note) => setComments((prev) => [...prev, note])}
+        />
+      )}
     </ModalPortal>
   );
 }

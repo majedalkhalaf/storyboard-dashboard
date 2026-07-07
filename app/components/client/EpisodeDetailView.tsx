@@ -345,6 +345,8 @@ export default function EpisodeDetailView({
               userName={userName}
               canComment={canClient(permissions, "add_notes")}
               canDownload={canClient(permissions, "download_files")}
+              canRequestEdit={canClient(permissions, "add_notes")}
+              canUploadAttachments={canClient(permissions, "upload_attachments")}
             />
           )}
 

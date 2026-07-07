@@ -27,6 +27,7 @@ export default function EditRequestComposer({
   targetId,
   currentUserId,
   canUploadAttachments,
+  initialTimestampSeconds,
   onCreated,
 }: {
   open: boolean;
@@ -38,12 +39,18 @@ export default function EditRequestComposer({
   targetId: string;
   currentUserId: string;
   canUploadAttachments: boolean;
+  /** لتعبئة حقل "لحظة زمنية في الفيديو" تلقائياً عند فتح الطلب أثناء مشاهدة الفيديو مباشرة. */
+  initialTimestampSeconds?: number;
   onCreated: (note: Note) => void;
 }) {
   const [requestType, setRequestType] = useState<NoteRequestType | null>(null);
   const [priority, setPriority] = useState<NotePriority>("medium");
   const [bodyHtml, setBodyHtml] = useState("");
-  const [timestamp, setTimestamp] = useState("");
+  const [timestamp, setTimestamp] = useState(() =>
+    initialTimestampSeconds != null
+      ? `${Math.floor(initialTimestampSeconds / 60)}:${String(Math.floor(initialTimestampSeconds % 60)).padStart(2, "0")}`
+      : ""
+  );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
