@@ -6,7 +6,7 @@ import Link from "next/link";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import StatusChip from "@/app/components/client/StatusChip";
 import FileList from "@/app/components/client/FileList";
-import ClientVideoPlayer from "@/app/components/client/ClientVideoPlayer";
+import ClientVideoPlayer, { VideoPlayerModal } from "@/app/components/client/ClientVideoPlayer";
 import NotesThread from "@/app/components/client/NotesThread";
 import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
@@ -125,6 +125,35 @@ export default function EpisodeDetailView({
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<ExportProgress | null>(null);
   const canDownloadFiles = canClient(permissions, "download_episode_zip");
+  const [loadingVideo, setLoadingVideo] = useState(false);
+  const [playingVideoFile, setPlayingVideoFile] = useState<ProjectFile | null>(null);
+  const [playingVideoComments, setPlayingVideoComments] = useState<Note[]>([]);
+
+  // تشغيل آخر فيديو مرفوع للحلقة مباشرة من زر التشغيل فوق صورة الغلاف —
+  // بنفس منطق بطاقة الحلقة (EpisodeGridCard) عبر مشغّل الفيديو المشترك.
+  async function openLatestVideo() {
+    if (loadingVideo) return;
+    setLoadingVideo(true);
+    try {
+      const supabase = createClient();
+      const { data: fileRows } = await supabase
+        .from("files")
+        .select("*")
+        .eq("episode_id", episode.id)
+        .eq("client_visible", true)
+        .eq("category", "video")
+        .not("storage_path", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const file = (fileRows ?? [])[0] as ProjectFile | undefined;
+      if (!file) return;
+      const { data: noteRows } = await supabase.from("notes").select("*").eq("target_type", "video").eq("target_id", file.id);
+      setPlayingVideoComments((noteRows ?? []) as Note[]);
+      setPlayingVideoFile(file);
+    } finally {
+      setLoadingVideo(false);
+    }
+  }
 
   async function handleDownloadAllFiles() {
     if (downloading) return;
@@ -202,6 +231,23 @@ export default function EpisodeDetailView({
         />
       )}
 
+      {playingVideoFile && (
+        <VideoPlayerModal
+          file={playingVideoFile}
+          comments={playingVideoComments}
+          companyId={companyId}
+          projectId={projectId}
+          episodeId={episode.id}
+          userId={userId}
+          userName={userName}
+          canComment={canClient(permissions, "add_notes")}
+          canDownload={canClient(permissions, "download_files")}
+          canRequestEdit={canClient(permissions, "add_notes")}
+          canUploadAttachments={canClient(permissions, "upload_attachments")}
+          onClose={() => setPlayingVideoFile(null)}
+        />
+      )}
+
       {editOpen && (
         <EpisodeEditModal
           episodeId={episode.id}
@@ -219,6 +265,31 @@ export default function EpisodeDetailView({
           <div style={{ position: "relative", background: "var(--bg-secondary)", display: "flex", justifyContent: "center", alignItems: "center", maxHeight: 340, overflow: "hidden" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={episode.cover_image_url} alt={episode.title} style={{ maxWidth: "100%", maxHeight: 340, width: "auto", height: "auto", objectFit: "contain" }} />
+            {videoFiles.length > 0 && (
+              <button
+                type="button"
+                onClick={openLatestVideo}
+                aria-label="تشغيل الفيديو"
+                disabled={loadingVideo}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  margin: "auto",
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.55)",
+                  border: "2px solid rgba(255,255,255,0.85)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: loadingVideo ? "wait" : "pointer",
+                }}
+              >
+                {loadingVideo ? <span className="skeleton" style={{ width: 18, height: 18, borderRadius: "50%" }} /> : <Icon name="play" size={26} />}
+              </button>
+            )}
           </div>
         )}
         <div style={{ padding: 20 }}>
