@@ -35,8 +35,8 @@ export default function PaymentsTab({ clientId }: { clientId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="card" style={{ padding: 20 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16 }}>
-          <Fin label="إجمالي المدفوع" value={`${totalPaid.toLocaleString()} ر.س`} color="#1DB954" />
-          <Fin label="معلّق / متأخر" value={`${totalPending.toLocaleString()} ر.س`} color="#F59E0B" />
+          <Fin label="إجمالي المدفوع" value={`${totalPaid.toLocaleString("en-US")} ر.س`} color="#1DB954" />
+          <Fin label="معلّق / متأخر" value={`${totalPending.toLocaleString("en-US")} ر.س`} color="#F59E0B" />
           <Fin label="عدد الدفعات" value={payments.length} color="var(--text-primary)" />
         </div>
       </div>
@@ -62,7 +62,7 @@ export default function PaymentsTab({ clientId }: { clientId: string }) {
                 return (
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600 }}>{p.project_name}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>{Number(p.amount ?? 0).toLocaleString()} ر.س</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{Number(p.amount ?? 0).toLocaleString("en-US")} ر.س</td>
                     <td>{method?.label ?? p.method ?? "—"}</td>
                     <td>{formatDate(p.due_date)}</td>
                     <td>{formatDate(p.paid_date)}</td>

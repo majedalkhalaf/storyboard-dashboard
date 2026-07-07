@@ -30,6 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
   episode_script_version_saved: "حفظ نسخة من السكربت/السيناريو",
   expense_added: "أضاف مصروفاً",
   payment_added: "أضاف دفعة",
+  payment_updated: "عدّل دفعة",
   payment_marked_paid: "أكّد استلام دفعة",
 };
 
@@ -45,7 +46,7 @@ function describe(item: ActivityItem): string {
   if ((item.action === "episode_created" || item.action === "project_created") && d.title) return `${base}: ${d.title}`;
   if (item.action === "project_created" && d.name) return `${base}: ${d.name}`;
   if (item.action === "video_comment_added" && d.at) return `${base} عند ${d.at}`;
-  if ((item.action === "expense_added" || item.action === "payment_added" || item.action === "payment_marked_paid") && typeof d.amount === "number") {
+  if ((item.action === "expense_added" || item.action === "payment_added" || item.action === "payment_updated" || item.action === "payment_marked_paid") && typeof d.amount === "number") {
     return `${base}: ${d.amount.toLocaleString("en-US")} ر.س${d.title ? ` (${d.title})` : ""}`;
   }
   return base;

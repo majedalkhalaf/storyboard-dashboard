@@ -85,6 +85,8 @@ export default function ProjectDetailView(props: Props) {
 
       <EpisodeWorkspace
         clientName={clientName}
+        clientPhone={companyClients.find((c) => c.id === project.client_id)?.phone ?? null}
+        projectName={project.name}
         gallery={gallery}
         initialEpisodeId={initialEpisodeId}
         extraTabs={DETAILS_TABS}

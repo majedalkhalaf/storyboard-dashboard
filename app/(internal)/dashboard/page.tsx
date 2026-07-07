@@ -170,7 +170,7 @@ export default async function DashboardPage() {
     const d = new Date(today.getFullYear(), today.getMonth() - (5 - i), 1);
     const k = monthKey(d);
     return {
-      label: d.toLocaleDateString("ar", { month: "short" }),
+      label: d.toLocaleDateString("ar-u-nu-latn", { month: "short" }),
       revenue: revenueByMonth[k] ?? 0,
       expenses: expensesByMonth[k] ?? 0,
     };
@@ -245,9 +245,9 @@ export default async function DashboardPage() {
     { label: "إجمالي المشاريع", value: allProjects.length, delta: projectsThisWeek > 0 ? `+${projectsThisWeek} هذا الأسبوع` : null, icon: "projects" as const, color: "#8B5CF6" },
     { label: "إجمالي الحلقات", value: episodes.length, icon: "episodes" as const, color: "#06B6D4" },
     { label: "معدل الإنجاز", value: `${Math.round(overallProgress)}%`, icon: "barChart" as const, color: "var(--gold)" },
-    { label: "الإيرادات هذا الشهر", value: `${revenueThisMonth.toLocaleString()} ر.س`, delta: (() => { const p = pctChange(revenueThisMonth, revenueLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: revenueThisMonth >= revenueLastMonth ? ("up" as const) : ("down" as const), icon: "money" as const, color: "var(--success)" },
-    { label: "المصروفات هذا الشهر", value: `${expensesThisMonth.toLocaleString()} ر.س`, delta: (() => { const p = pctChange(expensesThisMonth, expensesLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: expensesThisMonth <= expensesLastMonth ? ("up" as const) : ("down" as const), icon: "expenses" as const, color: "var(--danger)" },
-    { label: "صافي الربح", value: `${profitThisMonth.toLocaleString()} ر.س`, delta: (() => { const p = pctChange(profitThisMonth, profitLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: profitThisMonth >= profitLastMonth ? ("up" as const) : ("down" as const), icon: "trendUp" as const, color: "var(--gold)" },
+    { label: "الإيرادات هذا الشهر", value: `${revenueThisMonth.toLocaleString("en-US")} ر.س`, delta: (() => { const p = pctChange(revenueThisMonth, revenueLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: revenueThisMonth >= revenueLastMonth ? ("up" as const) : ("down" as const), icon: "money" as const, color: "var(--success)" },
+    { label: "المصروفات هذا الشهر", value: `${expensesThisMonth.toLocaleString("en-US")} ر.س`, delta: (() => { const p = pctChange(expensesThisMonth, expensesLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: expensesThisMonth <= expensesLastMonth ? ("up" as const) : ("down" as const), icon: "expenses" as const, color: "var(--danger)" },
+    { label: "صافي الربح", value: `${profitThisMonth.toLocaleString("en-US")} ر.س`, delta: (() => { const p = pctChange(profitThisMonth, profitLastMonth); return p === null ? null : `${p >= 0 ? "+" : ""}${p.toFixed(0)}%`; })(), deltaTone: profitThisMonth >= profitLastMonth ? ("up" as const) : ("down" as const), icon: "trendUp" as const, color: "var(--gold)" },
   ];
 
   return (

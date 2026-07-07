@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { canClient } from "@/app/lib/permissions";
+import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientPermissions } from "@/app/lib/types";
 
 // حد حجم آمن لكل مرفق — نمرّر الملف عبر دالة الخادم بمفتاح service_role (نفس
@@ -47,8 +48,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    const safeName = file.name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 120);
-    const path = `note-attachments/${projectId}/${user.id}/${Date.now()}-${safeName}`;
+    const path = `note-attachments/${projectId}/${user.id}/${safeStorageKey(file.name)}`;
     const { error: uploadError } = await admin.storage.from("public-assets").upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (uploadError) {
       return NextResponse.json({ error: "تعذّر رفع المرفق" }, { status: 500 });

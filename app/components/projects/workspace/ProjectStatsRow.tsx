@@ -18,7 +18,7 @@ export default function ProjectStatsRow({ projects }: { projects: WorkspaceProje
     { label: "المشاريع النشطة", value: active, icon: "checkCircle", color: "var(--success)" },
     { label: "بانتظار اعتماد العميل", value: pendingApproval, icon: "clock", color: "var(--warning)" },
     { label: "المشاريع المتأخرة", value: overdue, icon: "warning", color: "var(--danger)" },
-    { label: "إجمالي الإيرادات", value: `${totalRevenue.toLocaleString()} ر.س`, icon: "money", color: "var(--success)" },
+    { label: "إجمالي الإيرادات", value: `${totalRevenue.toLocaleString("en-US")} ر.س`, icon: "money", color: "var(--success)" },
     { label: "متوسط الإنجاز", value: `${avgProgress}%`, icon: "barChart", color: "var(--gold)" },
   ];
 

@@ -83,9 +83,9 @@ export default function ClientHero({ summary, onEdit }: { summary: ClientProfile
         <Mini label="المشاريع" value={String(summary.projectsCount)} icon="projects" />
         <Mini label="نشطة الآن" value={String(summary.activeProjects)} icon="clock" />
         <Mini label="الحلقات" value={String(summary.episodesCount)} icon="episodes" />
-        <Mini label="قيمة العقود" value={`${summary.contractsValue.toLocaleString()} ر.س`} icon="contracts" />
-        <Mini label="إجمالي الفواتير" value={`${summary.invoicesTotal.toLocaleString()} ر.س`} icon="invoices" />
-        <Mini label="المدفوع" value={`${summary.paidTotal.toLocaleString()} ر.س`} icon="payments" />
+        <Mini label="قيمة العقود" value={`${summary.contractsValue.toLocaleString("en-US")} ر.س`} icon="contracts" />
+        <Mini label="إجمالي الفواتير" value={`${summary.invoicesTotal.toLocaleString("en-US")} ر.س`} icon="invoices" />
+        <Mini label="المدفوع" value={`${summary.paidTotal.toLocaleString("en-US")} ر.س`} icon="payments" />
       </div>
     </div>
   );

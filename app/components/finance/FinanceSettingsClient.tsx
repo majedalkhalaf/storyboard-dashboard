@@ -30,7 +30,7 @@ export default function FinanceSettingsClient({ company }: { company: Company })
       setError("تعذّر الحفظ — تأكد من أن هجرة 0019_finance_settings.sql مُطبَّقة على قاعدة البيانات.");
       return;
     }
-    setSavedAt(new Date().toLocaleTimeString("ar"));
+    setSavedAt(new Date().toLocaleTimeString("ar-u-nu-latn"));
   }
 
   return (

@@ -92,7 +92,7 @@ export default function ProjectsTab({ clientId }: { clientId: string }) {
                   <Icon name="episodes" size={12} /> {episodeCounts[p.id] ?? 0} فيديو
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Icon name="money" size={12} /> {(p.budget ?? 0).toLocaleString()} ر.س
+                  <Icon name="money" size={12} /> {(p.budget ?? 0).toLocaleString("en-US")} ر.س
                 </span>
               </div>
 

@@ -30,7 +30,7 @@ export default function ContractsTab({ clientId }: { clientId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-          إجمالي قيمة العقود (باستثناء الملغاة): <span style={{ fontWeight: 800, color: "var(--gold)" }}>{totalValue.toLocaleString()} ر.س</span>
+          إجمالي قيمة العقود (باستثناء الملغاة): <span style={{ fontWeight: 800, color: "var(--gold)" }}>{totalValue.toLocaleString("en-US")} ر.س</span>
         </p>
         <Link href="/contracts" className="btn-ghost" style={{ fontSize: 12, color: "var(--gold)" }}>
           عرض كل العقود
@@ -61,7 +61,7 @@ export default function ContractsTab({ clientId }: { clientId: string }) {
                 return (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 700 }}>{c.title}</td>
-                    <td>{c.amount != null ? `${c.amount.toLocaleString()} ر.س` : "—"}</td>
+                    <td>{c.amount != null ? `${c.amount.toLocaleString("en-US")} ر.س` : "—"}</td>
                     <td>
                       {info && (
                         <span className="chip" style={{ color: info.color, borderColor: info.color }}>

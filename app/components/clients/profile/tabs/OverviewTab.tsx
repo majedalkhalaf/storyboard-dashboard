@@ -112,7 +112,7 @@ function Fin({ label, value, color }: { label: string; value: number; color: str
   return (
     <div>
       <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value.toLocaleString()} ر.س</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value.toLocaleString("en-US")} ر.س</div>
     </div>
   );
 }

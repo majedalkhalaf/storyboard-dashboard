@@ -89,7 +89,7 @@ function ProfileTab({ profile, companyId, email }: { profile: Profile; companyId
       .update({ full_name: fullName, phone, avatar_url: avatarUrl })
       .eq("id", profile.id);
     setSaving(false);
-    if (!error) setSavedAt(new Date().toLocaleTimeString("ar"));
+    if (!error) setSavedAt(new Date().toLocaleTimeString("ar-u-nu-latn"));
   }
 
   return (

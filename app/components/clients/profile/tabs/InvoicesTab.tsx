@@ -36,7 +36,7 @@ export default function InvoicesTab({ clientId }: { clientId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="card" style={{ padding: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16, flex: 1 }}>
-          <Fin label="إجمالي الفواتير" value={`${totalInvoiced.toLocaleString()} ر.س`} color="#06B6D4" />
+          <Fin label="إجمالي الفواتير" value={`${totalInvoiced.toLocaleString("en-US")} ر.س`} color="#06B6D4" />
           <Fin label="عدد الفواتير" value={invoices.length} color="var(--text-primary)" />
           <Fin label="مدفوعة" value={paidCount} color="#1DB954" />
           <Fin label="غير مدفوعة / متأخرة" value={unpaidCount} color="#EF4444" />
@@ -68,9 +68,9 @@ export default function InvoicesTab({ clientId }: { clientId: string }) {
                     <td>{formatDate(inv.issue_date)}</td>
                     <td>{formatDate(inv.due_date)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {Number(inv.amount ?? 0).toLocaleString()} ر.س
+                      {Number(inv.amount ?? 0).toLocaleString("en-US")} ر.س
                       {inv.tax ? (
-                        <span style={{ color: "var(--text-muted)", fontSize: 11 }}> (+{Number(inv.tax).toLocaleString()} ضريبة)</span>
+                        <span style={{ color: "var(--text-muted)", fontSize: 11 }}> (+{Number(inv.tax).toLocaleString("en-US")} ضريبة)</span>
                       ) : null}
                     </td>
                     <td>

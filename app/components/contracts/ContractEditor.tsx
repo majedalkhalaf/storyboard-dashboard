@@ -59,7 +59,7 @@ export default function ContractEditor({
     setSaving(false);
     if (!error) {
       setStatus(nextStatus);
-      setSavedAt(new Date().toLocaleTimeString("ar"));
+      setSavedAt(new Date().toLocaleTimeString("ar-u-nu-latn"));
     }
   }
 

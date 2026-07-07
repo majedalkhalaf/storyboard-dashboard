@@ -11,7 +11,7 @@ export default function VideoWithMuteToggle({ src, style }: { src: string; style
 
   return (
     <div style={{ position: "relative" }}>
-      <video src={src} controls muted={muted} style={{ display: "block", width: "100%", ...style }} />
+      <video src={src} controls playsInline muted={muted} style={{ display: "block", width: "100%", ...style }} />
       <button
         type="button"
         onClick={(e) => {

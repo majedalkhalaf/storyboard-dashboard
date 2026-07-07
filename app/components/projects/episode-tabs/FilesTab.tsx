@@ -8,14 +8,20 @@ import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 // الفيديو المخصّص بتعليقات موقوتة ونسخ سابقة يبقى كما هو، فقط ضمن نفس مساحة "الملفات".
 export default function FilesTab({
   episode,
+  projectName,
+  clientName,
+  clientPhone,
   onChanged,
 }: {
   episode: EpisodeFullDetail;
+  projectName: string;
+  clientName: string | null;
+  clientPhone: string | null;
   onChanged: () => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <VideoTab episode={episode} onChanged={onChanged} />
+      <VideoTab episode={episode} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={onChanged} />
       <FilesPanel projectId={episode.project_id} episodeId={episode.id} filter="all" emptyText="لا توجد ملفات لهذه الحلقة" onChanged={onChanged} />
     </div>
   );

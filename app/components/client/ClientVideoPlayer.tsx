@@ -262,7 +262,7 @@ export function VideoPlayerModal({
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: 720, maxHeight: "92vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content modal-content-video" style={{ maxWidth: 720, maxHeight: "92vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <Icon name="video" size={20} className="nav-icon" />
             <h3 style={{ fontSize: 16, fontWeight: 800, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</h3>
@@ -288,6 +288,7 @@ export function VideoPlayerModal({
               ref={videoRef}
               src={src}
               controls
+              playsInline
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
               onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
               onError={() => setSrcError(true)}

@@ -82,6 +82,63 @@ export default function PaymentsClient({
   const [method, setMethod] = useState(PAYMENT_METHODS[0].value);
   const [status, setStatus] = useState<PaymentStatus>("pending");
 
+  const [editingPayment, setEditingPayment] = useState<PaymentRow | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editPaidDate, setEditPaidDate] = useState("");
+  const [editMethod, setEditMethod] = useState(PAYMENT_METHODS[0].value);
+  const [editStatus, setEditStatus] = useState<PaymentStatus>("pending");
+
+  const openEdit = (p: PaymentRow) => {
+    setEditingPayment(p);
+    setEditAmount(String(p.amount));
+    setEditDueDate(p.due_date ?? "");
+    setEditPaidDate(p.paid_date ?? "");
+    setEditMethod(p.method ?? PAYMENT_METHODS[0].value);
+    setEditStatus(p.status);
+    setEditError(null);
+  };
+
+  const closeEdit = () => {
+    setEditingPayment(null);
+    setEditError(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editingPayment || !editAmount) {
+      setEditError("المبلغ مطلوب");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    const supabase = createClient();
+    const { error: err } = await supabase
+      .from("payments")
+      .update({
+        amount: Number(editAmount),
+        due_date: editDueDate || null,
+        paid_date: editPaidDate || null,
+        method: editMethod || null,
+        status: editStatus,
+      })
+      .eq("id", editingPayment.id);
+    setEditSaving(false);
+    if (err) {
+      setEditError(err.message);
+      return;
+    }
+    await logActivity(supabase, {
+      companyId,
+      projectId: editingPayment.project_id,
+      action: "payment_updated",
+      details: { amount: Number(editAmount), status: editStatus },
+    });
+    closeEdit();
+    router.refresh();
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- opens create modal from a deep link query param
     if (searchParams.get("new") === "1") setOpen(true);
@@ -317,16 +374,21 @@ export default function PaymentsClient({
                     <StatusChip status={p.status} />
                   </td>
                   <td>
-                    {(p.status === "pending" || p.status === "overdue") && (
-                      <button
-                        className="btn btn-outline"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => markPaid(p.id)}
-                        disabled={updatingId === p.id}
-                      >
-                        {updatingId === p.id ? "جارٍ التحديث..." : "تحديد كمدفوعة"}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {(p.status === "pending" || p.status === "overdue") && (
+                        <button
+                          className="btn btn-outline"
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          onClick={() => markPaid(p.id)}
+                          disabled={updatingId === p.id}
+                        >
+                          {updatingId === p.id ? "جارٍ التحديث..." : "تحديد كمدفوعة"}
+                        </button>
+                      )}
+                      <button className="btn-ghost" style={{ padding: 6, borderRadius: 8 }} title="تعديل الدفعة" onClick={() => openEdit(p)}>
+                        <Icon name="edit" size={14} />
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -448,6 +510,105 @@ export default function PaymentsClient({
                   {saving ? "جارٍ الحفظ..." : "حفظ الدفعة"}
                 </button>
                 <button className="btn btn-outline" onClick={closeModal} disabled={saving}>
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingPayment && (
+        <div className="modal-overlay no-print" onClick={() => !editSaving && closeEdit()}>
+          <div className="modal-content" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 700 }}>تعديل الدفعة</h3>
+              <button className="btn btn-ghost" style={{ padding: 6 }} onClick={closeEdit}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                المشروع: {editingPayment.project?.name ?? "—"}
+                {editingPayment.invoice?.number ? ` · الفاتورة: ${editingPayment.invoice.number}` : ""}
+              </p>
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
+                  المبلغ (ر.س)
+                  <input
+                    className="input-field"
+                    style={{ marginTop: 6 }}
+                    type="number"
+                    min="0"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                  />
+                </label>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
+                  الحالة
+                  <select
+                    className="input-field"
+                    style={{ marginTop: 6 }}
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as PaymentStatus)}
+                  >
+                    {PAYMENT_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
+                  تاريخ الاستحقاق
+                  <input
+                    className="input-field"
+                    style={{ marginTop: 6 }}
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                  />
+                </label>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
+                  تاريخ الدفع
+                  <input
+                    className="input-field"
+                    style={{ marginTop: 6 }}
+                    type="date"
+                    value={editPaidDate}
+                    onChange={(e) => setEditPaidDate(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                طريقة الدفع
+                <select
+                  className="input-field"
+                  style={{ marginTop: 6 }}
+                  value={editMethod}
+                  onChange={(e) => setEditMethod(e.target.value)}
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {editError && <p style={{ color: "#EF4444", fontSize: 13 }}>{editError}</p>}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <button className="btn btn-gold" onClick={saveEdit} disabled={editSaving} style={{ flex: 1 }}>
+                  {editSaving ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+                </button>
+                <button className="btn btn-outline" onClick={closeEdit} disabled={editSaving}>
                   إلغاء
                 </button>
               </div>

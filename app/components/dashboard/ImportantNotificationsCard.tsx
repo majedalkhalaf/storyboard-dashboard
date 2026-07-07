@@ -32,7 +32,7 @@ export default function ImportantNotificationsCard({
       icon: "invoices",
       color: "#EF4444",
       title: `فواتير مستحقة`,
-      subtitle: `إجمالي ${overdueInvoicesAmount.toLocaleString()} ر.س`,
+      subtitle: `إجمالي ${overdueInvoicesAmount.toLocaleString("en-US")} ر.س`,
     });
   }
   if (overdueProjects > 0) {

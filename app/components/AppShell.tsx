@@ -21,7 +21,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred to client only to avoid SSR/CSR date mismatch
-    setToday(new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" }));
+    setToday(new Date().toLocaleDateString("ar-SA-u-nu-latn", { weekday: "long", day: "numeric", month: "long" }));
   }, []);
 
   return (

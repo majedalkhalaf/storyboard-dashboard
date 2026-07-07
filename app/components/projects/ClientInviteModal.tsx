@@ -702,9 +702,9 @@ function ManageInvitationsTab({ projectId }: { projectId: string }) {
                     {status.label}
                   </span>
                 </td>
-                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.sent_at ? new Date(r.sent_at).toLocaleString("ar") : "—"}</td>
-                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.opened_at ? new Date(r.opened_at).toLocaleString("ar") : "—"}</td>
-                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.accepted_at ? new Date(r.accepted_at).toLocaleString("ar") : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.sent_at ? new Date(r.sent_at).toLocaleString("ar-u-nu-latn") : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.opened_at ? new Date(r.opened_at).toLocaleString("ar-u-nu-latn") : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.accepted_at ? new Date(r.accepted_at).toLocaleString("ar-u-nu-latn") : "—"}</td>
                 <td>
                   {canRetry ? (
                     <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => retry(r.id)} disabled={retryingId === r.id}>

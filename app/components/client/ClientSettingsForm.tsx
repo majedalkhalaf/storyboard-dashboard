@@ -41,7 +41,7 @@ export default function ClientSettingsForm({
     await supabase.from("profiles").update({ full_name: fullName, phone }).eq("id", profile.id);
     await supabase.from("user_settings").upsert({ user_id: profile.id, notifications_enabled: notifications }, { onConflict: "user_id" });
     setSaving(false);
-    setSavedAt(new Date().toLocaleTimeString("ar"));
+    setSavedAt(new Date().toLocaleTimeString("ar-u-nu-latn"));
   }
 
   return (
