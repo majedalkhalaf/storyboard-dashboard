@@ -5,9 +5,10 @@ import Icon from "@/app/components/ui/Icon";
 import BeforeAfterSlider from "@/app/components/ui/BeforeAfterSlider";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
+import { uploadMediaFile } from "@/app/lib/media-upload";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
 import { relativeTime } from "@/app/components/projects/utils";
-import type { BehindScenesMediaType, ProgressUpdate, ProgressUpdateContentType, ProgressUpdateMediaItem, ProgressUpdateStage } from "@/app/lib/types";
+import type { ProgressUpdate, ProgressUpdateContentType, ProgressUpdateMediaItem, ProgressUpdateStage } from "@/app/lib/types";
 
 interface ProjectOption {
   id: string;
@@ -24,12 +25,6 @@ interface UpdateRow extends ProgressUpdate {
   author_name: string | null;
   project_name: string | null;
   episode_title: string | null;
-}
-
-function mediaType(file: File): BehindScenesMediaType {
-  if (file.type.startsWith("video/")) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
-  return "image";
 }
 
 // النسخة الشاملة لكل المشاريع من قسم "العمل الجاري" — عنصر أساسي في القائمة
@@ -246,13 +241,12 @@ function UpdateComposer({
   }
 
   async function uploadOne(file: File): Promise<ProgressUpdateMediaItem | null> {
-    const supabase = createClient();
-    const type = mediaType(file);
-    const path = `${companyId}/progress-updates/global/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-    const { error: uploadError } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false, contentType: file.type || undefined });
-    if (uploadError) return null;
-    const { data } = supabase.storage.from("public-assets").getPublicUrl(path);
-    return { type, url: data.publicUrl, name: file.name };
+    return uploadMediaFile(file, {
+      companyId,
+      projectId: selectedProjectIds[0] ?? "",
+      episodeId: singleProjectId ? episodeId || null : null,
+      pathPrefix: "progress-updates/global",
+    });
   }
 
   async function uploadFiles(fileList: FileList | File[]) {

@@ -6,19 +6,14 @@ import BeforeAfterSlider from "@/app/components/ui/BeforeAfterSlider";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { uploadMediaFile } from "@/app/lib/media-upload";
 import { PROGRESS_UPDATE_STAGES } from "@/app/lib/constants";
 import { relativeTime } from "../utils";
-import type { BehindScenesMediaType, ProgressUpdate, ProgressUpdateContentType, ProgressUpdateMediaItem, ProgressUpdateStage } from "@/app/lib/types";
+import type { ProgressUpdate, ProgressUpdateContentType, ProgressUpdateMediaItem, ProgressUpdateStage } from "@/app/lib/types";
 
 export interface UpdateRow extends ProgressUpdate {
   author_name: string | null;
   episode_title: string | null;
-}
-
-function mediaType(file: File): BehindScenesMediaType {
-  if (file.type.startsWith("video/")) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
-  return "image";
 }
 
 // قسم "العمل الجاري" — توثيق احترافي لمراحل التنفيذ الفعلية (وليس محتوى
@@ -197,13 +192,12 @@ export function UpdateComposer({
   const [error, setError] = useState<string | null>(null);
 
   async function uploadOne(file: File): Promise<ProgressUpdateMediaItem | null> {
-    const supabase = createClient();
-    const type = mediaType(file);
-    const path = `${companyId}/progress-updates/${projectId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-    const { error: uploadError } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false, contentType: file.type || undefined });
-    if (uploadError) return null;
-    const { data } = supabase.storage.from("public-assets").getPublicUrl(path);
-    return { type, url: data.publicUrl, name: file.name };
+    return uploadMediaFile(file, {
+      companyId,
+      projectId,
+      episodeId: lockEpisodeId ?? episodeId ?? null,
+      pathPrefix: `progress-updates/${projectId}`,
+    });
   }
 
   async function uploadFiles(fileList: FileList | File[]) {

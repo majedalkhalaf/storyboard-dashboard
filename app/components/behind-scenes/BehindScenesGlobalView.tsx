@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { uploadMediaFile } from "@/app/lib/media-upload";
 import { relativeTime } from "@/app/components/projects/utils";
 import { MediaGallery } from "@/app/components/projects/sections/ProjectBehindScenesSection";
-import type { BehindScenesComment, BehindScenesMediaItem, BehindScenesMediaType, BehindScenesPost } from "@/app/lib/types";
+import type { BehindScenesComment, BehindScenesMediaItem, BehindScenesPost } from "@/app/lib/types";
 
 interface ProjectOption {
   id: string;
@@ -24,12 +25,6 @@ interface PostRow extends BehindScenesPost {
   episode_title: string | null;
   comments: (BehindScenesComment & { author_name: string | null })[];
   likes_count: number;
-}
-
-function mediaType(file: File): BehindScenesMediaType {
-  if (file.type.startsWith("video/")) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
-  return "image";
 }
 
 // النسخة الشاملة لكل المشاريع من قسم "الكواليس" — يظهر كعنصر أساسي في القائمة
@@ -249,19 +244,20 @@ function PostComposer({
   }
 
   async function uploadFiles(fileList: FileList | File[]) {
-    const supabase = createClient();
     for (const file of Array.from(fileList)) {
       setUploadingCount((c) => c + 1);
       try {
-        const type = mediaType(file);
-        const path = `${companyId}/behind-scenes/global/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-        const { error: uploadError } = await supabase.storage.from("public-assets").upload(path, file, { upsert: false, contentType: file.type || undefined });
-        if (uploadError) {
+        const item = await uploadMediaFile(file, {
+          companyId,
+          projectId: selectedProjectIds[0] ?? "",
+          episodeId: singleProjectId ? episodeId || null : null,
+          pathPrefix: "behind-scenes/global",
+        });
+        if (!item) {
           setError("تعذّر رفع أحد الملفات");
           continue;
         }
-        const { data } = supabase.storage.from("public-assets").getPublicUrl(path);
-        setMedia((prev) => [...prev, { type, url: data.publicUrl, name: file.name }]);
+        setMedia((prev) => [...prev, item]);
       } finally {
         setUploadingCount((c) => c - 1);
       }
