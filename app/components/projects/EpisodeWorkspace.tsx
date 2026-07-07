@@ -56,6 +56,8 @@ export const EPISODE_TABS: TabDef<EpisodeTabKey>[] = [
 
 export default function EpisodeWorkspace({
   clientName,
+  clientPhone,
+  projectName,
   gallery,
   initialEpisodeId,
   extraTabs,
@@ -64,6 +66,10 @@ export default function EpisodeWorkspace({
   extraContent,
 }: {
   clientName: string | null;
+  /** رقم جوال العميل، لتوليد رابط واتساب جاهز في رسالة "تم رفع الفيديو" — null إن لم يُسجَّل رقم. */
+  clientPhone: string | null;
+  /** اسم المشروع — يُستخدم في رسالة "تم رفع الفيديو" الجاهزة للعميل. */
+  projectName: string;
   gallery: EpisodeGalleryItem[];
   initialEpisodeId: string | null;
   /** عناصر إضافية تُلحق أسفل قائمة تبويبات الحلقة لتكوّن قائمة جانبية واحدة
@@ -281,7 +287,7 @@ export default function EpisodeWorkspace({
                   <div className="animate-fade-in">
                     {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
-                    {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && (
                       <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
                     )}
@@ -313,7 +319,7 @@ export default function EpisodeWorkspace({
                   <div className="animate-fade-in">
                     {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
-                    {tab === "files" && <FilesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                    {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && (
                       <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
                     )}

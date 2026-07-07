@@ -2,16 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import ModalPortal from "@/app/components/ui/ModalPortal";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { toEmbedUrl } from "@/app/lib/video-embed";
+import { uploadEpisodeVideo } from "@/app/lib/video-upload";
+import { buildVideoUploadedMessage, buildWhatsappLink } from "@/app/lib/video-notify";
+import type { R2UploadController } from "@/app/lib/r2-upload";
 import { downloadFile } from "../FilesPanel";
 import type { ProjectFile } from "@/app/lib/types";
 import type { EpisodeFullDetail, NoteWithAuthor } from "@/app/lib/episode-detail";
 import { formatDuration, relativeTime } from "../utils";
 
-export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullDetail; onChanged: () => void }) {
+export default function VideoTab({
+  episode,
+  projectName,
+  clientName,
+  clientPhone,
+  onChanged,
+}: {
+  episode: EpisodeFullDetail;
+  projectName: string;
+  clientName: string | null;
+  clientPhone: string | null;
+  onChanged: () => void;
+}) {
   // عميل واحد مُستقر عبر عمر المكوّن (وليس عند كل تصيير) لتفادي إعادة تشغيل التأثير أدناه بلا داعٍ
   const supabase = useMemo(() => createClient(), []);
   const { userId, company, profile } = useSession();
@@ -45,6 +61,19 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [addingLink, setAddingLink] = useState(false);
+
+  const [videoClientVisible, setVideoClientVisible] = useState(true);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadControllerRef = useRef<R2UploadController | null>(null);
+  const videoUploadInputRef = useRef<HTMLInputElement>(null);
+
+  const [notifyFile, setNotifyFile] = useState<ProjectFile | null>(null);
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
+  const [whatsappResult, setWhatsappResult] = useState<{ sent: boolean; error?: string } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const embedUrl = src ? toEmbedUrl(src) : null;
@@ -166,8 +195,140 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
     }
   }
 
+  // رفع فيديو مستقل تماماً عن قائمة الملفات العامة أسفل هذا التبويب — نفس خط أنابيب
+  // الرفع لكن كإجراء مخصّص لهذه الحلقة، ينتهي بفتح رسالة "تم رفع الفيديو" الجاهزة
+  // للعميل إن كان الفيديو مرئياً له.
+  async function handleVideoFileSelect(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setUploadError("الملف المختار ليس فيديو");
+      return;
+    }
+    setUploadError(null);
+    setUploadProgress(0);
+    setUploadingVideo(true);
+    try {
+      const controller = await uploadEpisodeVideo(
+        supabase,
+        {
+          companyId,
+          projectId: episode.project_id,
+          episodeId: episode.id,
+          uploadedBy: userId,
+          uploadedByRole: profile.role,
+          clientVisible: videoClientVisible,
+          file,
+        },
+        {
+          onProgress: (loaded, total) => setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0),
+          onError: (message) => {
+            setUploadingVideo(false);
+            setUploadError(message);
+          },
+          onSuccess: (uploadedFile) => {
+            setUploadingVideo(false);
+            uploadControllerRef.current = null;
+            onChanged();
+            if (videoClientVisible) openNotifyModal(uploadedFile);
+          },
+        }
+      );
+      uploadControllerRef.current = controller;
+    } catch (err) {
+      setUploadingVideo(false);
+      setUploadError(err instanceof Error ? err.message : "تعذّر بدء رفع الفيديو");
+    }
+  }
+
+  function openNotifyModal(file: ProjectFile) {
+    const videoUrl = `${window.location.origin}/client/projects/${episode.project_id}/episodes/${episode.id}`;
+    const message = buildVideoUploadedMessage({
+      clientName,
+      companyName: company!.name,
+      projectName,
+      episodeTitle: episode.title,
+      episodeNumber: episode.number,
+      videoUrl,
+    });
+    setNotifyMessage(message);
+    setWhatsappResult(null);
+    setCopied(false);
+    setNotifyFile(file);
+  }
+
+  async function copyNotifyMessage() {
+    await navigator.clipboard.writeText(notifyMessage);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function sendNotifyViaWhatsapp() {
+    if (!clientPhone) return;
+    setSendingWhatsapp(true);
+    setWhatsappResult(null);
+    try {
+      const res = await fetch("/api/notifications/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: clientPhone, message: notifyMessage }),
+      });
+      const json = (await res.json()) as { sent?: boolean; error?: string };
+      setWhatsappResult({ sent: Boolean(json.sent), error: json.error });
+    } catch {
+      setWhatsappResult({ sent: false, error: "تعذّر الاتصال بخادم الإرسال" });
+    } finally {
+      setSendingWhatsapp(false);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="card" style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h3 style={{ fontSize: 14, fontWeight: 700 }}>رفع فيديو الحلقة</h3>
+            <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+              رفع مستقل خاص بفيديو هذه الحلقة — لا علاقة له بقائمة الملفات العامة أدناه
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input type="checkbox" checked={videoClientVisible} onChange={(e) => setVideoClientVisible(e.target.checked)} style={{ accentColor: "var(--gold)" }} />
+              مرئي للعميل
+            </label>
+            <button
+              className="btn btn-gold"
+              style={{ padding: "8px 14px", fontSize: 12.5 }}
+              disabled={uploadingVideo}
+              onClick={() => videoUploadInputRef.current?.click()}
+            >
+              <Icon name="fileUp" size={14} /> {uploadingVideo ? `جارٍ الرفع... ${uploadProgress}%` : "رفع فيديو"}
+            </button>
+            <input
+              ref={videoUploadInputRef}
+              type="file"
+              accept="video/*"
+              hidden
+              onChange={(e) => {
+                handleVideoFileSelect(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        {uploadingVideo && (
+          <div style={{ marginTop: 10, height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${uploadProgress}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+          </div>
+        )}
+        {uploadError && (
+          <p style={{ color: "#EF4444", fontSize: 12.5, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="alert" size={14} /> {uploadError}
+          </p>
+        )}
+      </div>
+
       <div className="card" style={{ padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: videoFiles.length === 0 ? 0 : 10 }}>
           {activeFile && !embedUrl && (
@@ -207,7 +368,7 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
         {videoFiles.length === 0 ? (
           <div className="empty-state">
             <Icon name="video" size={30} className="text-muted" />
-            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفعه من قائمة الملفات أدناه، أو أضف رابط فيديو خارجي أعلاه.</p>
+            <p style={{ marginTop: 10 }}>لا يوجد ملف فيديو لهذه الحلقة بعد. ارفعه من زر «رفع فيديو» أعلاه، أو أضف رابط فيديو خارجي.</p>
           </div>
         ) : (
           <>
@@ -380,6 +541,71 @@ export default function VideoTab({ episode, onChanged }: { episode: EpisodeFullD
           </div>
         )}
       </div>
+
+      {notifyFile && (
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setNotifyFile(null)}>
+            <div className="modal-content" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ color: "#1DB954", display: "inline-flex" }}>
+                  <Icon name="checkCircle" size={22} />
+                </span>
+                <h3 style={{ fontSize: 16, fontWeight: 800 }}>تم رفع الفيديو بنجاح</h3>
+              </div>
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 14 }}>
+                رسالة جاهزة لإشعار العميل بأن الفيديو رُفع وهو الآن بانتظار المراجعة والاعتماد.
+              </p>
+
+              <textarea
+                className="input-field"
+                readOnly
+                value={notifyMessage}
+                style={{ minHeight: 150, fontSize: 12.5, lineHeight: 1.7, resize: "vertical" }}
+              />
+
+              <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+                <button className="btn btn-outline" style={{ flex: "1 1 140px" }} onClick={copyNotifyMessage}>
+                  <Icon name={copied ? "checkCircle" : "copy"} size={15} /> {copied ? "تم النسخ" : "نسخ الرسالة"}
+                </button>
+                {clientPhone ? (
+                  <>
+                    <a
+                      href={buildWhatsappLink(clientPhone, notifyMessage)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-outline"
+                      style={{ flex: "1 1 140px" }}
+                    >
+                      <Icon name="phone" size={15} /> فتح واتساب
+                    </a>
+                    <button className="btn btn-gold" style={{ flex: "1 1 180px" }} disabled={sendingWhatsapp} onClick={sendNotifyViaWhatsapp}>
+                      <Icon name="send" size={15} /> {sendingWhatsapp ? "جارٍ الإرسال..." : "إرسال تلقائي عبر واتساب"}
+                    </button>
+                  </>
+                ) : (
+                  <p style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                    لا يوجد رقم جوال مسجَّل لهذا العميل — انسخ الرسالة وأرسلها يدوياً عبر أي قناة.
+                  </p>
+                )}
+              </div>
+
+              {whatsappResult && (
+                <p style={{ fontSize: 12, marginTop: 10, color: whatsappResult.sent ? "#1DB954" : "#F59E0B" }}>
+                  {whatsappResult.sent
+                    ? "تم الإرسال تلقائياً عبر واتساب بزنس API بنجاح."
+                    : whatsappResult.error || "لم يُرسَل تلقائياً — استخدم زر «فتح واتساب» بدلاً من ذلك."}
+                </p>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+                <button className="btn btn-ghost" onClick={() => setNotifyFile(null)}>
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }

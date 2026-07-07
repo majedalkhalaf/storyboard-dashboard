@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import { safeStorageKey } from "@/app/lib/storage-path";
 
 // يرفع صورة العميل الشخصية عبر service_role (العملاء ليس لديهم company_id
 // فلا يستطيعون الرفع مباشرة لمساحة public-assets حسب سياسات RLS الحالية).
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    const path = `client-avatars/${user.id}/${Date.now()}-${file.name}`;
+    const path = `client-avatars/${user.id}/${safeStorageKey(file.name)}`;
     const { error: uploadError } = await admin.storage.from("public-assets").upload(path, file, { upsert: true });
     if (uploadError) {
       return NextResponse.json({ error: "تعذّر رفع الصورة" }, { status: 500 });
