@@ -470,9 +470,7 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     );
     const ids = list.map((f) => f.id);
     await supabase.from("files").delete().in("id", ids);
-    // إشعار العميل عند حذف ملف كان مرئياً له يتم تلقائياً عبر trigger في قاعدة البيانات
-    // (notify_client_on_file_delete، راجع supabase/migrations/0017_file_delete_notify.sql)
-    // بنفس منطق التحقق من صلاحية "files" وحالة العميل المستخدم في trigger الإضافة الحالي.
+    // لا يُرسَل أي إشعار للعميل عند الحذف (بطلب صريح) — يُسجَّل فقط في سجل نشاط الفريق الداخلي.
     await Promise.all(list.map((f) => logActivity(supabase, { companyId, projectId, episodeId, action: "file_deleted", details: { name: f.name } })));
     setFiles((prev) => prev.filter((f) => !ids.includes(f.id)));
     onChanged?.();
