@@ -222,7 +222,7 @@ export default function EpisodeWorkspace({
         {galleryExpanded || galleryItems.length === 0 ? (
           <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
         ) : (
-          <CompactEpisodeStrip episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
+          <EpisodeMiniGrid episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
         )}
       </div>
 
@@ -339,9 +339,12 @@ export default function EpisodeWorkspace({
   );
 }
 
-// شريط تنقل مصغّر يحل محل شبكة البطاقات الكاملة بعد اختيار حلقة — يبقي التبديل بين
-// الحلقات ممكناً بضغطة واحدة دون إعادة إظهار الشبكة الكبيرة التي تدفع الإعدادات للأسفل.
-function CompactEpisodeStrip({
+// شبكة تنقل مصغّرة تحل محل شبكة البطاقات الكاملة بعد اختيار حلقة — تبقي التبديل
+// بين الحلقات ممكناً بضغطة واحدة دون إعادة إظهار الشبكة الكاملة الثقيلة (بأدوات
+// التعديل والحذف والسحب) التي تدفع الإعدادات للأسفل. بديل صريح عن الشريط الأفقي
+// السابق (شكل رقاقات مزدحم بلا صور) — شبكة بطاقات مصغّرة بصورة/رقم/شريط إنجاز
+// لكل حلقة، بارتفاع محدود مع تمرير رأسي داخلي كي لا تكبر الصفحة بلا حدود.
+function EpisodeMiniGrid({
   episodes,
   selectedId,
   onSelect,
@@ -351,30 +354,79 @@ function CompactEpisodeStrip({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(108px, 1fr))",
+        gap: 10,
+        maxHeight: 190,
+        overflowY: "auto",
+        paddingBottom: 2,
+      }}
+    >
       {episodes.map((ep) => {
         const active = ep.id === selectedId;
         return (
           <button
             key={ep.id}
             onClick={() => onSelect(ep.id)}
-            className="chip"
             title={ep.title}
             style={{
-              flexShrink: 0,
-              cursor: "pointer",
-              fontSize: 12,
-              padding: "7px 14px",
-              maxWidth: 200,
+              display: "flex",
+              flexDirection: "column",
+              textAlign: "right",
+              padding: 0,
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              borderColor: active ? "var(--gold)" : "var(--border)",
-              background: active ? "rgba(212,175,55,0.12)" : "transparent",
-              color: active ? "var(--gold)" : "var(--text-primary)",
+              borderRadius: 10,
+              cursor: "pointer",
+              background: "var(--bg-card)",
+              border: active ? "2px solid var(--gold)" : "1px solid var(--border)",
+              transition: "border-color .15s",
             }}
           >
-            {ep.number != null ? `حلقة ${ep.number}: ${ep.title}` : ep.title}
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "16 / 9",
+                background: ep.cover_image_url
+                  ? `center/cover no-repeat url(${ep.cover_image_url})`
+                  : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {!ep.cover_image_url && <Icon name="video" size={16} className="text-muted" />}
+              <span
+                className="chip chip-gold"
+                style={{ position: "absolute", top: 4, insetInlineStart: 4, fontSize: 10, padding: "1px 6px" }}
+              >
+                {ep.number != null ? ep.number : "—"}
+              </span>
+              {ep.hasActiveApproval && (
+                <span style={{ position: "absolute", bottom: 4, insetInlineEnd: 4, color: "#1DB954" }} title="معتمدة">
+                  <Icon name="badgeCheck" size={13} filled />
+                </span>
+              )}
+            </div>
+            <div style={{ padding: "6px 8px 8px" }}>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: active ? "var(--gold)" : "var(--text-primary)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {ep.title}
+              </div>
+              <div className="progress-bar" style={{ height: 3, marginTop: 5 }}>
+                <div className="progress-fill" style={{ width: `${ep.progress}%` }} />
+              </div>
+            </div>
           </button>
         );
       })}
