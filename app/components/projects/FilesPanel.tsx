@@ -7,11 +7,29 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { logActivity } from "@/app/lib/activity";
-import { extractVideoMetadata, uploadFile, RESUMABLE_UPLOAD_THRESHOLD, type UploadController } from "@/app/lib/storage-upload";
+import { extractVideoMetadata, uploadFile, RESUMABLE_UPLOAD_THRESHOLD } from "@/app/lib/storage-upload";
 import { startR2Upload } from "@/app/lib/r2-upload";
 import { buildFilePath, safeStorageKey } from "@/app/lib/storage-path";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanEta, humanFileSize, humanSpeed, inferCategory, relativeTime } from "./utils";
+import {
+  scopeKeyFor,
+  useUploadQueue,
+  enqueueFiles,
+  tryMarkStarted,
+  getItem,
+  setController,
+  updateProgress,
+  setStatus,
+  pauseItem,
+  resumeItem,
+  cancelItem,
+  retryItem,
+  dismissItem,
+  broadcastFilesChanged,
+  onFilesChanged,
+  type QueueItem,
+} from "@/app/lib/upload-queue-store";
 
 // عدد الرفعات المتوازية بحد أقصى — رفع كل الملفات دفعة واحدة قد يُغرق النطاق الترددي
 // نفسه فيبطئ الجميع، لذا نُحدّد سقفاً معقولاً بدل التسلسل الكامل (رفع واحد تلو الآخر).
@@ -133,17 +151,6 @@ export function FilePreviewModal({
 
 type ViewMode = "grid" | "list";
 type SortMode = "date_desc" | "date_asc" | "name" | "size";
-type QueueStatus = "queued" | "uploading" | "paused" | "success" | "error" | "cancelled";
-
-interface QueueItem {
-  id: string;
-  file: File;
-  status: QueueStatus;
-  loaded: number;
-  total: number;
-  speedBps: number;
-  error?: string;
-}
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "date_desc", label: "الأحدث أولاً" },
@@ -170,19 +177,17 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
   const companyId = company!.id;
   const admin = isInternalAdmin(profile.role);
 
+  const scopeKey = scopeKeyFor(projectId, episodeId);
+  const queue = useUploadQueue(scopeKey);
+
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [clientVisible, setClientVisible] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<ProjectFile | null>(null);
-
-  const controllersRef = useRef<Map<string, UploadController>>(new Map());
-  const startedIdsRef = useRef<Set<string>>(new Set());
-  const speedTrackRef = useRef<Map<string, { time: number; loaded: number }>>(new Map());
 
   const [view, setView] = useState<ViewMode>("grid");
   const [categoryFilter, setCategoryFilter] = useState<FileCategory | "">("");
@@ -206,6 +211,10 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل أولي عند التركيب، النمط القياسي لجلب البيانات
     load();
   }, [load]);
+
+  // يلتقط اكتمال رفع بدأ من نسخة سابقة لهذه اللوحة (قبل تبديل التبويب) — يعيد جلب
+  // قائمة الملفات فور ظهور الملف الجديد فعلياً في قاعدة البيانات.
+  useEffect(() => onFilesChanged(scopeKey, load), [scopeKey, load]);
 
   async function finalizeUpload(item: QueueItem, category: FileCategory, path: string, bucketName: string) {
     let thumbnailUrl: string | null = null;
@@ -268,30 +277,21 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
     onChanged?.();
   }
 
+  // بدء رفع عنصر — الرفع الفعلي (fetch/XHR/tus) يعمل عبر إغلاقات JS مستقلة عن React
+  // أصلاً، لكن أي تتبّع للتقدّم أو زر تحكم كان محصوراً سابقاً بحالة محلية داخل هذا
+  // المكوّن فيُفقد بمجرد تبديل التبويب (unmount كامل). كل التحديثات هنا تمر عبر
+  // مخزن مستقل على مستوى الوحدة (upload-queue-store) فتبقى حيّة بغض النظر عن أي
+  // تبويب مفتوح حالياً، ولا يتوقف الرفع إلا بضغط "إلغاء" صريح من المستخدم.
   function startUpload(item: QueueItem) {
-    if (startedIdsRef.current.has(item.id)) return;
-    startedIdsRef.current.add(item.id);
-    setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "uploading" } : q)));
+    if (!tryMarkStarted(item.id)) return;
+    setStatus(item.id, "uploading");
 
     const category = forceCategory ?? inferCategory(item.file.type, item.file.name);
-    speedTrackRef.current.set(item.id, { time: Date.now(), loaded: 0 });
 
-    const onProgress = (loaded: number, total: number) => {
-      const track = speedTrackRef.current.get(item.id);
-      const now = Date.now();
-      let nextSpeed: number | null = null;
-      if (track) {
-        const dt = (now - track.time) / 1000;
-        if (dt >= 0.5) {
-          nextSpeed = Math.max(0, (loaded - track.loaded) / dt);
-          speedTrackRef.current.set(item.id, { time: now, loaded });
-        }
-      }
-      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, loaded, total, speedBps: nextSpeed ?? q.speedBps } : q)));
-    };
+    const onProgress = (loaded: number, total: number) => updateProgress(item.id, loaded, total);
     const onError = (message: string) => {
-      startedIdsRef.current.delete(item.id);
-      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: q.status === "paused" ? "paused" : "error", error: message } : q)));
+      const current = getItem(item.id);
+      setStatus(item.id, current?.status === "paused" ? "paused" : "error", message);
     };
 
     // ملفات الفيديو تُرفع إلى Cloudflare R2 (رفع مجزّأ مباشر من المتصفح، بلا
@@ -306,16 +306,18 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
           onSuccess: async () => {
             try {
               await finalizeUpload(item, category, key, "r2");
-              setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "success", loaded: q.total } : q)));
+              setStatus(item.id, "success");
+              dismissItem(item.id);
+              broadcastFilesChanged(scopeKey);
             } catch {
-              setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "error", error: "تم رفع الملف لكن فشل حفظ بياناته" } : q)));
+              setStatus(item.id, "error", "تم رفع الملف لكن فشل حفظ بياناته");
             }
           },
         }
       )
         .then(({ key: resolvedKey, controller }) => {
           key = resolvedKey;
-          controllersRef.current.set(item.id, controller);
+          setController(item.id, controller);
         })
         .catch((err) => onError(err instanceof Error ? err.message : "تعذّر بدء الرفع"));
       return;
@@ -328,13 +330,15 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
       onSuccess: async () => {
         try {
           await finalizeUpload(item, category, path, "project-files");
-          setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "success", loaded: q.total } : q)));
+          setStatus(item.id, "success");
+          dismissItem(item.id);
+          broadcastFilesChanged(scopeKey);
         } catch {
-          setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "error", error: "تم رفع الملف لكن فشل حفظ بياناته" } : q)));
+          setStatus(item.id, "error", "تم رفع الملف لكن فشل حفظ بياناته");
         }
       },
     });
-    controllersRef.current.set(item.id, controller);
+    setController(item.id, controller);
   }
 
   // معالج الطابور: يبدأ رفع الملفات "قيد الانتظار" تباعاً حتى سقف الرفعات المتزامنة —
@@ -351,16 +355,9 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
   }, [queue]);
 
   function enqueue(fileList: FileList | File[]) {
-    const items: QueueItem[] = Array.from(fileList).map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      status: "queued",
-      loaded: 0,
-      total: file.size,
-      speedBps: 0,
-    }));
-    if (items.length === 0) return;
-    setQueue((prev) => [...prev, ...items]);
+    const list = Array.from(fileList);
+    if (list.length === 0) return;
+    enqueueFiles(scopeKey, list);
   }
 
   function handleUpload(fileList: FileList | null) {
@@ -371,28 +368,19 @@ export default function FilesPanel({ projectId, episodeId, filter, accept, empty
   }
 
   function pauseQueueItem(id: string) {
-    controllersRef.current.get(id)?.pause();
-    setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status: "paused" } : q)));
+    pauseItem(id);
   }
   function resumeQueueItem(id: string) {
-    controllersRef.current.get(id)?.resume();
-    setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status: "uploading" } : q)));
+    resumeItem(id);
   }
   function cancelQueueItem(id: string) {
-    controllersRef.current.get(id)?.cancel();
-    controllersRef.current.delete(id);
-    startedIdsRef.current.delete(id);
-    setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status: "cancelled" } : q)));
+    cancelItem(id);
   }
   function retryQueueItem(id: string) {
-    startedIdsRef.current.delete(id);
-    controllersRef.current.delete(id);
-    setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status: "queued", loaded: 0, error: undefined } : q)));
+    retryItem(id);
   }
   function dismissQueueItem(id: string) {
-    controllersRef.current.delete(id);
-    startedIdsRef.current.delete(id);
-    setQueue((prev) => prev.filter((q) => q.id !== id));
+    dismissItem(id);
   }
 
   function handleDrop(e: DragEvent<HTMLDivElement>) {
