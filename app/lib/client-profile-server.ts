@@ -21,6 +21,8 @@ export interface ClientProfileSummary {
   filesCount: number;
   notesCount: number;
   lastActivity: string;
+  portalUserIds: string[];
+  lastPortalSeenAt: string | null;
 }
 
 export async function getClientProfileSummary(companyId: string, clientId: string): Promise<ClientProfileSummary | null> {
@@ -70,6 +72,21 @@ export async function getClientProfileSummary(companyId: string, clientId: strin
   const invoicesTotal = (invoices ?? []).filter((i) => i.status !== "cancelled").reduce((s, i) => s + Number(i.amount ?? 0) + Number(i.tax ?? 0), 0);
   const lastActivity = (projects ?? []).reduce((latest, p) => (p.updated_at > latest ? p.updated_at : latest), client.updated_at);
 
+  // معرّفات تسجيلات دخول بوابة العميل المرتبطة بسجل هذا العميل (قد تكون أكثر
+  // من تسجيل واحد عبر مشاريع مختلفة) — تُستخدم لجلب آخر ظهور وحالة الاتصال.
+  const { data: portalLinks } = await supabase.from("project_clients").select("client_user_id").eq("client_id", clientId).not("client_user_id", "is", null);
+  const portalUserIds = Array.from(new Set((portalLinks ?? []).map((p) => p.client_user_id as string)));
+  let lastPortalSeenAt: string | null = null;
+  if (portalUserIds.length > 0) {
+    const { data: sessions } = await supabase
+      .from("client_sessions")
+      .select("last_seen_at")
+      .in("client_user_id", portalUserIds)
+      .order("last_seen_at", { ascending: false })
+      .limit(1);
+    lastPortalSeenAt = sessions?.[0]?.last_seen_at ?? null;
+  }
+
   const assignee = client.assignee as { full_name: string | null } | { full_name: string | null }[] | null;
   const assignedToName = Array.isArray(assignee) ? (assignee[0]?.full_name ?? null) : (assignee?.full_name ?? null);
 
@@ -89,5 +106,7 @@ export async function getClientProfileSummary(companyId: string, clientId: strin
     filesCount: filesCount ?? 0,
     notesCount: notesCount ?? 0,
     lastActivity,
+    portalUserIds,
+    lastPortalSeenAt,
   };
 }

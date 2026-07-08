@@ -6,6 +6,7 @@ import ModalPortal from "@/app/components/ui/ModalPortal";
 import { createClient } from "@/app/lib/supabase/client";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
+import { trackVideoWatch } from "@/app/lib/client-activity-tracker";
 import type { Note, ProjectFile } from "@/app/lib/types";
 
 // تجربة فيديو أسلوب يوتيوب داخل بوابة العميل: صورة مصغّرة من الخارج، وعند
@@ -173,6 +174,27 @@ export function VideoPlayerModal({
   const [editRequestOpen, setEditRequestOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const maxWatchedRef = useRef(0);
+  const watchReportedRef = useRef(false);
+
+  // يُسجَّل حدث "video_watch" مرة واحدة فقط عند إغلاق المشغّل (أو تفكيكه)،
+  // بأقصى نقطة مشاهدة وصل إليها العميل فعلياً (وليس فقط آخر موضع للمؤشر،
+  // كي لا يُحتسب رجوعه للخلف كنقص في نسبة المشاهدة).
+  function reportWatch() {
+    if (watchReportedRef.current || maxWatchedRef.current < 3) return;
+    watchReportedRef.current = true;
+    trackVideoWatch(file.id, maxWatchedRef.current, duration || file.duration_seconds || maxWatchedRef.current, { projectId, episodeId });
+  }
+
+  useEffect(() => {
+    return () => reportWatch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- يُقرأ عبر refs فقط عند التفكيك، لا حاجة لإعادة تشغيله بتغيّر duration
+  }, []);
+
+  function handleClose() {
+    reportWatch();
+    onClose();
+  }
 
   useEffect(() => {
     if (file.external_url) return;
@@ -261,7 +283,7 @@ export function VideoPlayerModal({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay" onClick={handleClose}>
         <div className="modal-content modal-content-video" style={{ maxWidth: 720, maxHeight: "92vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <Icon name="video" size={20} className="nav-icon" />
@@ -276,7 +298,7 @@ export function VideoPlayerModal({
                 <Icon name="export" size={14} /> {downloading ? "جارٍ التحضير..." : "تحميل بالجودة الأصلية"}
               </button>
             )}
-            <button className="btn btn-ghost" onClick={onClose} aria-label="إغلاق" style={{ flexShrink: 0 }}>
+            <button className="btn btn-ghost" onClick={handleClose} aria-label="إغلاق" style={{ flexShrink: 0 }}>
               <Icon name="close" size={18} />
             </button>
           </div>
@@ -289,7 +311,11 @@ export function VideoPlayerModal({
               src={src}
               controls
               playsInline
-              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onTimeUpdate={(e) => {
+                const t = e.currentTarget.currentTime;
+                setCurrentTime(t);
+                if (t > maxWatchedRef.current) maxWatchedRef.current = t;
+              }}
               onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
               onError={() => setSrcError(true)}
               style={{ width: "100%", maxHeight: 420, borderRadius: 12, background: "#000", display: "block" }}

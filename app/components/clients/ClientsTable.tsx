@@ -8,6 +8,7 @@ import { CLIENT_CRM_STATUSES, CLIENT_TYPE_LABELS } from "@/app/lib/constants";
 import type { ClientDirectoryRow } from "@/app/lib/clients-directory";
 import { relativeTime } from "../projects/utils";
 import PerformanceRing from "../dashboard/PerformanceRing";
+import ClientStatusBadge from "@/app/components/ui/ClientStatusBadge";
 
 function whatsappLink(phone: string | null): string | null {
   if (!phone) return null;
@@ -102,9 +103,12 @@ export default function ClientsTable({
                       </span>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>{r.name}</div>
-                        <span className="chip chip-gold" style={{ fontSize: 10, marginTop: 3, display: "inline-block" }}>
-                          {CLIENT_TYPE_LABELS[r.client_type]}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                          <span className="chip chip-gold" style={{ fontSize: 10, display: "inline-block" }}>
+                            {CLIENT_TYPE_LABELS[r.client_type]}
+                          </span>
+                          {r.lastPortalSeenAt !== undefined && r.lastPortalSeenAt !== null && <ClientStatusBadge lastSeenAt={r.lastPortalSeenAt} compact />}
+                        </div>
                       </div>
                     </div>
                   </td>

@@ -5,10 +5,13 @@ import Icon from "@/app/components/ui/Icon";
 import { CLIENT_CRM_STATUSES, CLIENT_TYPE_LABELS } from "@/app/lib/constants";
 import type { ClientProfileSummary } from "@/app/lib/client-profile";
 import { relativeTime } from "@/app/components/projects/utils";
+import ClientStatusBadge from "@/app/components/ui/ClientStatusBadge";
+import { useLiveLastSeen } from "@/app/lib/use-live-last-seen";
 
-export default function ClientHero({ summary, onEdit }: { summary: ClientProfileSummary; onEdit: () => void }) {
+export default function ClientHero({ summary, companyId, onEdit }: { summary: ClientProfileSummary; companyId: string; onEdit: () => void }) {
   const { client } = summary;
   const status = CLIENT_CRM_STATUSES.find((s) => s.value === client.status);
+  const lastSeenAt = useLiveLastSeen(companyId, summary.portalUserIds, summary.lastPortalSeenAt);
 
   return (
     <div className="card" style={{ padding: 22 }}>
@@ -40,6 +43,7 @@ export default function ClientHero({ summary, onEdit }: { summary: ClientProfile
                   {status.label}
                 </span>
               )}
+              {summary.portalUserIds.length > 0 && <ClientStatusBadge lastSeenAt={lastSeenAt} />}
             </div>
             <div style={{ display: "flex", gap: 14, marginTop: 8, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
               {client.city && (

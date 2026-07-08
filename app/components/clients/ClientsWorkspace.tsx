@@ -125,6 +125,7 @@ export default function ClientsWorkspace({
           completionPct: 0,
           lastActivity: client.created_at || new Date().toISOString(),
           created_at: client.created_at || new Date().toISOString(),
+          lastPortalSeenAt: null,
         },
         ...prev,
       ];

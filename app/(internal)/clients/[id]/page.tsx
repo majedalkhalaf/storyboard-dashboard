@@ -16,6 +16,7 @@ const VALID_TABS = new Set([
   "files",
   "notes",
   "activity",
+  "analytics",
   "settings",
 ]);
 

@@ -18,8 +18,9 @@ import OffersTab from "./tabs/OffersTab";
 import FilesTab from "./tabs/FilesTab";
 import NotesTab from "./tabs/NotesTab";
 import ActivityTab from "./tabs/ActivityTab";
+import AnalyticsTab from "./tabs/AnalyticsTab";
 
-type TabKey = "overview" | "projects" | "videos" | "invoices" | "payments" | "contracts" | "offers" | "files" | "notes" | "activity" | "settings";
+type TabKey = "overview" | "projects" | "videos" | "invoices" | "payments" | "contracts" | "offers" | "files" | "notes" | "activity" | "analytics" | "settings";
 
 const TABS: TabDef<TabKey>[] = [
   { key: "overview", label: "نظرة عامة", icon: "info" },
@@ -32,6 +33,7 @@ const TABS: TabDef<TabKey>[] = [
   { key: "files", label: "الملفات", icon: "files" },
   { key: "notes", label: "الملاحظات", icon: "message" },
   { key: "activity", label: "سجل النشاط", icon: "clock" },
+  { key: "analytics", label: "تحليلات العميل", icon: "barChart" },
   { key: "settings", label: "الإعدادات", icon: "settings" },
 ];
 
@@ -57,7 +59,7 @@ export default function ClientProfileView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }} className="animate-fade-in">
-      <ClientHero summary={summary} onEdit={() => setShowEdit(true)} />
+      <ClientHero summary={summary} companyId={companyId} onEdit={() => setShowEdit(true)} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 20, alignItems: "flex-start" }}>
         <div>
@@ -76,6 +78,7 @@ export default function ClientProfileView({
             {tab === "files" && <FilesTab clientId={summary.client.id} />}
             {tab === "notes" && <NotesTab clientId={summary.client.id} />}
             {tab === "activity" && <ActivityTab clientId={summary.client.id} />}
+            {tab === "analytics" && <AnalyticsTab clientId={summary.client.id} />}
             {tab === "settings" && <SettingsTab client={summary.client} teamMembers={teamMembers} />}
           </div>
         </div>

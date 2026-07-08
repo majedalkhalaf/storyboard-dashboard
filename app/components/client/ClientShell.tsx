@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
@@ -8,6 +8,7 @@ import AccountMenu from "@/app/components/AccountMenu";
 import ClientNotificationsBell from "@/app/components/client/ClientNotificationsBell";
 import { relativeTime } from "@/app/components/client/utils";
 import { useSession } from "@/app/providers/SessionProvider";
+import { startActivityTracking, trackPageView } from "@/app/lib/client-activity-tracker";
 
 interface NavItem {
   href: string;
@@ -76,6 +77,16 @@ export default function ClientShell({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+
+  // بدء تتبّع الجلسة مرة واحدة عند فتح بوابة العميل — ClientShell مُركَّب في
+  // layout.tsx فلا يُعاد تركيبه بين تنقّلات الصفحات، فهذا الأثر يعمل مرة واحدة فقط.
+  useEffect(() => {
+    startActivityTracking();
+  }, []);
+
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
 
   const primaryNavItems = BOTTOM_NAV_PRIMARY_HREFS.map((href) => NAV_ITEMS.find((item) => item.href === href)!);
   const moreNavItems = NAV_ITEMS.filter((item) => !BOTTOM_NAV_PRIMARY_HREFS.includes(item.href));

@@ -25,6 +25,7 @@ export interface ClientDirectoryRow {
   completionPct: number;
   lastActivity: string;
   created_at: string;
+  lastPortalSeenAt: string | null;
 }
 
 export interface ClientsDirectoryStats {
@@ -48,7 +49,7 @@ export async function getClientsDirectory(
 ): Promise<{ clients: ClientDirectoryRow[]; stats: ClientsDirectoryStats }> {
   const supabase = await createClient();
 
-  const [{ data: clients }, { data: projects }, { data: contracts }, { data: invoices }, { data: payments }] = await Promise.all([
+  const [{ data: clients }, { data: projects }, { data: contracts }, { data: invoices }, { data: payments }, { data: portalLinks }] = await Promise.all([
     supabase
       .from("clients")
       .select("*, assignee:profiles!assigned_to(full_name, avatar_url)")
@@ -58,7 +59,30 @@ export async function getClientsDirectory(
     supabase.from("contracts").select("client_id, amount, status").eq("company_id", companyId),
     supabase.from("invoices").select("client_id, amount, tax, status").eq("company_id", companyId),
     supabase.from("payments").select("project_id, amount, status").eq("company_id", companyId),
+    supabase.from("project_clients").select("client_id, client_user_id").eq("company_id", companyId).not("client_user_id", "is", null),
   ]);
+
+  // آخر ظهور لكل عميل (CRM) داخل بوابته — قد يملك أكثر من تسجيل دخول واحد
+  // (عبر مشاريع مختلفة)، فنأخذ الأحدث بينها.
+  const portalUserIdsByClient: Record<string, string[]> = {};
+  for (const link of portalLinks ?? []) {
+    if (!link.client_id || !link.client_user_id) continue;
+    (portalUserIdsByClient[link.client_id] ??= []).push(link.client_user_id);
+  }
+  const allPortalUserIds = Array.from(new Set(Object.values(portalUserIdsByClient).flat()));
+  let lastSeenByUser: Record<string, string> = {};
+  if (allPortalUserIds.length > 0) {
+    const { data: sessions } = await supabase.from("client_sessions").select("client_user_id, last_seen_at").in("client_user_id", allPortalUserIds);
+    lastSeenByUser = (sessions ?? []).reduce<Record<string, string>>((acc, s) => {
+      if (!acc[s.client_user_id] || s.last_seen_at > acc[s.client_user_id]) acc[s.client_user_id] = s.last_seen_at;
+      return acc;
+    }, {});
+  }
+  const lastPortalSeenByClient: Record<string, string | null> = {};
+  for (const [clientId, userIds] of Object.entries(portalUserIdsByClient)) {
+    const times = userIds.map((u) => lastSeenByUser[u]).filter((t): t is string => Boolean(t));
+    lastPortalSeenByClient[clientId] = times.length ? times.sort().at(-1)! : null;
+  }
 
   const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
 
@@ -127,6 +151,7 @@ export async function getClientsDirectory(
       completionPct: pb && pb.count > 0 ? Math.round(pb.progressSum / pb.count) : 0,
       lastActivity: pb?.lastActivity || c.updated_at,
       created_at: c.created_at,
+      lastPortalSeenAt: lastPortalSeenByClient[c.id] ?? null,
     };
   });
 

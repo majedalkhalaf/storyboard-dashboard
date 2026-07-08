@@ -922,3 +922,38 @@ export interface ProjectPresentation {
   created_at: string;
   updated_at: string;
 }
+
+export interface ClientSession {
+  id: string;
+  company_id: string;
+  client_user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  last_seen_at: string;
+  duration_seconds: number | null;
+  device: string | null;
+  browser: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export type ClientActivityEventType = "login" | "logout" | "page_view" | "file_download" | "video_watch" | "error";
+
+export interface ClientActivityLog {
+  id: string;
+  company_id: string;
+  client_user_id: string;
+  session_id: string | null;
+  project_id: string | null;
+  episode_id: string | null;
+  event_type: ClientActivityEventType;
+  page: string | null;
+  action: string | null;
+  duration_seconds: number | null;
+  metadata: Record<string, unknown>;
+  device: string | null;
+  browser: string | null;
+  ip: string | null;
+  created_at: string;
+}
