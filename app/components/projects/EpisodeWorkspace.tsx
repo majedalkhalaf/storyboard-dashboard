@@ -200,6 +200,10 @@ export default function EpisodeWorkspace({
     })),
     ...(extraTabs ?? []),
   ];
+  // "الملاحظات" لم تعد ضمن القائمة الجانبية العادية — أصبح لها زر مختصر بارز في رأس
+  // الحلقة (أهم قسم بحسب الطلب)، فتُستبعد من القائمة المعروضة هنا وإن بقي مفتاحها
+  // فعّالاً في handleTabChange لضمان عمل الزر ورابط الإشعارات المباشر كما هما.
+  const visibleTabs = mergedTabs.filter((t) => t.key !== "notes");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -250,6 +254,37 @@ export default function EpisodeWorkspace({
                 <EditableTitle value={detail.title} onSave={saveTitle} fontSize={16} maxWidth={isMobile ? 200 : 420} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <button
+                  className="btn btn-gold"
+                  onClick={() => handleTabChange("notes")}
+                  style={{ position: "relative", fontSize: 13, padding: "8px 14px" }}
+                >
+                  <Icon name="message" size={15} />
+                  الملاحظات
+                  {(activeGalleryItem?.unreadCount ?? 0) > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        insetInlineStart: -6,
+                        background: "#ef4444",
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 4px",
+                        boxShadow: "0 0 0 2px var(--bg-secondary)",
+                      }}
+                    >
+                      {activeGalleryItem!.unreadCount > 9 ? "9+" : activeGalleryItem!.unreadCount}
+                    </span>
+                  )}
+                </button>
                 {!isMobile && (
                   <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-muted)" }}>
                     <Icon name="zap" size={12} /> المرحلة
@@ -274,7 +309,7 @@ export default function EpisodeWorkspace({
             // العرض تُجبِر الصفحة على تمرير أفقي)، والمحتوى يتدفّق للأسفل بالكامل بلا
             // أي عمود "متجمّد" يمنع الوصول لبقية الحلقة أثناء التمرير.
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Tabs orientation="horizontal" tabs={mergedTabs} active={activeKey} onChange={handleTabChange} />
+              <Tabs orientation="horizontal" tabs={visibleTabs} active={activeKey} onChange={handleTabChange} />
 
               {showingExtra ? (
                 <div className="animate-fade-in">{extraContent}</div>
@@ -302,7 +337,7 @@ export default function EpisodeWorkspace({
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: !showingExtra && tab === "storyboard" ? "190px 1fr" : "190px 1fr 280px", gap: 20, alignItems: "flex-start" }}>
-              <Tabs orientation="vertical" tabs={mergedTabs} active={activeKey} onChange={handleTabChange} />
+              <Tabs orientation="vertical" tabs={visibleTabs} active={activeKey} onChange={handleTabChange} />
 
               {showingExtra ? (
                 <div className="animate-fade-in" style={{ minWidth: 0, gridColumn: "2 / span 2" }}>
@@ -407,6 +442,29 @@ function EpisodeMiniGrid({
               {ep.hasActiveApproval && (
                 <span style={{ position: "absolute", bottom: 4, insetInlineEnd: 4, color: "#1DB954" }} title="معتمدة">
                   <Icon name="badgeCheck" size={13} filled />
+                </span>
+              )}
+              {ep.unreadCount > 0 && (
+                <span
+                  title={`${ep.unreadCount} إشعار غير مقروء`}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    insetInlineEnd: 4,
+                    background: "#ef4444",
+                    color: "#fff",
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 3px",
+                  }}
+                >
+                  {ep.unreadCount > 9 ? "9+" : ep.unreadCount}
                 </span>
               )}
             </div>

@@ -98,6 +98,7 @@ export default function ProjectQuickActions({
       commentsCount: 0,
       versionsCount: 0,
       hasActiveApproval: false,
+      unreadCount: 0,
     }));
   }
 

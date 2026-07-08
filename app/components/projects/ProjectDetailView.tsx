@@ -19,19 +19,19 @@ import ProjectContractsSection from "./sections/ProjectContractsSection";
 import ProjectProposalsSection from "./sections/ProjectProposalsSection";
 import ProjectNotesSection from "./sections/ProjectNotesSection";
 import ProjectActivitySection from "./sections/ProjectActivitySection";
-import ProjectBehindScenesSection from "./sections/ProjectBehindScenesSection";
-import ProjectProgressUpdatesSection from "./sections/ProjectProgressUpdatesSection";
 
-// مرتّبة حسب الأولوية الفعلية أثناء متابعة المشروع: معلومات المشروع
-// والإحصائيات كنقطة انطلاق سريعة، ثم ما يتحرك يومياً (العمل الجاري
-// والملاحظات والكواليس)، فالمالية والمستندات الرسمية، وأخيراً سجل النشاط.
-type DetailsTabKey = "info" | "stats" | "progress" | "notes" | "behind_scenes" | "finance" | "contracts" | "proposals" | "activity";
+// مرتّبة حسب الأولوية الفعلية أثناء متابعة المشروع: معلومات المشروع والإحصائيات
+// كنقطة انطلاق سريعة، فالمالية والمستندات الرسمية، وأخيراً سجل النشاط. "العمل
+// الجاري" و"الكواليس" على مستوى المشروع أُزيلا من هذه القائمة (تكرار مع تبويبَي
+// الحلقة المخصَّصين، ولهما صفحتان عامتان مجمّعتان عبر الشريط الجانبي الرئيسي:
+// /progress و/behind-scenes). "الملاحظات" لم تعد تظهر كتبويب هنا أيضاً — أصبح
+// الوصول إليها حصراً عبر زر مختصر بارز في رأس الحلقة (انظر EpisodeWorkspace.tsx)،
+// وتبقى فقط قابلة للوصول عبر رابط إشعار مباشر لملاحظة على مستوى المشروع نفسه
+// (بلا حلقة) — لذا يبقى فرع العرض الخاص بها أدناه دون إدخالها في قائمة التبويبات.
+type DetailsTabKey = "info" | "stats" | "notes" | "finance" | "contracts" | "proposals" | "activity";
 const DETAILS_TABS: TabDef<DetailsTabKey>[] = [
   { key: "info", label: "معلومات المشروع", icon: "info" },
   { key: "stats", label: "الإحصائيات", icon: "barChart" },
-  { key: "progress", label: "العمل الجاري", icon: "timeline" },
-  { key: "notes", label: "الملاحظات", icon: "message" },
-  { key: "behind_scenes", label: "الكواليس", icon: "sparkles" },
   { key: "finance", label: "المالية", icon: "money" },
   { key: "contracts", label: "العقود", icon: "contracts" },
   { key: "proposals", label: "العروض", icon: "proposals" },
@@ -96,11 +96,7 @@ export default function ProjectDetailView(props: Props) {
           <div className="card animate-fade-in" style={{ padding: 18, minWidth: 0 }}>
             {detailsTab === "info" && <ProjectInfoBlock project={project} clientName={clientName} />}
             {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
-            {detailsTab === "progress" && <ProjectProgressUpdatesSection projectId={project.id} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} />}
             {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} highlightNoteId={highlightNoteId} />}
-            {detailsTab === "behind_scenes" && (
-              <ProjectBehindScenesSection project={project} episodes={gallery.map((e) => ({ id: e.id, title: e.title }))} onProjectChanged={patchProject} />
-            )}
             {detailsTab === "finance" && <ProjectFinanceSection projectId={project.id} />}
             {detailsTab === "contracts" && <ProjectContractsSection projectId={project.id} />}
             {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}

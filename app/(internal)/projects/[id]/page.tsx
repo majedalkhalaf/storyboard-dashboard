@@ -34,7 +34,7 @@ export default async function ProjectDetailPage({
       .eq("project_id", id)
       .order("invited_at", { ascending: false }),
     supabase.from("clients").select("id, name, email, phone").eq("company_id", companyId).order("name"),
-    getEpisodeGallery(companyId, id),
+    getEpisodeGallery(companyId, id, session!.userId),
   ]);
   const clientName = client?.name ?? null;
 

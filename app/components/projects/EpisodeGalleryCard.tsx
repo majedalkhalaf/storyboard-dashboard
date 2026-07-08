@@ -183,6 +183,7 @@ export default function EpisodeGalleryCard({
       onDrop={onCardDrop}
       style={{
         display: "block",
+        position: "relative",
         textAlign: "right",
         overflow: "hidden",
         cursor: "pointer",
@@ -193,6 +194,31 @@ export default function EpisodeGalleryCard({
         transition: "border-color .15s, box-shadow .15s, opacity .15s",
       }}
     >
+      {episode.unreadCount > 0 && (
+        <span
+          title={`${episode.unreadCount} إشعار غير مقروء`}
+          style={{
+            position: "absolute",
+            top: -6,
+            insetInlineEnd: -6,
+            zIndex: 2,
+            background: "#ef4444",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 800,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 4px",
+            boxShadow: "0 0 0 2px var(--bg-primary)",
+          }}
+        >
+          {episode.unreadCount > 9 ? "9+" : episode.unreadCount}
+        </span>
+      )}
       <div
         style={{
           height: 120,

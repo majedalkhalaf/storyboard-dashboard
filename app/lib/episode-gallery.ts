@@ -30,6 +30,7 @@ export interface EpisodeGalleryItem {
   commentsCount: number;
   versionsCount: number;
   hasActiveApproval: boolean;
+  unreadCount: number;
 }
 
 // مجموعة الحلقة الحالية (planning/shooting/editing/review/delivery) — نفس تجميع
@@ -70,7 +71,7 @@ function computeStageBadge(status: EpisodeStatus, stages: { key: string; status:
   return { label: "لم يبدأ", color: "#6B7280" };
 }
 
-export async function getEpisodeGallery(companyId: string, projectId: string): Promise<EpisodeGalleryItem[]> {
+export async function getEpisodeGallery(companyId: string, projectId: string, userId?: string): Promise<EpisodeGalleryItem[]> {
   const supabase = await createClient();
 
   const [
@@ -80,6 +81,7 @@ export async function getEpisodeGallery(companyId: string, projectId: string): P
     { data: notes },
     { data: approvals },
     { data: scriptVersions },
+    { data: unreadNotifications },
   ] = await Promise.all([
     supabase
       .from("episodes")
@@ -91,6 +93,9 @@ export async function getEpisodeGallery(companyId: string, projectId: string): P
     supabase.from("notes").select("episode_id, video_timestamp_seconds").eq("project_id", projectId).not("episode_id", "is", null),
     supabase.from("approvals").select("episode_id, revoked_at").eq("project_id", projectId),
     supabase.from("episode_script_versions").select("episode_id").eq("company_id", companyId),
+    userId
+      ? supabase.from("notifications").select("episode_id").eq("project_id", projectId).eq("user_id", userId).eq("is_read", false).not("episode_id", "is", null)
+      : Promise.resolve({ data: [] as { episode_id: string }[] }),
   ]);
 
   const stagesByEpisode: Record<string, { key: string; status: string; sort_order: number }[]> = {};
@@ -122,6 +127,12 @@ export async function getEpisodeGallery(companyId: string, projectId: string): P
     versionsCountByEpisode[v.episode_id] = (versionsCountByEpisode[v.episode_id] ?? 0) + 1;
   }
 
+  const unreadCountByEpisode: Record<string, number> = {};
+  for (const n of unreadNotifications ?? []) {
+    if (!n.episode_id) continue;
+    unreadCountByEpisode[n.episode_id] = (unreadCountByEpisode[n.episode_id] ?? 0) + 1;
+  }
+
   return (episodes ?? []).map((e) => {
     const assignee = Array.isArray(e.assignee) ? e.assignee[0] : e.assignee;
     return {
@@ -144,6 +155,7 @@ export async function getEpisodeGallery(companyId: string, projectId: string): P
       commentsCount: commentsCountByEpisode[e.id] ?? 0,
       versionsCount: versionsCountByEpisode[e.id] ?? 0,
       hasActiveApproval: activeApprovalEpisodes.has(e.id),
+      unreadCount: unreadCountByEpisode[e.id] ?? 0,
     };
   });
 }
