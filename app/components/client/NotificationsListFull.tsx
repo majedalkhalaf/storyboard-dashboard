@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime, projectHashtag } from "@/app/components/client/utils";
 import { playNotificationSound } from "@/app/lib/notification-sound";
+import { splitNotificationMessage } from "@/app/lib/notification-format";
 import type { AppNotification } from "@/app/lib/types";
 
 const PAGE_SIZE = 30;
@@ -163,6 +164,7 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
           <>
             {filtered.map((n) => {
               const projectName = notificationProjectName(n);
+              const { context, body } = splitNotificationMessage(n.message);
               return (
                 <button
                   key={n.id}
@@ -186,7 +188,8 @@ export default function NotificationsListFull({ userId, projects }: { userId: st
                   <div style={{ minWidth: 0, flex: 1 }}>
                     {projectName && <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(projectName)}</div>}
                     {n.title && <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 3 }}>{n.title}</div>}
-                    <div style={{ fontSize: 12.5, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{n.message}</div>
+                    {context && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>{context}</div>}
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gold)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{body}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{relativeTime(n.created_at)}</div>
                   </div>
                   {!n.is_read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", flexShrink: 0, marginTop: 6 }} />}

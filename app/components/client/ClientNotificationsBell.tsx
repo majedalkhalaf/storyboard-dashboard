@@ -7,6 +7,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { projectHashtag } from "@/app/components/client/utils";
 import { playNotificationSound } from "@/app/lib/notification-sound";
+import { splitNotificationMessage } from "@/app/lib/notification-format";
 import type { AppNotification } from "@/app/lib/types";
 
 interface ClientNotification extends AppNotification {
@@ -148,6 +149,7 @@ export default function ClientNotificationsBell() {
             ) : (
               items.map((n) => {
                 const projectName = notificationProjectName(n);
+                const { context, body } = splitNotificationMessage(n.message);
                 return (
                   <button
                     key={n.id}
@@ -166,7 +168,8 @@ export default function ClientNotificationsBell() {
                   >
                     {projectName && <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>{projectHashtag(projectName)}</div>}
                     {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{n.message}</div>
+                    {context && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>{context}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{body}</div>
                   </button>
                 );
               })

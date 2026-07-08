@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { relativeTime } from "@/app/components/projects/utils";
+import { splitNotificationMessage } from "@/app/lib/notification-format";
 import type { AppNotification } from "@/app/lib/types";
 
 export default function NotificationsClient({
@@ -84,45 +85,49 @@ export default function NotificationsClient({
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {items.map((n) => (
-            <button
-              key={n.id}
-              onClick={() => openNotification(n)}
-              className="card"
-              style={{
-                display: "flex",
-                width: "100%",
-                gap: 12,
-                alignItems: "flex-start",
-                padding: 14,
-                textAlign: "right",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                borderInlineStart: n.is_read ? "3px solid transparent" : "3px solid var(--gold)",
-                background: n.is_read ? "var(--bg-card)" : "rgba(var(--gold-rgb), 0.06)",
-              }}
-            >
-              <span
+          {items.map((n) => {
+            const { context, body } = splitNotificationMessage(n.message);
+            return (
+              <button
+                key={n.id}
+                onClick={() => openNotification(n)}
+                className="card"
                 style={{
-                  color: "var(--gold)",
-                  background: "rgba(var(--gold-rgb), 0.1)",
-                  padding: 8,
-                  borderRadius: 8,
-                  flexShrink: 0,
-                  display: "inline-flex",
+                  display: "flex",
+                  width: "100%",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  padding: 14,
+                  textAlign: "right",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  borderInlineStart: n.is_read ? "3px solid transparent" : "3px solid var(--gold)",
+                  background: n.is_read ? "var(--bg-card)" : "rgba(var(--gold-rgb), 0.06)",
                 }}
               >
-                <Icon name="bell" size={16} />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--text-primary)" }}>{n.title ?? "إشعار"}</span>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{relativeTime(n.created_at)}</span>
+                <span
+                  style={{
+                    color: "var(--gold)",
+                    background: "rgba(var(--gold-rgb), 0.1)",
+                    padding: 8,
+                    borderRadius: 8,
+                    flexShrink: 0,
+                    display: "inline-flex",
+                  }}
+                >
+                  <Icon name="bell" size={16} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--text-primary)" }}>{n.title ?? "إشعار"}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{relativeTime(n.created_at)}</span>
+                  </div>
+                  {context && <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4 }}>{context}</p>}
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", marginTop: 3, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{body}</p>
                 </div>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{n.message}</p>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 

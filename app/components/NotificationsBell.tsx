@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { playNotificationSound } from "@/app/lib/notification-sound";
+import { splitNotificationMessage } from "@/app/lib/notification-format";
 import type { AppNotification } from "@/app/lib/types";
 
 export default function NotificationsBell() {
@@ -116,26 +117,30 @@ export default function NotificationsBell() {
                 لا توجد إشعارات
               </div>
             ) : (
-              items.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => openNotification(n)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "right",
-                    padding: "10px 14px",
-                    borderBottom: "1px solid var(--border)",
-                    background: n.is_read ? "transparent" : "rgba(var(--gold-rgb),0.06)",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{n.message}</div>
-                </button>
-              ))
+              items.map((n) => {
+                const { context, body } = splitNotificationMessage(n.message);
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => openNotification(n)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "right",
+                      padding: "10px 14px",
+                      borderBottom: "1px solid var(--border)",
+                      background: n.is_read ? "transparent" : "rgba(var(--gold-rgb),0.06)",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {n.title && <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{n.title}</div>}
+                    {context && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>{context}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{body}</div>
+                  </button>
+                );
+              })
             )}
           </div>
         </>
