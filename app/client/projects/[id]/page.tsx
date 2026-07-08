@@ -51,6 +51,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     { data: paymentRows },
     { data: lastPaymentRow },
     { data: progressRows },
+    { data: unreadRows },
   ] = await Promise.all([
     supabase.from("companies").select("*").eq("id", proj.company_id).maybeSingle(),
     proj.client_id ? supabase.from("clients").select("name").eq("id", proj.client_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -73,6 +74,9 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     showProgress
       ? supabase.from("progress_updates").select("*, episode:episodes(title)").eq("project_id", id).eq("shared_with_client", true).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as (ProgressUpdate & { episode: { title: string } | null })[] }),
+    showEpisodes
+      ? supabase.from("notifications").select("episode_id").eq("project_id", id).eq("user_id", session.userId).eq("is_read", false).not("episode_id", "is", null)
+      : Promise.resolve({ data: [] as { episode_id: string }[] }),
   ]);
 
   const company = (companyData ?? null) as Company | null;
@@ -103,6 +107,14 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     if (!r.episode_id) continue;
     episodeNoteCounts[r.episode_id] = (episodeNoteCounts[r.episode_id] ?? 0) + 1;
     if (r.status === "new" && r.request_type) episodesWithOpenRequest.add(r.episode_id);
+  }
+
+  // عدّاد إشعارات العميل نفسه غير المقروءة لكل حلقة — لعرض علامة تنبيه على بطاقة
+  // الحلقة، بنفس فكرة علامة التنبيهات على بطاقة الحلقة في لوحة الفريق.
+  const episodeUnreadCounts: Record<string, number> = {};
+  for (const row of unreadRows ?? []) {
+    const epId = (row as { episode_id: string }).episode_id;
+    episodeUnreadCounts[epId] = (episodeUnreadCounts[epId] ?? 0) + 1;
   }
 
   // الملخّص المالي (بدون أي بيانات أرباح/مصاريف داخلية)
@@ -160,6 +172,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         approvedEpisodeIds={approvedEpisodeIds}
         episodeFileCounts={episodeFileCounts}
         episodeNoteCounts={episodeNoteCounts}
+        episodeUnreadCounts={episodeUnreadCounts}
         episodeIdsWithOpenRequest={Array.from(episodesWithOpenRequest)}
         pipelineStages={pipelineStages}
         currentStageKey={currentStageKey}

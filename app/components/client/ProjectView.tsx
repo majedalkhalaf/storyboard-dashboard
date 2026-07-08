@@ -57,6 +57,7 @@ export default function ProjectView({
   approvedEpisodeIds,
   episodeFileCounts,
   episodeNoteCounts,
+  episodeUnreadCounts,
   episodeIdsWithOpenRequest,
   pipelineStages,
   currentStageKey,
@@ -77,6 +78,7 @@ export default function ProjectView({
   approvedEpisodeIds: string[];
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
+  episodeUnreadCounts: Record<string, number>;
   episodeIdsWithOpenRequest: string[];
   pipelineStages: CompanyPipelineStage[];
   currentStageKey: string | null;
@@ -338,6 +340,7 @@ export default function ProjectView({
               approvedSet={approvedSet}
               episodeFileCounts={episodeFileCounts}
               episodeNoteCounts={episodeNoteCounts}
+              episodeUnreadCounts={episodeUnreadCounts}
               openRequestSet={openRequestSet}
               userId={userId}
               userName={userName}
@@ -479,6 +482,7 @@ function EpisodesTab({
   approvedSet,
   episodeFileCounts,
   episodeNoteCounts,
+  episodeUnreadCounts,
   openRequestSet,
   userId,
   userName,
@@ -489,6 +493,7 @@ function EpisodesTab({
   approvedSet: Set<string>;
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
+  episodeUnreadCounts: Record<string, number>;
   openRequestSet: Set<string>;
   userId: string;
   userName: string | null;
@@ -557,6 +562,7 @@ function EpisodesTab({
                 fileCount={episodeFileCounts[ep.id] ?? 0}
                 noteCount={episodeNoteCounts[ep.id] ?? 0}
                 hasOpenEditRequest={openRequestSet.has(ep.id)}
+                unreadCount={episodeUnreadCounts[ep.id] ?? 0}
               />
             );
           })

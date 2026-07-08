@@ -168,61 +168,67 @@ export default function EpisodeGalleryCard({
   }
 
   return (
-    <div
-      className="card animate-fade-in"
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      onDragOver={onCardDragOver}
-      onDrop={onCardDrop}
-      style={{
-        display: "block",
-        position: "relative",
-        textAlign: "right",
-        overflow: "hidden",
-        cursor: "pointer",
-        padding: 0,
-        borderColor: active ? "var(--gold)" : "var(--border)",
-        boxShadow: active ? "0 0 0 1px var(--gold)" : "none",
-        opacity: dimmed ? 0.5 : 1,
-        transition: "border-color .15s, box-shadow .15s, opacity .15s",
-      }}
-    >
+    // بطلب صريح: علامة التنبيهات كانت غير واضحة لأنها كانت داخل البطاقة نفسها
+    // (overflow:hidden لقص زوايا الغلاف المدوّرة)، فتُقص العلامة جزئياً عند
+    // إزاحتها السالبة خارج حدود البطاقة. لذا نُقلت لتكون شقيقة للبطاقة ضمن غلاف
+    // خارجي بلا overflow، فتبقى كاملة الظهور فوق زاوية البطاقة دون أي قص.
+    <div style={{ position: "relative" }}>
       {episode.unreadCount > 0 && (
         <span
           title={`${episode.unreadCount} إشعار غير مقروء`}
           style={{
             position: "absolute",
-            top: -6,
-            insetInlineEnd: -6,
-            zIndex: 2,
+            top: -8,
+            insetInlineEnd: -8,
+            zIndex: 3,
             background: "#ef4444",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 800,
-            minWidth: 18,
-            height: 18,
-            borderRadius: 9,
+            minWidth: 22,
+            height: 22,
+            borderRadius: 11,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "0 4px",
-            boxShadow: "0 0 0 2px var(--bg-primary)",
+            padding: "0 5px",
+            border: "2px solid var(--bg-primary)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
           }}
         >
           {episode.unreadCount > 9 ? "9+" : episode.unreadCount}
         </span>
       )}
       <div
+        className="card animate-fade-in"
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        onDragOver={onCardDragOver}
+        onDrop={onCardDrop}
         style={{
-          height: 120,
+          display: "block",
           position: "relative",
+          textAlign: "right",
+          overflow: "hidden",
+          cursor: "pointer",
+          padding: 0,
+          borderColor: active ? "var(--gold)" : "var(--border)",
+          boxShadow: active ? "0 0 0 1px var(--gold)" : "none",
+          opacity: dimmed ? 0.5 : 1,
+          transition: "border-color .15s, box-shadow .15s, opacity .15s",
+        }}
+      >
+        <div
+          style={{
+            height: 120,
+            position: "relative",
           background: episode.cover_image_url
             ? `center/cover no-repeat url(${episode.cover_image_url})`
             : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
@@ -443,6 +449,7 @@ export default function EpisodeGalleryCard({
             <Icon name="trash" size={13} />
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

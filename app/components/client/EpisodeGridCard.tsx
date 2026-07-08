@@ -27,6 +27,7 @@ export default function EpisodeGridCard({
   noteCount,
   hasOpenEditRequest,
   projectName,
+  unreadCount = 0,
 }: {
   episode: Episode;
   projectId: string;
@@ -39,6 +40,9 @@ export default function EpisodeGridCard({
   noteCount: number;
   hasOpenEditRequest: boolean;
   projectName?: string;
+  /** عدد إشعارات العميل نفسه غير المقروءة الخاصة بهذه الحلقة تحديداً (رد الفريق،
+   * تحديث حالة...) — نفس فكرة علامة التنبيهات على بطاقة الحلقة في لوحة الفريق. */
+  unreadCount?: number;
 }) {
   const es = episodeStatusMeta(episode.status);
   const overdue = episode.delivery_date && new Date(episode.delivery_date) < new Date() && !isApproved;
@@ -96,7 +100,34 @@ export default function EpisodeGridCard({
   }
 
   return (
-    <div className="shot-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "relative" }}>
+      {unreadCount > 0 && (
+        <span
+          title={`${unreadCount} تحديث جديد`}
+          style={{
+            position: "absolute",
+            top: -8,
+            insetInlineEnd: -8,
+            zIndex: 3,
+            background: "#ef4444",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 800,
+            minWidth: 22,
+            height: 22,
+            borderRadius: 11,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 5px",
+            border: "2px solid var(--bg-primary)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+          }}
+        >
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      )}
+      <div className="shot-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <Link href={`/client/projects/${projectId}/episodes/${episode.id}`} style={{ textDecoration: "none", color: "var(--text-primary)" }}>
         <div style={{ position: "relative", aspectRatio: "16 / 9", overflow: "hidden", background: "var(--bg-hover)" }}>
           {episode.cover_image_url ? (
@@ -195,6 +226,7 @@ export default function EpisodeGridCard({
           hasOpenEditRequest={hasOpenEditRequest}
           variant="card"
         />
+      </div>
       </div>
 
       {requestOpen && (

@@ -483,19 +483,22 @@ function EpisodeMiniGrid({
                   title={`${ep.unreadCount} إشعار غير مقروء`}
                   style={{
                     position: "absolute",
-                    top: 4,
-                    insetInlineEnd: 4,
+                    top: 3,
+                    insetInlineEnd: 3,
+                    zIndex: 2,
                     background: "#ef4444",
                     color: "#fff",
-                    fontSize: 9.5,
+                    fontSize: 10,
                     fontWeight: 800,
-                    minWidth: 16,
-                    height: 16,
-                    borderRadius: 8,
+                    minWidth: 17,
+                    height: 17,
+                    borderRadius: 9,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    padding: "0 3px",
+                    padding: "0 4px",
+                    border: "1.5px solid var(--bg-card)",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
                   }}
                 >
                   {ep.unreadCount > 9 ? "9+" : ep.unreadCount}
