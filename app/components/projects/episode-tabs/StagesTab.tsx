@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Icon from "@/app/components/ui/Icon";
+// بطلب صريح: استُبدلت شبكة البطاقات القابلة للطي (تحتاج فتح كل مرحلة على حدة
+// لرؤية/تعديل حالتها) بجدول واحد مضغوط — كل عناصر التحكم (الحالة، نسبة الإنجاز،
+// الملاحظة) ظاهرة ومباشرة التعديل بلا أي نقرة إضافية للفتح. حقل "المسؤول" أُزيل
+// بالكامل (لا داعي له بحسب الطلب).
+
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
@@ -16,7 +19,6 @@ export default function StagesTab({ episode, onChanged }: { episode: EpisodeFull
   const { company, profile } = useSession();
   const companyId = company!.id;
   const canEdit = isInternalAdmin(profile.role) || profile.role === "team_member";
-  const [openId, setOpenId] = useState<string | null>(null);
 
   function patchStage(id: string, patch: Partial<EpisodeStage>) {
     onChanged({ stages: episode.stages.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
@@ -79,41 +81,31 @@ export default function StagesTab({ episode, onChanged }: { episode: EpisodeFull
         })}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-        {episode.stages.map((stage) => {
-          const info = STAGE_STATUSES.find((s) => s.value === stage.status);
-          const assignee = episode.teamMembers.find((m) => m.id === stage.assigned_to);
-          const open = openId === stage.id;
-          return (
-            <div key={stage.id} className="card" style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{stage.label}</div>
-                <button className="btn-ghost" style={{ padding: "4px 6px", borderRadius: 6 }} onClick={() => setOpenId(open ? null : stage.id)}>
-                  <Icon name={open ? "chevronDown" : "chevronLeft"} size={14} />
-                </button>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                <div className="progress-bar" style={{ height: 5, flex: 1 }}>
-                  <div className="progress-fill" style={{ width: `${stage.progress}%`, background: info?.color }} />
-                </div>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{stage.progress}%</span>
-              </div>
-
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
-                <Icon name="user" size={12} /> {assignee?.full_name ?? "غير مسند"}
-              </div>
-
-              {open && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>الحالة</label>
+      <div className="card table-scroll" style={{ padding: 0, overflow: "hidden" }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>المرحلة</th>
+              <th>الحالة</th>
+              <th style={{ minWidth: 160 }}>نسبة الإنجاز</th>
+              <th>بدأت</th>
+              <th>انتهت</th>
+              <th style={{ minWidth: 160 }}>ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {episode.stages.map((stage) => {
+              const info = STAGE_STATUSES.find((s) => s.value === stage.status);
+              return (
+                <tr key={stage.id}>
+                  <td style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>{stage.label}</td>
+                  <td>
                     <select
                       className="input-field"
                       disabled={!canEdit}
                       value={stage.status}
                       onChange={(e) => changeStatus(stage, e.target.value as StageStatus)}
-                      style={{ fontSize: 12, color: info?.color }}
+                      style={{ fontSize: 12, padding: "6px 8px", color: info?.color, width: "auto" }}
                     >
                       {STAGE_STATUSES.map((s) => (
                         <option key={s.value} value={s.value}>
@@ -121,70 +113,42 @@ export default function StagesTab({ episode, onChanged }: { episode: EpisodeFull
                         </option>
                       ))}
                     </select>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>نسبة الإنجاز</label>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        disabled={!canEdit}
+                        value={stage.progress}
+                        onChange={(e) => patchStage(stage.id, { progress: Number(e.target.value) })}
+                        onMouseUp={(e) => updateStage(stage, { progress: Number((e.target as HTMLInputElement).value) })}
+                        onTouchEnd={(e) => updateStage(stage, { progress: Number((e.target as HTMLInputElement).value) })}
+                        style={{ width: 90 }}
+                      />
+                      <span style={{ fontSize: 11.5, color: "var(--text-muted)", flexShrink: 0, minWidth: 30 }}>{stage.progress}%</span>
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 11.5, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{formatDate(stage.started_at)}</td>
+                  <td style={{ fontSize: 11.5, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{formatDate(stage.completed_at)}</td>
+                  <td>
                     <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      disabled={!canEdit}
-                      value={stage.progress}
-                      onChange={(e) => patchStage(stage.id, { progress: Number(e.target.value) })}
-                      onMouseUp={(e) => updateStage(stage, { progress: Number((e.target as HTMLInputElement).value) })}
-                      onTouchEnd={(e) => updateStage(stage, { progress: Number((e.target as HTMLInputElement).value) })}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>المسؤول</label>
-                    <select
                       className="input-field"
-                      disabled={!canEdit}
-                      value={stage.assigned_to ?? ""}
-                      onChange={(e) => updateStage(stage, { assigned_to: e.target.value || null })}
-                      style={{ fontSize: 12 }}
-                    >
-                      <option value="">غير مسند</option>
-                      {episode.teamMembers.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.full_name || "بدون اسم"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11 }}>
-                    <div>
-                      <span style={{ color: "var(--text-muted)", display: "block", marginBottom: 2 }}>بدأت</span>
-                      {formatDate(stage.started_at)}
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--text-muted)", display: "block", marginBottom: 2 }}>انتهت</span>
-                      {formatDate(stage.completed_at)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>ملاحظات المرحلة</label>
-                    <textarea
-                      className="input-field"
-                      rows={2}
                       disabled={!canEdit}
                       defaultValue={stage.notes ?? ""}
+                      placeholder="—"
                       onBlur={(e) => {
                         if (e.target.value !== (stage.notes ?? "")) updateStage(stage, { notes: e.target.value || null });
                       }}
-                      style={{ fontSize: 12, resize: "vertical" }}
+                      style={{ fontSize: 12, padding: "6px 8px" }}
                     />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
