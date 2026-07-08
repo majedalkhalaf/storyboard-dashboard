@@ -356,41 +356,50 @@ export default function EpisodeWorkspace({
               )}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: !showingExtra && tab === "storyboard" ? "190px 1fr" : "190px 1fr 280px", gap: 20, alignItems: "flex-start" }}>
-              <Tabs orientation="vertical" tabs={visibleTabs} active={activeKey} onChange={handleTabChange} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Tabs orientation="horizontal" tabs={visibleTabs} active={activeKey} onChange={handleTabChange} />
 
-              {showingExtra ? (
-                <div className="animate-fade-in" style={{ minWidth: 0, gridColumn: "2 / span 2" }}>
-                  {extraContent}
-                </div>
-              ) : tab === "storyboard" ? (
-                // ستوري بورد له تخطيطه الداخلي الخاص (معرض + لوحة تفاصيل + شريط مشاهد جانبي + Timeline)
-                // فلا حاجة لعمود الشريط الجانبي العام للحلقة هنا — يأخذ باقي العرض كاملاً.
-                <div className="animate-fade-in" style={{ gridColumn: "2 / span 2" }}>
-                  <StoryboardTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />
-                </div>
-              ) : (
-                <>
-                  <div className="animate-fade-in">
-                    {tab === "overview" && (
-                      <>
-                        <OverviewTab episode={detail!} onChanged={applyPatch} />
-                        {overviewExtra}
-                      </>
-                    )}
-                    {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
-                    {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
-                    {tab === "notes" && (
-                      <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
-                    )}
-                    {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
-                    {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
-                    {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}
-                    {tab === "activity" && <ActivityTab episode={detail!} />}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: showingExtra || tab === "storyboard" ? "1fr" : "1fr 280px",
+                  gap: 20,
+                  alignItems: "flex-start",
+                }}
+              >
+                {showingExtra ? (
+                  <div className="animate-fade-in" style={{ minWidth: 0 }}>
+                    {extraContent}
                   </div>
-                  <EpisodeSidebar episode={detail!} clientName={clientName} />
-                </>
-              )}
+                ) : tab === "storyboard" ? (
+                  // ستوري بورد له تخطيطه الداخلي الخاص (معرض + لوحة تفاصيل + شريط مشاهد جانبي + Timeline)
+                  // فلا حاجة لعمود الشريط الجانبي العام للحلقة هنا — يأخذ باقي العرض كاملاً.
+                  <div className="animate-fade-in">
+                    <StoryboardTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="animate-fade-in">
+                      {tab === "overview" && (
+                        <>
+                          <OverviewTab episode={detail!} onChanged={applyPatch} />
+                          {overviewExtra}
+                        </>
+                      )}
+                      {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
+                      {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
+                      {tab === "notes" && (
+                        <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
+                      )}
+                      {tab === "stages" && <StagesTab episode={detail!} onChanged={applyPatch} />}
+                      {tab === "episode_bts" && <EpisodeBehindScenesTab episode={detail!} />}
+                      {tab === "episode_progress" && <EpisodeProgressTab episode={detail!} />}
+                      {tab === "activity" && <ActivityTab episode={detail!} />}
+                    </div>
+                    <EpisodeSidebar episode={detail!} clientName={clientName} />
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
