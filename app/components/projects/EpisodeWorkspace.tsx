@@ -135,6 +135,23 @@ export default function EpisodeWorkspace({
     load(selectedId);
   }, [selectedId, load]);
 
+  // بطلب صريح: ملاحظة العميل الجديدة كانت تصل كإشعار (قناة realtime مستقلة)
+  // دون أن تظهر فعلياً في تبويب "الملاحظات" — لم يكن هناك أي اشتراك realtime
+  // على جدول notes هنا، فتفاصيل الحلقة المعروضة (detail) تبقى كما هي حتى يقوم
+  // عضو الفريق بإجراء محلي يستدعي onChanged (إضافة/تعديل/حذف ملاحظته هو). الآن
+  // أي تغيير على ملاحظات الحلقة الحالية (من أي مستخدم) يعيد تحميل التفاصيل فوراً.
+  useEffect(() => {
+    if (!selectedId) return;
+    const channel = supabase
+      .channel(`episode-notes:${selectedId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: `episode_id=eq.${selectedId}` }, () => load(selectedId))
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load مُعاد إنشاؤه كل عرض عمداً ليقرأ selectedId الحالي دوماً
+  }, [selectedId]);
+
   function selectEpisode(id: string) {
     setSelectedId(id);
     setTab("overview");
