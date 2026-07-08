@@ -18,24 +18,22 @@ import ProjectFinanceSection from "./sections/ProjectFinanceSection";
 import ProjectContractsSection from "./sections/ProjectContractsSection";
 import ProjectProposalsSection from "./sections/ProjectProposalsSection";
 import ProjectNotesSection from "./sections/ProjectNotesSection";
-import ProjectActivitySection from "./sections/ProjectActivitySection";
 
-// مرتّبة حسب الأولوية الفعلية أثناء متابعة المشروع: معلومات المشروع والإحصائيات
-// كنقطة انطلاق سريعة، فالمالية والمستندات الرسمية، وأخيراً سجل النشاط. "العمل
-// الجاري" و"الكواليس" على مستوى المشروع أُزيلا من هذه القائمة (تكرار مع تبويبَي
-// الحلقة المخصَّصين، ولهما صفحتان عامتان مجمّعتان عبر الشريط الجانبي الرئيسي:
-// /progress و/behind-scenes). "الملاحظات" لم تعد تظهر كتبويب هنا أيضاً — أصبح
-// الوصول إليها حصراً عبر زر مختصر بارز في رأس الحلقة (انظر EpisodeWorkspace.tsx)،
-// وتبقى فقط قابلة للوصول عبر رابط إشعار مباشر لملاحظة على مستوى المشروع نفسه
-// (بلا حلقة) — لذا يبقى فرع العرض الخاص بها أدناه دون إدخالها في قائمة التبويبات.
-type DetailsTabKey = "info" | "stats" | "notes" | "finance" | "contracts" | "proposals" | "activity";
+// "معلومات المشروع" و"الإحصائيات" لم تعودا تبويبين مستقلَّين — دُمجتا مع "نظرة
+// عامة" الخاصة بالحلقة في قسم واحد (ProjectInfoBlock/ProjectStatsBlock تُمرَّران
+// كـ overviewExtra إلى EpisodeWorkspace، انظر أسفله). "سجل النشاط" هنا (على
+// مستوى المشروع) أُزيل أيضاً — كان مفتاحه "activity" يتصادم فعلياً مع تبويب نشاط
+// الحلقة نفسه في EPISODE_TABS، فكان مُعطَّلاً بصمت أصلاً (القائمة المدموجة تُغلِّب
+// تبويبات الحلقة عند تطابق المفتاح)، وسجل نشاط الحلقة المعروض بدلاً منه كافٍ.
+// "العمل الجاري"/"الكواليس" على مستوى المشروع أُزيلا سابقاً (تكرار + صفحتان عامتان
+// /progress و/behind-scenes). "الملاحظات" تُفتح حصراً عبر زر مختصر بارز في رأس
+// الحلقة (انظر EpisodeWorkspace.tsx)، وتبقى فقط قابلة للوصول عبر رابط إشعار مباشر
+// لملاحظة على مستوى المشروع نفسه (بلا حلقة) — لذا يبقى فرع عرضها دون إدخالها هنا.
+type DetailsTabKey = "notes" | "finance" | "contracts" | "proposals";
 const DETAILS_TABS: TabDef<DetailsTabKey>[] = [
-  { key: "info", label: "معلومات المشروع", icon: "info" },
-  { key: "stats", label: "الإحصائيات", icon: "barChart" },
   { key: "finance", label: "المالية", icon: "money" },
   { key: "contracts", label: "العقود", icon: "contracts" },
   { key: "proposals", label: "العروض", icon: "proposals" },
-  { key: "activity", label: "سجل النشاط", icon: "clock" },
 ];
 
 interface Props {
@@ -60,11 +58,12 @@ export default function ProjectDetailView(props: Props) {
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"info" | "clients" | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
-  // null يعني أن أحد تبويبات الحلقة هو النشط بدل تبويبات "تفاصيل إضافية" —
-  // القائمتان مدموجتان بصرياً في شريط جانبي واحد داخل EpisodeWorkspace، فلا
-  // تُفتح تبويبات المشروع افتراضياً إلا إن كان المشروع بلا حلقات إطلاقاً.
+  // null يعني أن أحد تبويبات الحلقة هو النشط بدل تبويبات "تفاصيل إضافية" — القائمتان
+  // مدموجتان بصرياً في شريط جانبي واحد داخل EpisodeWorkspace. لا حاجة لقيمة افتراضية
+  // خاصة بحالة "بلا حلقات" بعد اليوم — EpisodeWorkspace يعرض overviewExtra مباشرة
+  // بنفسه متى ما كان المشروع بلا حلقات إطلاقاً.
   const [detailsTab, setDetailsTab] = useState<DetailsTabKey | null>(
-    highlightNoteId && !searchParams.get("episode") ? "notes" : gallery.length === 0 ? "info" : null
+    highlightNoteId && !searchParams.get("episode") ? "notes" : null
   );
 
   function patchProject(patch: Partial<Project>) {
@@ -94,13 +93,16 @@ export default function ProjectDetailView(props: Props) {
         onExtraTabChange={(key) => setDetailsTab(key as DetailsTabKey | null)}
         extraContent={
           <div className="card animate-fade-in" style={{ padding: 18, minWidth: 0 }}>
-            {detailsTab === "info" && <ProjectInfoBlock project={project} clientName={clientName} />}
-            {detailsTab === "stats" && <ProjectStatsBlock gallery={gallery} />}
             {detailsTab === "notes" && <ProjectNotesSection projectId={project.id} highlightNoteId={highlightNoteId} />}
             {detailsTab === "finance" && <ProjectFinanceSection projectId={project.id} />}
             {detailsTab === "contracts" && <ProjectContractsSection projectId={project.id} />}
             {detailsTab === "proposals" && <ProjectProposalsSection projectId={project.id} />}
-            {detailsTab === "activity" && <ProjectActivitySection projectId={project.id} />}
+          </div>
+        }
+        overviewExtra={
+          <div className="card animate-fade-in" style={{ padding: 18, marginTop: 14, display: "flex", flexDirection: "column", gap: 16 }}>
+            <ProjectInfoBlock project={project} clientName={clientName} />
+            <ProjectStatsBlock gallery={gallery} />
           </div>
         }
       />

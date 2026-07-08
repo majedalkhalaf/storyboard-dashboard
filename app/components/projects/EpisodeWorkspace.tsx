@@ -64,6 +64,7 @@ export default function EpisodeWorkspace({
   extraActiveKey,
   onExtraTabChange,
   extraContent,
+  overviewExtra,
 }: {
   clientName: string | null;
   /** رقم جوال العميل، لتوليد رابط واتساب جاهز في رسالة "تم رفع الفيديو" — null إن لم يُسجَّل رقم. */
@@ -79,6 +80,10 @@ export default function EpisodeWorkspace({
   extraActiveKey?: string | null;
   onExtraTabChange?: (key: string | null) => void;
   extraContent?: React.ReactNode;
+  /** معلومات المشروع + إحصائياته — تُلحق أسفل تبويب "نظرة عامة" للحلقة مباشرة
+      (دُمجت الثلاثة في قسم واحد بطلب صريح)، وتُعرض بمفردها أيضاً حين لا توجد
+      حلقات في المشروع بعد (لا معنى لعرض تبويبات حلقة فارغة حينها). */
+  overviewExtra?: React.ReactNode;
 }) {
   const { company } = useSession();
   const companyId = company!.id;
@@ -203,7 +208,15 @@ export default function EpisodeWorkspace({
   // "الملاحظات" لم تعد ضمن القائمة الجانبية العادية — أصبح لها زر مختصر بارز في رأس
   // الحلقة (أهم قسم بحسب الطلب)، فتُستبعد من القائمة المعروضة هنا وإن بقي مفتاحها
   // فعّالاً في handleTabChange لضمان عمل الزر ورابط الإشعارات المباشر كما هما.
-  const visibleTabs = mergedTabs.filter((t) => t.key !== "notes");
+  // بقية تبويبات المشروع العامة (المالية/العقود/العروض) لا لزوم لها وأنت داخل حلقة
+  // محدَّدة تحديداً — تُستبعد كذلك متى ما كانت هناك حلقة مختارة، وتعود للظهور فقط
+  // إن لم توجد حلقات بعد في المشروع أصلاً.
+  const visibleTabs = mergedTabs.filter((t) => {
+    if (t.key === "notes") return false;
+    const isEpisodeTab = EPISODE_TABS.some((et) => et.key === t.key);
+    if (!isEpisodeTab && selectedId) return false;
+    return true;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -301,7 +314,9 @@ export default function EpisodeWorkspace({
             </div>
           )}
 
-          {!showingExtra && (loading || !detail) ? (
+          {!showingExtra && !selectedId ? (
+            <div className="animate-fade-in">{overviewExtra}</div>
+          ) : !showingExtra && (loading || !detail) ? (
             <WorkspaceSkeleton />
           ) : isMobile ? (
             // تخطيط الجوال مختلف تماماً عن سطح المكتب: عمود واحد بترتيب رأسي طبيعي
@@ -320,7 +335,12 @@ export default function EpisodeWorkspace({
               ) : (
                 <>
                   <div className="animate-fade-in">
-                    {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "overview" && (
+                      <>
+                        <OverviewTab episode={detail!} onChanged={applyPatch} />
+                        {overviewExtra}
+                      </>
+                    )}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && (
@@ -352,7 +372,12 @@ export default function EpisodeWorkspace({
               ) : (
                 <>
                   <div className="animate-fade-in">
-                    {tab === "overview" && <OverviewTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "overview" && (
+                      <>
+                        <OverviewTab episode={detail!} onChanged={applyPatch} />
+                        {overviewExtra}
+                      </>
+                    )}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
                     {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && (
