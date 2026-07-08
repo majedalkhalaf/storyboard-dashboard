@@ -1,14 +1,11 @@
 "use client";
 
-// قرار نطاق صريح: بدل تفكيك تبويبات "السكربت/ستوري بورد/الملفات/الملاحظات/مراحل
-// التنفيذ/سجل النشاط" (محررات كاملة لا معنى لطيّها هنا)، حُوِّل تبويب "نظرة عامة"
-// نفسه إلى لوحة أقسام قابلة للطي (CollapsibleSection) بحالة محفوظة لكل حلقة،
-// تجمع ملخصات للقراءة فقط من بقية التبويبات حتى يحصل المستخدم على صورة كاملة
-// دون مغادرة "نظرة عامة" — التعديل التفصيلي يبقى من داخل التبويب الأصلي.
+// بطلب صريح: "نظرة عامة" لم تعد لوحة أقسام قابلة للطي (كانت تحتاج ضغط كل قسم
+// لرؤية محتواه) — أصبحت صفحة ملخص واحدة متدفقة، كل أقسامها ظاهرة دائماً بلا أي
+// زر طي/فتح، مع إبقاء إمكانية التعديل (الغلاف والوصف) كما كانت تماماً.
 
 import { useRef, useState } from "react";
-import Icon from "@/app/components/ui/Icon";
-import CollapsibleSection, { ExpandCollapseAllButton } from "@/app/components/ui/CollapsibleSection";
+import Icon, { type IconName } from "@/app/components/ui/Icon";
 import ActivityTimeline from "@/app/components/projects/ActivityTimeline";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
@@ -16,8 +13,6 @@ import { STAGE_STATUSES } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 import { formatDate } from "../utils";
-
-const OVERVIEW_SECTION_IDS = ["info", "stats", "stages", "approval", "activity"];
 
 export default function OverviewTab({
   episode,
@@ -34,7 +29,6 @@ export default function OverviewTab({
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  const groupKey = `episode:${episode.id}`;
 
   async function save() {
     setEditing(false);
@@ -80,107 +74,97 @@ export default function OverviewTab({
     { label: "نسخ السكربت", value: episode.scriptVersions.length, icon: "fileCheck" as const },
     { label: "الاعتمادات", value: episode.approvals.length, icon: "shield" as const },
   ];
+  const completedStages = episode.stages.filter((s) => s.status === "completed").length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <ExpandCollapseAllButton groupKey={groupKey} sectionIds={OVERVIEW_SECTION_IDS} />
-      </div>
-
-      <CollapsibleSection groupKey={groupKey} id="info" title="معلومات الحلقة" icon="info" defaultOpen>
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div>
-            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "var(--text-secondary)" }}>صورة الغلاف</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  width: 140,
-                  height: 90,
-                  borderRadius: 10,
-                  flexShrink: 0,
-                  border: "1px solid var(--border)",
-                  background: episode.cover_image_url
-                    ? `center/cover no-repeat url(${episode.cover_image_url})`
-                    : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {!episode.cover_image_url && <Icon name="video" size={22} className="text-muted" />}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <label className="btn btn-outline" style={{ cursor: uploadingCover ? "wait" : "pointer", width: "fit-content" }}>
-                  <Icon name="upload" size={14} /> {uploadingCover ? "جارٍ الرفع..." : episode.cover_image_url ? "تغيير الصورة" : "إضافة صورة"}
-                  <input
-                    ref={coverInputRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    disabled={uploadingCover}
-                    onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-                {episode.cover_image_url && (
-                  <button className="btn btn-ghost" style={{ width: "fit-content", padding: "6px 10px", fontSize: 12, color: "#ef4444" }} onClick={removeCover}>
-                    <Icon name="trash" size={13} /> إزالة الصورة
-                  </button>
-                )}
-                {coverError && <p style={{ fontSize: 12, color: "#ef4444" }}>{coverError}</p>}
-              </div>
-            </div>
+    <div className="card animate-fade-in" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* الغلاف والوصف — القسم الوحيد القابل للتعديل مباشرة من هنا */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+          <div
+            style={{
+              width: 160,
+              height: 100,
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: episode.cover_image_url
+                ? `center/cover no-repeat url(${episode.cover_image_url})`
+                : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {!episode.cover_image_url && <Icon name="video" size={22} className="text-muted" />}
           </div>
+          <label className="btn btn-outline" style={{ cursor: uploadingCover ? "wait" : "pointer", fontSize: 12, padding: "6px 10px" }}>
+            <Icon name="upload" size={13} /> {uploadingCover ? "جارٍ الرفع..." : episode.cover_image_url ? "تغيير الصورة" : "إضافة صورة"}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={uploadingCover}
+              onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {episode.cover_image_url && (
+            <button className="btn btn-ghost" style={{ padding: "5px 10px", fontSize: 11.5, color: "#ef4444" }} onClick={removeCover}>
+              <Icon name="trash" size={12} /> إزالة الصورة
+            </button>
+          )}
+          {coverError && <p style={{ fontSize: 11.5, color: "#ef4444" }}>{coverError}</p>}
+        </div>
 
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)" }}>وصف الحلقة</h3>
-              {!editing && (
-                <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setEditing(true)}>
-                  <Icon name="edit" size={13} /> تعديل
-                </button>
-              )}
-            </div>
-            {editing ? (
-              <div>
-                <textarea className="input-field" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} style={{ resize: "vertical" }} autoFocus />
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
-                  <button className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 13 }} onClick={save}>
-                    حفظ
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p style={{ fontSize: 14, color: description ? "var(--text-primary)" : "var(--text-muted)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-                {description || "لا يوجد وصف."}
-              </p>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)" }}>وصف الحلقة</h3>
+            {!editing && (
+              <button className="btn btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setEditing(true)}>
+                <Icon name="edit" size={13} /> تعديل
+              </button>
             )}
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
-            <Meta icon="calendar" label="تاريخ التصوير" value={formatDate(episode.shooting_date)} />
-            <Meta icon="calendar" label="تاريخ التسليم" value={formatDate(episode.delivery_date)} />
-          </div>
+          {editing ? (
+            <div>
+              <textarea className="input-field" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} style={{ resize: "vertical" }} autoFocus />
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                <button className="btn btn-gold" style={{ padding: "8px 16px", fontSize: 13 }} onClick={save}>
+                  حفظ
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 14, color: description ? "var(--text-primary)" : "var(--text-muted)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+              {description || "لا يوجد وصف."}
+            </p>
+          )}
         </div>
-      </CollapsibleSection>
+      </div>
 
-      <CollapsibleSection groupKey={groupKey} id="stats" title="الإحصائيات" icon="barChart" defaultOpen>
-        <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* ملخص الأرقام والتواريخ في شبكة واحدة بدل قسمين منفصلين */}
+      <div>
+        <SectionHeading icon="barChart" title="ملخص الحلقة" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+          <Meta icon="calendar" label="تاريخ التصوير" value={formatDate(episode.shooting_date)} />
+          <Meta icon="calendar" label="تاريخ التسليم" value={formatDate(episode.delivery_date)} />
           {statItems.map((s) => (
             <div key={s.label} className="stat-card">
-              <Icon name={s.icon} size={18} className="text-muted" />
-              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 8 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+              <Icon name={s.icon} size={16} className="text-muted" />
+              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 6 }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
-      </CollapsibleSection>
+      </div>
 
-      <CollapsibleSection groupKey={groupKey} id="stages" title="مراحل التنفيذ" icon="timeline" defaultOpen={false}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            {episode.stages.filter((s) => s.status === "completed").length}/{episode.stages.length} مكتملة
-          </span>
-        </div>
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* مراحل التنفيذ */}
+      <div>
+        <SectionHeading icon="timeline" title="مراحل التنفيذ" trailing={`${completedStages}/${episode.stages.length} مكتملة`} />
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {episode.stages.map((stage) => {
             const info = STAGE_STATUSES.find((s) => s.value === stage.status);
@@ -197,9 +181,13 @@ export default function OverviewTab({
             );
           })}
         </div>
-      </CollapsibleSection>
+      </div>
 
-      <CollapsibleSection groupKey={groupKey} id="approval" title="الاعتماد" icon="shield" defaultOpen={false}>
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* الاعتماد */}
+      <div>
+        <SectionHeading icon="shield" title="الاعتماد" />
         {episode.approvals.length === 0 ? (
           <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>لا يوجد اعتماد على هذه الحلقة بعد</p>
         ) : (
@@ -226,11 +214,26 @@ export default function OverviewTab({
             ))}
           </div>
         )}
-      </CollapsibleSection>
+      </div>
 
-      <CollapsibleSection groupKey={groupKey} id="activity" title="سجل النشاط" icon="clock" defaultOpen={false}>
-        <ActivityTimeline items={episode.activity.slice(0, 15)} />
-      </CollapsibleSection>
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* آخر نشاط — ملخص مختصر فقط، السجل الكامل متاح من تبويب "سجل النشاط" المستقل */}
+      <div>
+        <SectionHeading icon="clock" title="آخر نشاط" />
+        <ActivityTimeline items={episode.activity.slice(0, 5)} />
+      </div>
+    </div>
+  );
+}
+
+function SectionHeading({ icon, title, trailing }: { icon: IconName; title: string; trailing?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+        <Icon name={icon} size={14} className="text-muted" /> {title}
+      </h3>
+      {trailing && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{trailing}</span>}
     </div>
   );
 }
