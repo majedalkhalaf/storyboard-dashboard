@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
+import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
@@ -42,8 +43,10 @@ export default function VideoTab({
     [episode.files]
   );
   const linkFiles = useMemo(() => episode.files.filter((f) => f.category === "link"), [episode.files]);
+  // فقط التعليقات الأساسية (بلا parent_note_id) تظهر كعلامات على الشريط الزمني —
+  // الردود عليها جزء من المحادثة أسفلها، ليست لحظات زمنية مستقلة بذاتها.
   const comments = useMemo(
-    () => episode.comments.slice().sort((a, b) => (a.video_timestamp_seconds ?? 0) - (b.video_timestamp_seconds ?? 0)),
+    () => episode.comments.filter((c) => !c.parent_note_id).sort((a, b) => (a.video_timestamp_seconds ?? 0) - (b.video_timestamp_seconds ?? 0)),
     [episode.comments]
   );
 
@@ -158,6 +161,34 @@ export default function VideoTab({
     } finally {
       setPosting(false);
     }
+  }
+
+  async function submitReply(rootId: string, body: string) {
+    // الرد يرث توقيت التعليق الأساسي (وليس null) — episode-detail.ts يُميّز
+    // "تعليقات الفيديو" عن "الملاحظات العامة" بفحص وجود video_timestamp_seconds
+    // من عدمه، فلو تُرك فارغاً ستُصنَّف الردود خطأً كملاحظات عامة وتختفي من هنا.
+    const root = episode.comments.find((c) => c.id === rootId);
+    await supabase.from("notes").insert({
+      company_id: companyId,
+      project_id: episode.project_id,
+      episode_id: episode.id,
+      target_type: "video",
+      target_id: root?.target_id ?? activeFile?.id ?? null,
+      parent_note_id: rootId,
+      author_id: userId,
+      author_role: profile.role,
+      body,
+      status: "new",
+      video_timestamp_seconds: root?.video_timestamp_seconds ?? 0,
+    });
+    await logActivity(supabase, {
+      companyId,
+      projectId: episode.project_id,
+      episodeId: episode.id,
+      action: "video_comment_added",
+      details: { at: formatDuration(root?.video_timestamp_seconds ?? 0) },
+    });
+    onChanged();
   }
 
   // إضافة فيديو مستضاف خارجياً (YouTube/Vimeo أو رابط ملف مباشر) بدل رفعه لمساحة التخزين —
@@ -475,26 +506,21 @@ export default function VideoTab({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
         <div className="card" style={{ padding: 14 }}>
           <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>تعليقات الفيديو ({comments.length})</h3>
-          {comments.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--text-muted)" }}>لا توجد تعليقات على الفيديو بعد</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
-              {comments.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={(e) => clickMarker(c, e)}
-                  className={activeCommentId === c.id ? "chip chip-gold" : "chip"}
-                  style={{ alignItems: "flex-start", flexDirection: "column", gap: 2, padding: "8px 10px", cursor: "pointer", width: "100%", whiteSpace: "normal" }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>
-                    {formatDuration(c.video_timestamp_seconds)} · {c.author_name || "مستخدم"} · {relativeTime(c.created_at)}
-                  </span>
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 400 }}>{c.body}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            <VideoCommentThread
+              comments={episode.comments}
+              currentUserId={userId}
+              activeRootId={activeCommentId}
+              onSelectRoot={(c) => {
+                if (c.video_timestamp_seconds != null) seekTo(c.video_timestamp_seconds);
+                setActiveCommentId((prev) => (prev === c.id ? null : c.id));
+              }}
+              onReply={submitReply}
+              authorLabel={(c) => c.author_name || "مستخدم"}
+              formatDuration={formatDuration}
+              relativeTime={relativeTime}
+            />
+          </div>
         </div>
 
         {videoFiles.length > 1 && (

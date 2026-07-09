@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
+import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
@@ -276,10 +277,39 @@ export function VideoPlayerModal({
     }
   }
 
-  const sortedComments = useMemo(
-    () => comments.slice().sort((a, b) => (a.video_timestamp_seconds ?? 0) - (b.video_timestamp_seconds ?? 0)),
+  // فقط التعليقات الأساسية (بلا parent_note_id) تظهر كعلامات على الشريط الزمني —
+  // الردود عليها جزء من المحادثة أسفلها، ليست لحظات زمنية مستقلة بذاتها.
+  const rootComments = useMemo(
+    () => comments.filter((c) => !c.parent_note_id).sort((a, b) => (a.video_timestamp_seconds ?? 0) - (b.video_timestamp_seconds ?? 0)),
     [comments]
   );
+
+  async function submitReply(rootId: string, body: string) {
+    // الرد يرث توقيت التعليق الأساسي (وليس null) — عملية جلب تفاصيل الحلقة في
+    // لوحة الفريق (episode-detail.ts) تُميّز "تعليقات الفيديو" عن "الملاحظات
+    // العامة" بفحص وجود video_timestamp_seconds من عدمه، فلو تُرك فارغاً
+    // ستُصنَّف الردود خطأً كملاحظات عامة وتختفي من محادثة الفيديو هناك.
+    const root = comments.find((c) => c.id === rootId);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("notes")
+      .insert({
+        company_id: companyId,
+        project_id: projectId,
+        episode_id: episodeId,
+        target_type: "video",
+        target_id: file.id,
+        parent_note_id: rootId,
+        author_id: userId,
+        author_role: "client",
+        body,
+        status: "new",
+        video_timestamp_seconds: root?.video_timestamp_seconds ?? 0,
+      })
+      .select("*")
+      .single();
+    if (!error && data) setComments((prev) => [...prev, data as Note]);
+  }
 
   return (
     <ModalPortal>
@@ -339,7 +369,7 @@ export function VideoPlayerModal({
                     width: `${(currentTime / duration) * 100}%`,
                   }}
                 />
-                {sortedComments.map((c) => {
+                {rootComments.map((c) => {
                   const ratio = Math.min(1, Math.max(0, (c.video_timestamp_seconds ?? 0) / duration));
                   return (
                     <button
@@ -372,7 +402,7 @@ export function VideoPlayerModal({
 
           {activeCommentId && (
             <div className="chip chip-gold" style={{ marginTop: 10, width: "100%", justifyContent: "flex-start", padding: "8px 12px", whiteSpace: "normal" }}>
-              {sortedComments.find((c) => c.id === activeCommentId)?.body}
+              {rootComments.find((c) => c.id === activeCommentId)?.body}
             </div>
           )}
 
@@ -391,25 +421,24 @@ export function VideoPlayerModal({
             </div>
           )}
 
-          {sortedComments.length > 0 && (
+          {rootComments.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>تعليقات الفيديو ({sortedComments.length})</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
-                {sortedComments.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={(e) => clickMarker(c, e)}
-                    className={activeCommentId === c.id ? "chip chip-gold" : "chip"}
-                    style={{ alignItems: "flex-start", flexDirection: "column", gap: 2, padding: "8px 10px", cursor: "pointer", width: "100%", whiteSpace: "normal" }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>
-                      {formatDuration(c.video_timestamp_seconds)} · {c.author_id === userId ? userName || "أنت" : c.author_role === "client" ? "عميل آخر" : "فريق العمل"} ·{" "}
-                      {relativeTime(c.created_at)}
-                    </span>
-                    <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 400 }}>{c.body}</span>
-                  </button>
-                ))}
+              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>تعليقات الفيديو ({rootComments.length})</h4>
+              <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                <VideoCommentThread
+                  comments={comments}
+                  currentUserId={userId}
+                  activeRootId={activeCommentId}
+                  canReply={canComment}
+                  onSelectRoot={(c) => {
+                    if (c.video_timestamp_seconds != null) seekTo(c.video_timestamp_seconds);
+                    setActiveCommentId((prev) => (prev === c.id ? null : c.id));
+                  }}
+                  onReply={submitReply}
+                  authorLabel={(c) => (c.author_id === userId ? userName || "أنت" : c.author_role === "client" ? "عميل آخر" : "فريق العمل")}
+                  formatDuration={formatDuration}
+                  relativeTime={relativeTime}
+                />
               </div>
             </div>
           )}
