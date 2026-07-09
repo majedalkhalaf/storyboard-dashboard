@@ -9,6 +9,8 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import ActivityTimeline from "@/app/components/projects/ActivityTimeline";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
+import { logActivity } from "@/app/lib/activity";
+import { isInternalAdmin } from "@/app/lib/permissions";
 import { STAGE_STATUSES } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
@@ -22,8 +24,10 @@ export default function OverviewTab({
   onChanged: (patch: Partial<EpisodeFullDetail>) => void;
 }) {
   const supabase = createClient();
-  const { company } = useSession();
+  const { company, userId, profile } = useSession();
   const companyId = company!.id;
+  const canRevokeApproval = isInternalAdmin(profile.role);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(episode.description ?? "");
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -68,6 +72,28 @@ export default function OverviewTab({
     onChanged({ cover_image_url: null });
   }
 
+  // إلغاء الاعتماد وإعادة فتح الحلقة للمراجعة — بطلب صريح: متاح لفريق العمل
+  // (الإدارة تحديداً) فقط، ولا وجود لأي تحكم مماثل في بوابة العميل.
+  async function revokeApproval(approvalId: string) {
+    if (!confirm("إعادة فتح الحلقة للمراجعة وإلغاء الاعتماد الحالي؟")) return;
+    setRevokingId(approvalId);
+    try {
+      const revokedAt = new Date().toISOString();
+      await supabase.from("approvals").update({ revoked_at: revokedAt, revoked_by: userId }).eq("id", approvalId);
+      const patch: Partial<EpisodeFullDetail> = {
+        approvals: episode.approvals.map((a) => (a.id === approvalId ? { ...a, revoked_at: revokedAt } : a)),
+      };
+      if (episode.status === "approved") {
+        await supabase.from("episodes").update({ status: "in_review" }).eq("id", episode.id);
+        patch.status = "in_review";
+      }
+      await logActivity(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, action: "approval_revoked", details: {} });
+      onChanged(patch);
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
   const statItems = [
     { label: "الملفات", value: episode.files.length, icon: "attachment" as const },
     { label: "الملاحظات", value: episode.notes.length + episode.comments.length, icon: "message" as const },
@@ -75,6 +101,7 @@ export default function OverviewTab({
     { label: "الاعتمادات", value: episode.approvals.length, icon: "shield" as const },
   ];
   const completedStages = episode.stages.filter((s) => s.status === "completed").length;
+  const activeApproval = episode.approvals.find((a) => !a.revoked_at);
 
   return (
     <div className="card animate-fade-in" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -191,8 +218,47 @@ export default function OverviewTab({
         {episode.approvals.length === 0 ? (
           <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>لا يوجد اعتماد على هذه الحلقة بعد</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {episode.approvals.map((a) => (
+          <>
+            {activeApproval && (
+              <div
+                className="card"
+                style={{
+                  padding: 14,
+                  marginBottom: 10,
+                  borderColor: "#1DB954",
+                  background: "rgba(29,185,84,0.08)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ color: "#1DB954", display: "inline-flex" }}>
+                    <Icon name="badgeCheck" size={20} filled />
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13.5, color: "#1DB954" }}>الحلقة معتمدة نهائياً من العميل</div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-secondary)", marginTop: 2 }}>
+                      اعتمدها {activeApproval.approver_name ?? "العميل"} · {formatDate(activeApproval.approved_at)}
+                    </div>
+                  </div>
+                </div>
+                {canRevokeApproval && (
+                  <button
+                    className="btn btn-danger"
+                    style={{ fontSize: 12, padding: "7px 14px", flexShrink: 0 }}
+                    disabled={revokingId === activeApproval.id}
+                    onClick={() => revokeApproval(activeApproval.id)}
+                  >
+                    {revokingId === activeApproval.id ? "..." : "إلغاء الاعتماد"}
+                  </button>
+                )}
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {episode.approvals.map((a) => (
               <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
                 <Icon name={a.revoked_at ? "alert" : "badgeCheck"} size={15} className={a.revoked_at ? "text-muted" : undefined} />
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -211,8 +277,9 @@ export default function OverviewTab({
                   {a.revoked_at ? "أُلغي الاعتماد" : "معتمدة"}
                 </span>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
