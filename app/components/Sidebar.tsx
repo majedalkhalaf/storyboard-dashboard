@@ -21,9 +21,6 @@ export function useNavItems() {
   });
 }
 
-// لا يوجد نظام باقات/فوترة فعلي بعد — هذا سقف مؤقت لعرض شريط الاستهلاك فقط
-const STORAGE_QUOTA_BYTES = 20 * 1024 * 1024 * 1024;
-
 function formatGB(bytes: number): string {
   return (bytes / (1024 * 1024 * 1024)).toFixed(1);
 }
@@ -51,8 +48,6 @@ export default function Sidebar() {
       cancelled = true;
     };
   }, [company?.id]);
-
-  const usedPct = usedBytes !== null ? Math.min(100, Math.round((usedBytes / STORAGE_QUOTA_BYTES) * 100)) : 0;
 
   // الحالة الفعلية: مصغّرة دائماً إلا إذا مرّر المستخدم الماوس عليها (توسّع مؤقت)
   const effectiveCollapsed = sidebarCollapsed && !hovering;
@@ -188,13 +183,10 @@ export default function Sidebar() {
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Icon name="storage" size={12} /> مساحة التخزين
               </span>
-              <span>{usedPct}%</span>
+              <span style={{ color: "var(--gold)", fontWeight: 700 }}>غير محدودة</span>
             </div>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${usedPct}%` }} />
-            </div>
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 5 }}>
-              {usedBytes !== null ? `${formatGB(usedBytes)} GB` : "..."} من {formatGB(STORAGE_QUOTA_BYTES)} GB
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+              {usedBytes !== null ? `${formatGB(usedBytes)} GB مستخدمة` : "..."}
             </div>
           </div>
         )}
