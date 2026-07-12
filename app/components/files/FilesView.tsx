@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { openUrl } from "@/app/lib/download";
 import { FILE_CATEGORY_ICON, humanFileSize, relativeTime } from "@/app/components/projects/utils";
 import type { FileCategory } from "@/app/lib/types";
 import UploadFileModal from "./UploadFileModal";
@@ -85,17 +86,17 @@ export default function FilesView({
 
   async function openFile(f: FileListItem) {
     if (f.external_url) {
-      window.open(f.external_url, "_blank");
+      openUrl(f.external_url);
       return;
     }
     if (!f.storage_path) return;
     if (f.bucket_name === "r2") {
       const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
-      if (base) window.open(`${base.replace(/\/+$/, "")}/${f.storage_path}`, "_blank");
+      if (base) openUrl(`${base.replace(/\/+$/, "")}/${f.storage_path}`);
       return;
     }
     const { data } = await supabase.storage.from(f.bucket_name || "project-files").createSignedUrl(f.storage_path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    if (data?.signedUrl) openUrl(data.signedUrl);
   }
 
   return (

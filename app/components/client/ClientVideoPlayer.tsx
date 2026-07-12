@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
+import { openUrl } from "@/app/lib/download";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
 import { trackVideoWatch } from "@/app/lib/client-activity-tracker";
@@ -271,7 +272,7 @@ export function VideoPlayerModal({
     try {
       const res = await fetch(`/api/client-portal/files/${file.id}?download=1`);
       const json = (await res.json()) as { url?: string };
-      if (json.url) window.open(json.url, "_blank", "noopener,noreferrer");
+      if (json.url) openUrl(json.url);
     } finally {
       setDownloading(false);
     }

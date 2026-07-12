@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { openUrl } from "@/app/lib/download";
 import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { logActivity } from "@/app/lib/activity";
@@ -89,13 +90,13 @@ export async function resolveFileUrl(supabase: SupabaseClient, file: ProjectFile
 /** فتح الملف في تبويب جديد بدون إجبار التحميل — السلوك القديم لزر "فتح"، ويُستخدم أيضاً كبديل للمعاينة داخلياً للأنواع غير المدعومة */
 export async function openFile(supabase: SupabaseClient, file: ProjectFile) {
   const url = await resolveFileUrl(supabase, file);
-  if (url) window.open(url, "_blank");
+  if (url) openUrl(url);
 }
 
 /** تحميل فعلي يُجبر المتصفح على حفظ الملف بدل عرضه */
 export async function downloadFile(supabase: SupabaseClient, file: ProjectFile) {
   const url = await resolveFileUrl(supabase, file, { download: true });
-  if (url) window.open(url, "_blank");
+  if (url) openUrl(url);
 }
 
 export async function copyFileLink(supabase: SupabaseClient, file: ProjectFile): Promise<boolean> {

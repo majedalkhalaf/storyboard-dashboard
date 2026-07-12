@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
+import { openUrl } from "@/app/lib/download";
 import { fetchClientFiles, type FileWithProject } from "@/app/lib/client-profile";
 import type { FileCategory, ProjectFile } from "@/app/lib/types";
 import { FILE_CATEGORY_ICON, humanFileSize, relativeTime } from "@/app/components/projects/utils";
@@ -37,7 +38,7 @@ export default function FilesTab({ clientId }: { clientId: string }) {
     const kind = previewKind(f);
     if (!kind) {
       const url = await resolveFileUrl(supabase, f);
-      if (url) window.open(url, "_blank");
+      if (url) openUrl(url);
       return;
     }
     setPreview({ file: f, url: null, loading: true });

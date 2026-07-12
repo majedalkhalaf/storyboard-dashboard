@@ -22,11 +22,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "غير مصرح بهذا المسار" }, { status: 403 });
     }
 
+    // اسم عربي/يونيكود داخل Content-Disposition يحتاج الصيغة القياسية filename*=UTF-8''
+    // (RFC 6266) مع اسم احتياطي ASCII فقط، وإلا يظهر اسم الملف المحمَّل بصيغته
+    // المرمَّزة حرفياً بدل اسمه الحقيقي في متصفحات لا تفكّ ترميز filename="%.." تلقائياً.
+    const asciiFallback = body.fileName.replace(/[^\x20-\x7E]/g, "_");
     const client = createR2Client();
     const command = new GetObjectCommand({
       Bucket: r2BucketName(),
       Key: body.key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(body.fileName)}"`,
+      ResponseContentDisposition: `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(body.fileName)}`,
     });
     const url = await getSignedUrl(client, command, { expiresIn: 3600 });
 

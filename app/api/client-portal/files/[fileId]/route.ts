@@ -52,11 +52,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
     // رابطاً موقّعاً (الرابط العام لا يفرض Content-Disposition).
     if (file.bucket_name === "r2") {
       if (isDownload) {
+        // اسم عربي/يونيكود داخل Content-Disposition يحتاج الصيغة القياسية filename*=UTF-8''
+        // (RFC 6266) مع اسم احتياطي ASCII فقط — متصفحات كثيرة لا تفكّ ترميز filename="%.."
+        // العادي تلقائياً فيظهر اسم الملف المحمَّل حرفياً بصيغته المرمَّزة بدل اسمه الحقيقي.
+        const rawName = file.original_name || file.name;
+        const asciiFallback = rawName.replace(/[^\x20-\x7E]/g, "_");
         const r2 = createR2Client();
         const command = new GetObjectCommand({
           Bucket: r2BucketName(),
           Key: file.storage_path,
-          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.original_name || file.name)}"`,
+          ResponseContentDisposition: `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(rawName)}`,
         });
         const url = await getSignedUrl(r2, command, { expiresIn: 3600 });
         return NextResponse.json({ url });
@@ -66,7 +71,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
 
     // ساعة كاملة بدل 5 دقائق — مدة قصيرة كانت تكفي لفتح مستند لكن تنقطع أثناء
     // مشاهدة فيديو طويل (المتصفح يعيد طلب الرابط نفسه لكل طلب Range أثناء التقديم).
-    const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 3600);
+    // عند التحميل (download=1) نُمرّر خيار download ليفرض السيرفر ترويسة
+    // Content-Disposition: attachment، وإلا يعرض المتصفح الملف بدل تنزيله.
+    const { data: signed, error } = await admin.storage
+      .from(file.bucket_name || "project-files")
+      .createSignedUrl(file.storage_path, 3600, isDownload ? { download: file.original_name || file.name } : undefined);
     if (error || !signed) {
       return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
     }

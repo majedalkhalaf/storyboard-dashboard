@@ -4,6 +4,7 @@ import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { fileIconName, formatBytes } from "@/app/components/client/utils";
 import { trackFileDownload } from "@/app/lib/client-activity-tracker";
+import { openUrl } from "@/app/lib/download";
 import type { ClientPermissions, ProjectFile } from "@/app/lib/types";
 
 // قائمة الملفات المرئية للعميل مع زر تحميل/فتح. الملفات المخزّنة داخلياً
@@ -25,7 +26,7 @@ export default function FileList({
     setErrorId(null);
     // رابط خارجي: افتحه مباشرة
     if (file.external_url) {
-      window.open(file.external_url, "_blank", "noopener,noreferrer");
+      openUrl(file.external_url);
       return;
     }
     setLoadingId(file.id);
@@ -34,7 +35,7 @@ export default function FileList({
       if (!res.ok) throw new Error("failed");
       const json = (await res.json()) as { url?: string };
       if (json.url) {
-        window.open(json.url, "_blank", "noopener,noreferrer");
+        openUrl(json.url);
         trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
       } else {
         throw new Error("no url");
