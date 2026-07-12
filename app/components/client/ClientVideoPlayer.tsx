@@ -272,7 +272,9 @@ export function VideoPlayerModal({
     try {
       const res = await fetch(`/api/client-portal/files/${file.id}?download=1`);
       const json = (await res.json()) as { url?: string };
-      if (json.url) openUrl(json.url);
+      // بلا تبويب جديد — نفس سبب الإصلاح في FileList.tsx: تجنّب أي احتمال لتوقّف
+      // تنزيل فيديو كبير إن أصبح تبويب منفصل في الخلفية أثناء تنزيله.
+      if (json.url) openUrl(json.url, false);
     } finally {
       setDownloading(false);
     }

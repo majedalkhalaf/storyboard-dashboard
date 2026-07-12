@@ -44,6 +44,11 @@ export async function startR2Upload(
   let cancelled = false;
   let paused = false;
   let finished = false;
+  // يتحوّل true عند فشل رفع أي جزء — يمنع بقية الأجزاء المرفوعة بنجاح من
+  // "إكمال" الرفع المجزّأ بقائمة أجزاء ناقصة (كائن R2 مبتور بلا الجزء الفاشل)،
+  // وهو تحديداً الخلل الذي كان يجعل ملفات الفيديو الكبيرة (أكثر من جزء واحد،
+  // 8 ميجابايت) تنزل "تبدأ ثم تُلغى" عند العميل بعد رفع بدا ناجحاً ظاهرياً.
+  let hadFailure = false;
   let nextPartIndex = 0;
   let activeUploads = 0;
   let uploadedBytes = 0;
@@ -93,19 +98,29 @@ export async function startR2Upload(
 
   async function pump() {
     activeUploads++;
-    while (!cancelled && !paused && nextPartIndex < totalParts) {
+    while (!cancelled && !hadFailure && !paused && nextPartIndex < totalParts) {
       const partNumber = nextPartIndex + 1;
       nextPartIndex++;
       try {
         await uploadPart(partNumber);
       } catch (err) {
         activeUploads--;
-        if (!cancelled) handlers.onError?.(err instanceof Error ? err.message : "تعذّر رفع الملف");
+        if (!cancelled && !hadFailure) {
+          hadFailure = true;
+          handlers.onError?.(err instanceof Error ? err.message : "تعذّر رفع الملف");
+          // نُلغي الرفع المجزّأ بالكامل بدل تركه معلَّقاً على R2 — أي محاولة إكمال
+          // لاحقة بأجزاء ناقصة سترفضها R2 أصلاً، فلا داعي لإبقائه.
+          fetch("/api/uploads/r2/abort", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key, uploadId }),
+          }).catch(() => {});
+        }
         return;
       }
     }
     activeUploads--;
-    if (!cancelled && !paused && nextPartIndex >= totalParts && activeUploads === 0) {
+    if (!cancelled && !hadFailure && !paused && nextPartIndex >= totalParts && activeUploads === 0) {
       await finalize();
     }
   }

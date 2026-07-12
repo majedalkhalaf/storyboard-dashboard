@@ -35,7 +35,10 @@ export default function FileList({
       if (!res.ok) throw new Error("failed");
       const json = (await res.json()) as { url?: string };
       if (json.url) {
-        openUrl(json.url);
+        // بلا تبويب جديد — تنزيل حقيقي (Content-Disposition: attachment) لا يُغادر
+        // الصفحة الحالية أصلاً، وتجنّب فتح تبويب يمنع أي احتمال لتوقّف التنزيل إن
+        // أصبح ذلك التبويب في الخلفية أثناء تنزيل ملف كبير يستغرق وقتاً أطول.
+        openUrl(json.url, false);
         trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
       } else {
         throw new Error("no url");

@@ -96,7 +96,9 @@ export async function openFile(supabase: SupabaseClient, file: ProjectFile) {
 /** تحميل فعلي يُجبر المتصفح على حفظ الملف بدل عرضه */
 export async function downloadFile(supabase: SupabaseClient, file: ProjectFile) {
   const url = await resolveFileUrl(supabase, file, { download: true });
-  if (url) openUrl(url);
+  // بلا تبويب جديد — تجنّب أي احتمال لتوقّف تنزيل ملف/فيديو كبير إن أصبح تبويب
+  // منفصل في الخلفية أثناء تنزيله.
+  if (url) openUrl(url, false);
 }
 
 export async function copyFileLink(supabase: SupabaseClient, file: ProjectFile): Promise<boolean> {
