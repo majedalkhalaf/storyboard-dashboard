@@ -134,9 +134,16 @@ async function addEpisodeFolder(
       target.file(`${sanitizeName(f.name)}.url.txt`, f.external_url);
       continue;
     }
-    const url = await resolveFileUrl(supabase, f);
-    const blob = await fetchBlobSafe(url);
-    if (blob) target.file(sanitizeName(f.name), blob);
+    // فشل ملف واحد (رابط منتهي، فيديو ضخم يفشل الجلب...) لا يجب أن يوقف تصدير
+    // بقية الحلقة بالكامل — يُسجَّل الفشل كملاحظة نصية بدل إسقاطه بصمت.
+    try {
+      const url = await resolveFileUrl(supabase, f);
+      const blob = await fetchBlobSafe(url);
+      if (blob) target.file(sanitizeName(f.name), blob);
+      else target.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
+    } catch (err) {
+      target.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, `تعذّر تنزيل هذا الملف أثناء التصدير: ${err instanceof Error ? err.message : "خطأ غير معروف"}`);
+    }
   }
 
   const notesFolder = folder.folder("07_Notes")!;
@@ -156,11 +163,23 @@ async function addEpisodeFolder(
   activityFolder.file("سجل_النشاط.txt", activityText || "لا يوجد نشاط مسجل");
 }
 
+// حماية أخيرة: لو فشل أي شيء بصمت أثناء التجميع (رغم كل نقاط try/catch أعلاه)
+// وانتهى الأمر بأرشيف بلا أي ملف حقيقي داخله، نمنع تنزيل ملف ZIP فارغ يبدو
+// للمستخدم أن التصدير "نجح" بينما لا شيء بداخله — نرفع خطأ واضحاً بدل ذلك
+// فتظهر رسالة الفشل الحقيقية في نافذة التصدير.
+function assertNonEmpty(zip: JSZip) {
+  const hasAnyFile = Object.values(zip.files).some((entry) => !entry.dir);
+  if (!hasAnyFile) {
+    throw new Error("تعذّر تجميع أي محتوى للتصدير — تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+  }
+}
+
 export async function exportEpisodeZip(supabase: SupabaseClient, companyId: string, episodeId: string, onProgress?: (p: ZipProgress) => void) {
   onProgress?.({ stage: "جاري تجميع بيانات الحلقة...", percent: 2 });
   const detail = await fetchEpisodeDetail(episodeId, companyId);
   const zip = new JSZip();
   await addEpisodeFolder(zip, supabase, detail, (p) => onProgress?.({ stage: p.stage, percent: 5 + Math.round(p.percent * 0.8) }));
+  assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف...", percent: 88 });
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 88 + Math.round(meta.percent * 0.12) });
@@ -206,9 +225,14 @@ export async function exportProjectZip(
   const { data: projectFileRows } = await supabase.from("files").select("*").eq("project_id", project.id).is("episode_id", null);
   const projectFilesFolder = root.folder("03_Project_Files")!;
   for (const f of (projectFileRows ?? []) as ProjectFile[]) {
-    const url = f.external_url && !f.storage_path ? f.external_url : await resolveFileUrl(supabase, f);
-    const blob = await fetchBlobSafe(url);
-    if (blob) projectFilesFolder.file(sanitizeName(f.name), blob);
+    try {
+      const url = f.external_url && !f.storage_path ? f.external_url : await resolveFileUrl(supabase, f);
+      const blob = await fetchBlobSafe(url);
+      if (blob) projectFilesFolder.file(sanitizeName(f.name), blob);
+      else projectFilesFolder.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير.");
+    } catch (err) {
+      projectFilesFolder.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, `تعذّر تنزيل هذا الملف أثناء التصدير: ${err instanceof Error ? err.message : "خطأ غير معروف"}`);
+    }
   }
 
   onProgress?.({ stage: "جاري تجهيز العقود والعروض والفواتير...", percent: 70 });
@@ -266,6 +290,7 @@ export async function exportProjectZip(
     .join("\n");
   root.folder("10_Activity_Log")!.file("سجل_النشاط.txt", activityText || "لا يوجد نشاط مسجل");
 
+  assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف (قد يستغرق وقتاً في المشاريع الكبيرة)...", percent: 92 });
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 + Math.round(meta.percent * 0.08) });
