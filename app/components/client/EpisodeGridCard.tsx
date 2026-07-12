@@ -227,6 +227,13 @@ export default function EpisodeGridCard({
           variant="card"
         />
       </div>
+      {downloading && (
+        <div style={{ padding: "0 14px 14px" }}>
+          <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${progress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+          </div>
+        </div>
+      )}
       </div>
 
       {requestOpen && (

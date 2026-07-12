@@ -214,6 +214,11 @@ export default function EpisodeDetailView({
             variant="hero"
           />
         </div>
+        {downloading && (
+          <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginTop: 10 }}>
+            <div style={{ height: "100%", width: `${downloadProgress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+          </div>
+        )}
       </div>
 
       {requestOpen && (
@@ -428,6 +433,11 @@ export default function EpisodeDetailView({
                   <Icon name="archive" size={15} />
                   {downloading ? `${downloadProgress?.stage ?? "جارٍ التحميل..."} ${downloadProgress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
                 </button>
+              )}
+              {downloading && (
+                <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${downloadProgress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+                </div>
               )}
               <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." />
             </div>

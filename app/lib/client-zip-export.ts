@@ -4,10 +4,11 @@ import JSZip from "jszip";
 import type { BehindScenesMediaItem, Contract, Episode, FileCategory, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 // تصدير مشروع العميل كملف ZIP — يعمل بالكامل داخل المتصفح، ويحترم صلاحيات العميل
-// فعلياً: كل ملف يُطلب رابط تحميله عبر /api/client-portal/files/[id]?download=1، وهذا
-// المسار وحده (بصلاحية service_role على الخادم) يتحقق من client_visible/client_can_download
-// وصلاحية "download_files" قبل إصدار أي رابط — فلا يمكن للعميل تنزيل ما لا يُسمح له به
-// بتزوير الطلب من المتصفح مباشرة.
+// فعلياً: كل ملف يُطلب مباشرة عبر /api/client-portal/files/[id]?download=1 (يبثّ
+// محتوى الملف نفسه كاستجابة، وليس رابطاً)، وهذا المسار وحده (بصلاحية service_role
+// على الخادم) يتحقق من client_visible/client_can_download وصلاحية "download_files"
+// قبل إعادة أي بايت — فلا يمكن للعميل تنزيل ما لا يُسمح له به بتزوير الطلب من
+// المتصفح مباشرة.
 
 export interface ExportProgress {
   stage: string;
@@ -21,13 +22,11 @@ function sanitizeName(name: string): string {
 
 async function fetchClientFileBlob(fileId: string): Promise<Blob | null> {
   try {
+    // هذا المسار يبثّ محتوى الملف مباشرة (وليس رابطاً JSON) منذ إصلاح تنزيل
+    // الملفات الجذري — نقرأ الاستجابة كملف مباشرة بلا أي جلب ثانٍ لرابط.
     const res = await fetch(`/api/client-portal/files/${fileId}?download=1`);
     if (!res.ok) return null;
-    const { url } = (await res.json()) as { url?: string };
-    if (!url) return null;
-    const fileRes = await fetch(url);
-    if (!fileRes.ok) return null;
-    return await fileRes.blob();
+    return await res.blob();
   } catch {
     return null;
   }
@@ -54,6 +53,16 @@ function triggerDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+// حماية أخيرة: لو فشل تنزيل كل الملفات بصمت (رابط منتهي، مشكلة اتصال...) وانتهى
+// الأمر بأرشيف بلا أي ملف حقيقي بداخله، نمنع تنزيل ZIP فارغ يبدو للعميل أن
+// التصدير "نجح" بينما لا شيء بداخله — نرفع خطأ واضحاً تظهره نافذة التصدير بدل ذلك.
+function assertNonEmpty(zip: JSZip) {
+  const hasAnyFile = Object.values(zip.files).some((entry) => !entry.dir);
+  if (!hasAnyFile) {
+    throw new Error("تعذّر تجميع أي محتوى للتصدير — تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+  }
+}
+
 const CATEGORY_FOLDER_AR: Record<FileCategory, string> = {
   image: "الصور",
   video: "الفيديوهات",
@@ -75,7 +84,9 @@ async function addFilesToFolder(parentFolder: JSZip, files: ProjectFile[], onEac
   for (const f of downloadable) {
     const blob = await fetchClientFileBlob(f.id);
     onEach();
-    if (blob) parentFolder.folder(CATEGORY_FOLDER_AR[f.category] ?? "مرفقات_أخرى")!.file(sanitizeName(f.name), blob);
+    const folder = parentFolder.folder(CATEGORY_FOLDER_AR[f.category] ?? "مرفقات_أخرى")!;
+    if (blob) folder.file(sanitizeName(f.name), blob);
+    else folder.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
   }
   if (linkFiles.length > 0) {
     const lines = linkFiles.map((f) => `${f.name}: ${f.external_url}`);
@@ -201,6 +212,7 @@ export async function exportClientProjectZip(
     }
   }
 
+  assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 });
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 + Math.round(meta.percent * 0.08) });
@@ -224,7 +236,9 @@ export async function exportEpisodeFilesZip(episodeTitle: string, files: Project
     onProgress?.({ stage: `جاري تنزيل الملف ${i + 1} من ${files.length}...`, percent: Math.round((i / files.length) * 88) });
     const blob = await fetchClientFileBlob(file.id);
     if (blob) zip.file(sanitizeName(file.name), blob);
+    else zip.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
   }
+  assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 });
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 + Math.round(meta.percent * 0.1) });
@@ -313,7 +327,9 @@ export async function exportAnnouncementMediaZip(title: string, media: BehindSce
     onProgress?.({ stage: `جاري تنزيل الملف ${i + 1} من ${media.length}...`, percent: Math.round((i / media.length) * 88) });
     const blob = await fetchBlobFromUrl(item.url);
     if (blob) zip.file(sanitizeName(item.name), blob);
+    else zip.file(`${sanitizeName(item.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير.");
   }
+  assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 });
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 + Math.round(meta.percent * 0.1) });
