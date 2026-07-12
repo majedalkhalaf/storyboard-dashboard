@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
-import { openUrl } from "@/app/lib/download";
+import { openUrl, downloadWithProgress } from "@/app/lib/download";
 import { useSession } from "@/app/providers/SessionProvider";
 import { isInternalAdmin } from "@/app/lib/permissions";
 import { logActivity } from "@/app/lib/activity";
@@ -61,29 +61,18 @@ export function previewKind(file: ProjectFile): PreviewKind {
   return null;
 }
 
-export async function resolveFileUrl(supabase: SupabaseClient, file: ProjectFile, options?: { download?: boolean }): Promise<string | null> {
+// يُستخدم فقط لعرض/معاينة الملف (لا للتحميل القسري — انظر downloadFile أدناه
+// التي تسلك مساراً مستقلاً كلياً عبر downloadWithProgress).
+export async function resolveFileUrl(supabase: SupabaseClient, file: ProjectFile): Promise<string | null> {
   if (file.external_url) return file.external_url;
   if (!file.storage_path) return null;
-  // ملفات الفيديو الكبيرة تُرفع إلى Cloudflare R2 بدل Supabase Storage. التشغيل/العرض
-  // يستخدم الرابط العام المباشر (bucket عام، أمنه يعتمد على عشوائية اسم الملف)،
-  // أما التحميل القسري بالاسم الأصلي فيحتاج رابطاً موقّعاً من مسار خادم مخصص
-  // (الرابط العام لا يدعم فرض Content-Disposition).
+  // ملفات الفيديو الكبيرة تُرفع إلى Cloudflare R2 بدل Supabase Storage — العرض/التشغيل
+  // يستخدم الرابط العام المباشر (bucket عام، أمنه يعتمد على عشوائية اسم الملف).
   if (file.bucket_name === "r2") {
-    if (options?.download) {
-      const res = await fetch("/api/uploads/r2/download-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: file.storage_path, fileName: file.original_name || file.name }),
-      });
-      const json = (await res.json()) as { url?: string };
-      return json.url ?? null;
-    }
     const base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
     return base ? `${base.replace(/\/+$/, "")}/${file.storage_path}` : null;
   }
-  const { data } = await supabase.storage
-    .from(file.bucket_name || "project-files")
-    .createSignedUrl(file.storage_path, 300, options?.download ? { download: true } : undefined);
+  const { data } = await supabase.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 300);
   return data?.signedUrl ?? null;
 }
 
@@ -95,10 +84,26 @@ export async function openFile(supabase: SupabaseClient, file: ProjectFile) {
 
 /** تحميل فعلي يُجبر المتصفح على حفظ الملف بدل عرضه */
 export async function downloadFile(supabase: SupabaseClient, file: ProjectFile) {
-  const url = await resolveFileUrl(supabase, file, { download: true });
-  // بلا تبويب جديد — تجنّب أي احتمال لتوقّف تنزيل ملف/فيديو كبير إن أصبح تبويب
-  // منفصل في الخلفية أثناء تنزيله.
-  if (url) openUrl(url, false);
+  if (file.external_url) {
+    openUrl(file.external_url, false);
+    return;
+  }
+  if (!file.storage_path) return;
+  const filename = file.original_name || file.name;
+  if (file.bucket_name === "r2") {
+    // يبثّ الملف من نفس الأصل بدل رابط R2 خارجي — يزيل الاعتماد على CORS/سلوك
+    // تبويب خارجي عند تنزيل فيديو كبير (نفس إصلاح تنزيل الفيديو في بوابة العميل).
+    await downloadWithProgress(
+      "/api/uploads/r2/download-url",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: file.storage_path, fileName: filename }) },
+      filename
+    );
+    return;
+  }
+  const { data } = await supabase.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 300, { download: true });
+  // بلا تبويب جديد — تجنّب أي احتمال لتوقّف تنزيل ملف كبير إن أصبح تبويب منفصل
+  // في الخلفية أثناء تنزيله.
+  if (data?.signedUrl) openUrl(data.signedUrl, false);
 }
 
 export async function copyFileLink(supabase: SupabaseClient, file: ProjectFile): Promise<boolean> {

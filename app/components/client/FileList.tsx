@@ -4,7 +4,7 @@ import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { fileIconName, formatBytes } from "@/app/components/client/utils";
 import { trackFileDownload } from "@/app/lib/client-activity-tracker";
-import { openUrl } from "@/app/lib/download";
+import { openUrl, downloadWithProgress } from "@/app/lib/download";
 import type { ClientPermissions, ProjectFile } from "@/app/lib/types";
 
 // قائمة الملفات المرئية للعميل مع زر تحميل/فتح. الملفات المخزّنة داخلياً
@@ -19,6 +19,7 @@ export default function FileList({
   emptyLabel?: string;
 }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [progressById, setProgressById] = useState<Record<string, number>>({});
   const [errorId, setErrorId] = useState<string | null>(null);
   const canDownload = permissions.download_files;
 
@@ -30,19 +31,12 @@ export default function FileList({
       return;
     }
     setLoadingId(file.id);
+    setProgressById((prev) => ({ ...prev, [file.id]: 0 }));
     try {
-      const res = await fetch(`/api/client-portal/files/${file.id}?download=1`);
-      if (!res.ok) throw new Error("failed");
-      const json = (await res.json()) as { url?: string };
-      if (json.url) {
-        // بلا تبويب جديد — تنزيل حقيقي (Content-Disposition: attachment) لا يُغادر
-        // الصفحة الحالية أصلاً، وتجنّب فتح تبويب يمنع أي احتمال لتوقّف التنزيل إن
-        // أصبح ذلك التبويب في الخلفية أثناء تنزيل ملف كبير يستغرق وقتاً أطول.
-        openUrl(json.url, false);
-        trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
-      } else {
-        throw new Error("no url");
-      }
+      await downloadWithProgress(`/api/client-portal/files/${file.id}?download=1`, undefined, file.name, (loaded, total) =>
+        setProgressById((prev) => ({ ...prev, [file.id]: total > 0 ? Math.round((loaded / total) * 100) : 0 }))
+      );
+      trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
     } catch {
       setErrorId(file.id);
     } finally {
@@ -86,9 +80,21 @@ export default function FileList({
                 {file.name}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {isLink ? "رابط خارجي" : formatBytes(file.size_bytes) || "ملف"}
+                {loadingId === file.id ? `جارٍ التنزيل... ${progressById[file.id] ?? 0}%` : isLink ? "رابط خارجي" : formatBytes(file.size_bytes) || "ملف"}
                 {errorId === file.id && <span style={{ color: "#ef4444" }}> — تعذّر الفتح</span>}
               </div>
+              {loadingId === file.id && (
+                <div style={{ height: 5, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginTop: 5 }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${progressById[file.id] ?? 0}%`,
+                      background: "var(--gold)",
+                      transition: "width 0.2s",
+                    }}
+                  />
+                </div>
+              )}
             </div>
             {actionable ? (
               <button

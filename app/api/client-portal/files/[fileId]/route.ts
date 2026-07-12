@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { canClient } from "@/app/lib/permissions";
 import { createR2Client, r2BucketName, r2PublicUrl } from "@/app/lib/r2-client";
+
+function contentDisposition(rawName: string): string {
+  // اسم عربي/يونيكود داخل Content-Disposition يحتاج الصيغة القياسية filename*=UTF-8''
+  // (RFC 6266) مع اسم احتياطي ASCII فقط — متصفحات كثيرة لا تفكّ ترميز filename="%.."
+  // العادي تلقائياً فيظهر اسم الملف المحمَّل حرفياً بصيغته المرمَّزة بدل اسمه الحقيقي.
+  const asciiFallback = rawName.replace(/[^\x20-\x7E]/g, "_");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(rawName)}`;
+}
 
 // يُرجع رابطاً موقّتاً موقّعاً (signed URL) لملف من مساحة project-files الخاصة،
 // بعد التحقق أن المستخدم عميل نشط على المشروع ولديه صلاحية الملفات (وصلاحية
@@ -47,35 +54,47 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
       return NextResponse.json({ error: "غير مصرح بالوصول لهذا الملف" }, { status: 403 });
     }
 
+    const rawName = file.original_name || file.name;
+
     // ملفات الفيديو الكبيرة مخزَّنة على Cloudflare R2 بدل Supabase Storage. العرض/التشغيل
-    // يستخدم الرابط العام المباشر (bucket عام)، والتحميل القسري بالاسم الأصلي يحتاج
-    // رابطاً موقّعاً (الرابط العام لا يفرض Content-Disposition).
+    // يستخدم الرابط العام المباشر (bucket عام). أما التحميل الفعلي فيُسحب الملف من R2 على
+    // خادمنا ويُعاد بثّه (stream) مباشرة كاستجابة من نفس الأصل بدل إعادة رابط خارجي —
+    // هذا يزيل تماماً أي اعتماد على CORS أو سلوك تبويب/نافذة خارجية عند التنزيل (السبب
+    // الفعلي وراء توقّف تنزيل الفيديوهات الكبيرة تحديداً "يبدأ ثم يُلغى")، ويمنحنا تحكماً
+    // حقيقياً بلحظة اكتمال التنزيل لعرض شريط تقدّم دقيق في الواجهة.
     if (file.bucket_name === "r2") {
       if (isDownload) {
-        // اسم عربي/يونيكود داخل Content-Disposition يحتاج الصيغة القياسية filename*=UTF-8''
-        // (RFC 6266) مع اسم احتياطي ASCII فقط — متصفحات كثيرة لا تفكّ ترميز filename="%.."
-        // العادي تلقائياً فيظهر اسم الملف المحمَّل حرفياً بصيغته المرمَّزة بدل اسمه الحقيقي.
-        const rawName = file.original_name || file.name;
-        const asciiFallback = rawName.replace(/[^\x20-\x7E]/g, "_");
         const r2 = createR2Client();
-        const command = new GetObjectCommand({
-          Bucket: r2BucketName(),
-          Key: file.storage_path,
-          ResponseContentDisposition: `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(rawName)}`,
-        });
-        const url = await getSignedUrl(r2, command, { expiresIn: 3600 });
-        return NextResponse.json({ url });
+        const obj = await r2.send(new GetObjectCommand({ Bucket: r2BucketName(), Key: file.storage_path }));
+        if (!obj.Body) return NextResponse.json({ error: "تعذّر تنزيل الملف" }, { status: 500 });
+        const headers = new Headers();
+        headers.set("Content-Disposition", contentDisposition(rawName));
+        headers.set("Content-Type", obj.ContentType || "application/octet-stream");
+        if (obj.ContentLength != null) headers.set("Content-Length", String(obj.ContentLength));
+        return new NextResponse(await obj.Body.transformToWebStream(), { headers });
       }
       return NextResponse.json({ url: r2PublicUrl(file.storage_path) });
     }
 
+    if (isDownload) {
+      // نفس منطق البث أعلاه لملفات Supabase Storage: نجلب رابطاً موقّتاً قصير الأجل
+      // من السيرفر فقط لسحب المحتوى (لا يصل إطلاقاً إلى المتصفح)، ثم نُعيد بثّه
+      // كاستجابة من نفس الأصل بترويسة Content-Disposition الصحيحة.
+      const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 300);
+      if (error || !signed) return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
+      const upstream = await fetch(signed.signedUrl);
+      if (!upstream.ok || !upstream.body) return NextResponse.json({ error: "تعذّر تنزيل الملف" }, { status: 500 });
+      const headers = new Headers();
+      headers.set("Content-Disposition", contentDisposition(rawName));
+      headers.set("Content-Type", upstream.headers.get("content-type") || "application/octet-stream");
+      const len = upstream.headers.get("content-length");
+      if (len) headers.set("Content-Length", len);
+      return new NextResponse(upstream.body, { headers });
+    }
+
     // ساعة كاملة بدل 5 دقائق — مدة قصيرة كانت تكفي لفتح مستند لكن تنقطع أثناء
     // مشاهدة فيديو طويل (المتصفح يعيد طلب الرابط نفسه لكل طلب Range أثناء التقديم).
-    // عند التحميل (download=1) نُمرّر خيار download ليفرض السيرفر ترويسة
-    // Content-Disposition: attachment، وإلا يعرض المتصفح الملف بدل تنزيله.
-    const { data: signed, error } = await admin.storage
-      .from(file.bucket_name || "project-files")
-      .createSignedUrl(file.storage_path, 3600, isDownload ? { download: file.original_name || file.name } : undefined);
+    const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 3600);
     if (error || !signed) {
       return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
     }

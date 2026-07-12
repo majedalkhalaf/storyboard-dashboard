@@ -5,7 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
-import { openUrl } from "@/app/lib/download";
+import { downloadWithProgress } from "@/app/lib/download";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
 import { trackVideoWatch } from "@/app/lib/client-activity-tracker";
@@ -173,6 +173,8 @@ export function VideoPlayerModal({
   const [commentText, setCommentText] = useState("");
   const [posting, setPosting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [editRequestOpen, setEditRequestOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -269,12 +271,14 @@ export function VideoPlayerModal({
   async function handleDownload() {
     if (downloading) return;
     setDownloading(true);
+    setDownloadProgress(0);
+    setDownloadError(null);
     try {
-      const res = await fetch(`/api/client-portal/files/${file.id}?download=1`);
-      const json = (await res.json()) as { url?: string };
-      // بلا تبويب جديد — نفس سبب الإصلاح في FileList.tsx: تجنّب أي احتمال لتوقّف
-      // تنزيل فيديو كبير إن أصبح تبويب منفصل في الخلفية أثناء تنزيله.
-      if (json.url) openUrl(json.url, false);
+      await downloadWithProgress(`/api/client-portal/files/${file.id}?download=1`, undefined, file.name, (loaded, total) =>
+        setDownloadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
+      );
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "تعذّر تنزيل الفيديو");
     } finally {
       setDownloading(false);
     }
@@ -328,13 +332,24 @@ export function VideoPlayerModal({
             )}
             {canDownload && file.client_can_download && !file.external_url && (
               <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }} onClick={handleDownload} disabled={downloading}>
-                <Icon name="export" size={14} /> {downloading ? "جارٍ التحضير..." : "تحميل بالجودة الأصلية"}
+                <Icon name="export" size={14} /> {downloading ? `جارٍ التنزيل... ${downloadProgress}%` : "تحميل بالجودة الأصلية"}
               </button>
             )}
             <button className="btn btn-ghost" onClick={handleClose} aria-label="إغلاق" style={{ flexShrink: 0 }}>
               <Icon name="close" size={18} />
             </button>
           </div>
+
+          {downloading && (
+            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginBottom: 14 }}>
+              <div style={{ height: "100%", width: `${downloadProgress}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+            </div>
+          )}
+          {downloadError && (
+            <p style={{ color: "#EF4444", fontSize: 12.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="alert" size={14} /> {downloadError}
+            </p>
+          )}
 
           {loadingSrc ? (
             <div className="skeleton" style={{ height: 320, borderRadius: 12 }} />
