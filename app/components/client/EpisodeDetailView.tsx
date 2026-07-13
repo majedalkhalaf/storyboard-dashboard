@@ -101,7 +101,6 @@ export default function EpisodeDetailView({
   const canEditEpisode = canClient(permissions, "edit_episode");
   const videoFiles = useMemo(() => files.filter((f) => f.category === "video"), [files]);
   const videoComments = useMemo(() => notes.filter((n) => n.target_type === "video"), [notes]);
-  const hasOpenEditRequest = useMemo(() => notes.some((n) => n.status === "new" && n.request_type), [notes]);
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
     { key: "overview", label: "نظرة عامة", show: true },
@@ -210,7 +209,6 @@ export default function EpisodeDetailView({
             alreadyApproved={alreadyApproved}
             approvedAt={approvedAt}
             canApprove={canClient(permissions, "approve_episodes")}
-            hasOpenEditRequest={hasOpenEditRequest}
             variant="hero"
           />
         </div>

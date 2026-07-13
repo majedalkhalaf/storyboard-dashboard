@@ -30,14 +30,13 @@ export default async function ClientEpisodesPage() {
   const perProject = await Promise.all(
     rows.map(async (r) => {
       const project = r.project!;
-      const [{ data: episodeRows }, { data: approvals }, { data: fileRows }, { data: noteRows }, { data: openRequestRows }, { data: unreadRows }] = await Promise.all([
+      const [{ data: episodeRows }, { data: approvals }, { data: fileRows }, { data: noteRows }, { data: unreadRows }] = await Promise.all([
         supabase.from("episodes").select("*").eq("project_id", project.id).order("sort_order", { ascending: true }),
         supabase.from("approvals").select("episode_id").eq("project_id", project.id).is("revoked_at", null),
         canClient(r.permissions, "files")
           ? supabase.from("files").select("episode_id").eq("project_id", project.id).eq("client_visible", true).not("episode_id", "is", null)
           : Promise.resolve({ data: [] as { episode_id: string }[] }),
         supabase.from("notes").select("episode_id").eq("project_id", project.id).not("episode_id", "is", null),
-        supabase.from("notes").select("episode_id").eq("project_id", project.id).not("episode_id", "is", null).eq("status", "new").not("request_type", "is", null),
         supabase.from("notifications").select("episode_id").eq("project_id", project.id).eq("user_id", session.userId).eq("is_read", false).not("episode_id", "is", null),
       ]);
 
@@ -48,7 +47,6 @@ export default async function ClientEpisodesPage() {
       const episodeUnreadCounts: Record<string, number> = {};
       for (const row of (unreadRows ?? []) as { episode_id: string }[]) episodeUnreadCounts[row.episode_id] = (episodeUnreadCounts[row.episode_id] ?? 0) + 1;
       const approvedIds = new Set((approvals ?? []).map((a) => a.episode_id as string));
-      const episodesWithOpenRequest = new Set((openRequestRows ?? []).map((r2) => r2.episode_id as string));
 
       return {
         project,
@@ -58,7 +56,6 @@ export default async function ClientEpisodesPage() {
         episodeNoteCounts,
         episodeUnreadCounts,
         approvedIds,
-        episodesWithOpenRequest,
       };
     })
   );
@@ -98,7 +95,6 @@ export default async function ClientEpisodesPage() {
                       isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
                       fileCount={p.episodeFileCounts[ep.id] ?? 0}
                       noteCount={p.episodeNoteCounts[ep.id] ?? 0}
-                      hasOpenEditRequest={p.episodesWithOpenRequest.has(ep.id)}
                       unreadCount={p.episodeUnreadCounts[ep.id] ?? 0}
                     />
                   ))}

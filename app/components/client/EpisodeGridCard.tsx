@@ -25,7 +25,6 @@ export default function EpisodeGridCard({
   isApproved,
   fileCount,
   noteCount,
-  hasOpenEditRequest,
   projectName,
   unreadCount = 0,
 }: {
@@ -38,7 +37,6 @@ export default function EpisodeGridCard({
   isApproved: boolean;
   fileCount: number;
   noteCount: number;
-  hasOpenEditRequest: boolean;
   projectName?: string;
   /** عدد إشعارات العميل نفسه غير المقروءة الخاصة بهذه الحلقة تحديداً (رد الفريق،
    * تحديث حالة...) — نفس فكرة علامة التنبيهات على بطاقة الحلقة في لوحة الفريق. */
@@ -223,7 +221,6 @@ export default function EpisodeGridCard({
           status={episode.status}
           alreadyApproved={isApproved}
           canApprove={canClient(permissions, "approve_episodes")}
-          hasOpenEditRequest={hasOpenEditRequest}
           variant="card"
         />
       </div>

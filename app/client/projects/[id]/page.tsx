@@ -101,12 +101,10 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   const notes = (noteRows ?? []) as Note[];
   const totalNotesCount = allNoteRows?.length ?? notes.length;
   const episodeNoteCounts: Record<string, number> = {};
-  const episodesWithOpenRequest = new Set<string>();
   for (const row of allNoteRows ?? []) {
-    const r = row as { episode_id: string | null; status: string; request_type: string | null };
+    const r = row as { episode_id: string | null };
     if (!r.episode_id) continue;
     episodeNoteCounts[r.episode_id] = (episodeNoteCounts[r.episode_id] ?? 0) + 1;
-    if (r.status === "new" && r.request_type) episodesWithOpenRequest.add(r.episode_id);
   }
 
   // عدّاد إشعارات العميل نفسه غير المقروءة لكل حلقة — لعرض علامة تنبيه على بطاقة
@@ -173,7 +171,6 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         episodeFileCounts={episodeFileCounts}
         episodeNoteCounts={episodeNoteCounts}
         episodeUnreadCounts={episodeUnreadCounts}
-        episodeIdsWithOpenRequest={Array.from(episodesWithOpenRequest)}
         pipelineStages={pipelineStages}
         currentStageKey={currentStageKey}
         files={files}

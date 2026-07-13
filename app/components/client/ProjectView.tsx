@@ -58,7 +58,6 @@ export default function ProjectView({
   episodeFileCounts,
   episodeNoteCounts,
   episodeUnreadCounts,
-  episodeIdsWithOpenRequest,
   pipelineStages,
   currentStageKey,
   files,
@@ -79,7 +78,6 @@ export default function ProjectView({
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
   episodeUnreadCounts: Record<string, number>;
-  episodeIdsWithOpenRequest: string[];
   pipelineStages: CompanyPipelineStage[];
   currentStageKey: string | null;
   files: ProjectFile[];
@@ -94,7 +92,6 @@ export default function ProjectView({
   useProjectRealtimeRefresh(project.id);
   const isMobile = useIsMobile();
   const approvedSet = new Set(approvedEpisodeIds);
-  const openRequestSet = new Set(episodeIdsWithOpenRequest);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
   const showPayments = canClient(permissions, "payments");
@@ -341,7 +338,6 @@ export default function ProjectView({
               episodeFileCounts={episodeFileCounts}
               episodeNoteCounts={episodeNoteCounts}
               episodeUnreadCounts={episodeUnreadCounts}
-              openRequestSet={openRequestSet}
               userId={userId}
               userName={userName}
               permissions={permissions}
@@ -483,7 +479,6 @@ function EpisodesTab({
   episodeFileCounts,
   episodeNoteCounts,
   episodeUnreadCounts,
-  openRequestSet,
   userId,
   userName,
   permissions,
@@ -494,7 +489,6 @@ function EpisodesTab({
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
   episodeUnreadCounts: Record<string, number>;
-  openRequestSet: Set<string>;
   userId: string;
   userName: string | null;
   permissions: ClientPermissions;
@@ -561,7 +555,6 @@ function EpisodesTab({
                 isApproved={isApproved}
                 fileCount={episodeFileCounts[ep.id] ?? 0}
                 noteCount={episodeNoteCounts[ep.id] ?? 0}
-                hasOpenEditRequest={openRequestSet.has(ep.id)}
                 unreadCount={episodeUnreadCounts[ep.id] ?? 0}
               />
             );
