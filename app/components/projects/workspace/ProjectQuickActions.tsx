@@ -75,7 +75,7 @@ export default function ProjectQuickActions({
   async function fetchGalleryForExport(): Promise<EpisodeGalleryItem[]> {
     const { data } = await supabase
       .from("episodes")
-      .select("id, project_id, number, title, description, type, status, progress, pipeline_stage, cover_image_url, duration_seconds, updated_at")
+      .select("id, project_id, number, title, description, type, status, progress, pipeline_stage, kind, kind_label, cover_image_url, duration_seconds, updated_at")
       .eq("project_id", projectId)
       .order("sort_order");
     return (data ?? []).map((e) => ({
@@ -88,6 +88,8 @@ export default function ProjectQuickActions({
       status: e.status,
       progress: Number(e.progress ?? 0),
       pipeline_stage: e.pipeline_stage,
+      kind: e.kind ?? "regular",
+      kind_label: e.kind_label ?? null,
       cover_image_url: e.cover_image_url,
       duration_seconds: e.duration_seconds,
       assigned_to_name: null,

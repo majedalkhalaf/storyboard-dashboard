@@ -18,6 +18,7 @@ import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { STAGE_STATUSES, STORYBOARD_SCENE_STATUSES } from "@/app/lib/constants";
+import { getEpisodeKindLabel, isSpecialEpisodeKind } from "@/app/lib/item-noun";
 import type { ClientPermissions, Episode, EpisodeStage, Note, ProjectFile, StoryboardScene } from "@/app/lib/types";
 
 type TabKey = "overview" | "video" | "files" | "notes" | "tasks" | "activity" | "script" | "scenario" | "storyboard" | "reports";
@@ -315,6 +316,11 @@ export default function EpisodeDetailView({
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
                 <StatusChip label={es.label} color={es.color} />
+                {isSpecialEpisodeKind(episode.kind) && (
+                  <span className="chip" style={{ fontSize: 11, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.12)", fontWeight: 700 }}>
+                    <Icon name="sparkles" size={12} /> {getEpisodeKindLabel(episode, "")}
+                  </span>
+                )}
               </div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-muted)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>

@@ -34,6 +34,30 @@ export const PROJECT_TYPES: { value: string; label: string }[] = [
   { value: "other", label: "أخرى" },
 ];
 
+// تسمية عنصر المشروع — يختار الفريق هل عناصر المشروع تُسمّى "حلقات" أو "فيديوهات
+// إعلانية" أو "عناصر" عامة أو تسمية مخصّصة، بدل الاسم الثابت "حلقة/حلقات" في كل
+// الواجهة. titlePrefix يُستخدم فقط لتوليد عناوين افتراضية عند الإنشاء التلقائي
+// المُجمّع (مثال: "الحلقة 1"، "الفيديو الإعلاني 1").
+export type ItemNounKey = "episodes" | "videos" | "items" | "custom";
+
+export const ITEM_NOUN_OPTIONS: { value: ItemNounKey; label: string; singular: string; plural: string; titlePrefix: string }[] = [
+  { value: "episodes", label: "حلقات", singular: "حلقة", plural: "حلقات", titlePrefix: "الحلقة" },
+  { value: "videos", label: "فيديوهات إعلانية", singular: "فيديو إعلاني", plural: "فيديوهات إعلانية", titlePrefix: "الفيديو الإعلاني" },
+  { value: "items", label: "عناصر", singular: "عنصر", plural: "عناصر", titlePrefix: "العنصر" },
+  { value: "custom", label: "أخرى", singular: "", plural: "", titlePrefix: "" },
+];
+
+// تصنيف العنصر نفسه — عادي (يتبع تسمية المشروع أعلاه) أو مقدمة/انترو (يُعرضان
+// ببطاقة مميزة منفصلة عن الشبكة الرئيسية) أو نوع مخصص بنص حر (kind_label).
+export type EpisodeKind = "regular" | "intro" | "bumper" | "custom";
+
+export const EPISODE_KIND_OPTIONS: { value: EpisodeKind; label: string }[] = [
+  { value: "regular", label: "عادي" },
+  { value: "intro", label: "مقدمة" },
+  { value: "bumper", label: "انترو" },
+  { value: "custom", label: "نوع مخصص" },
+];
+
 export const PROJECT_STATUSES: { value: ProjectStatus; label: string; color: string }[] = [
   { value: "planning", label: "تخطيط", color: "#8B5CF6" },
   { value: "in_progress", label: "قيد التنفيذ", color: "#F59E0B" },

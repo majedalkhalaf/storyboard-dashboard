@@ -3,6 +3,7 @@ import { requireClient } from "@/app/components/client/guards";
 import { canClient } from "@/app/lib/permissions";
 import EpisodeGridCard from "@/app/components/client/EpisodeGridCard";
 import Icon from "@/app/components/ui/Icon";
+import { getItemNoun, isSpecialEpisodeKind } from "@/app/lib/item-noun";
 import type { ClientPermissions, Episode, Project } from "@/app/lib/types";
 
 interface ProjectClientRow {
@@ -77,30 +78,49 @@ export default async function ClientEpisodesPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
           {perProject
             .filter((p) => p.episodes.length > 0)
-            .map((p) => (
-              <div key={p.project.id}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-                  {p.project.name} <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>({p.episodes.length})</span>
-                </h3>
-                <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-                  {p.episodes.map((ep) => (
-                    <EpisodeGridCard
-                      key={ep.id}
-                      episode={ep}
-                      projectId={p.project.id}
-                      companyId={p.project.company_id}
-                      userId={session.userId}
-                      userName={session.profile.full_name}
-                      permissions={p.permissions}
-                      isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
-                      fileCount={p.episodeFileCounts[ep.id] ?? 0}
-                      noteCount={p.episodeNoteCounts[ep.id] ?? 0}
-                      unreadCount={p.episodeUnreadCounts[ep.id] ?? 0}
-                    />
-                  ))}
+            .map((p) => {
+              const itemNoun = getItemNoun(p.project);
+              const specialEpisodes = p.episodes.filter((ep) => isSpecialEpisodeKind(ep.kind));
+              const regularEpisodes = p.episodes.filter((ep) => !isSpecialEpisodeKind(ep.kind));
+              const renderCard = (ep: Episode) => (
+                <EpisodeGridCard
+                  key={ep.id}
+                  episode={ep}
+                  projectId={p.project.id}
+                  companyId={p.project.company_id}
+                  userId={session.userId}
+                  userName={session.profile.full_name}
+                  permissions={p.permissions}
+                  isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
+                  fileCount={p.episodeFileCounts[ep.id] ?? 0}
+                  noteCount={p.episodeNoteCounts[ep.id] ?? 0}
+                  itemNoun={itemNoun}
+                  unreadCount={p.episodeUnreadCounts[ep.id] ?? 0}
+                />
+              );
+              return (
+                <div key={p.project.id}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+                    {p.project.name} <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>({p.episodes.length})</span>
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {specialEpisodes.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                          المقدمة والمقاطع الخاصة
+                        </span>
+                        {specialEpisodes.map(renderCard)}
+                      </div>
+                    )}
+                    {regularEpisodes.length > 0 && (
+                      <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                        {regularEpisodes.map(renderCard)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       )}
     </div>

@@ -20,6 +20,8 @@ export interface EpisodeGalleryItem {
   status: EpisodeStatus;
   progress: number;
   pipeline_stage: string;
+  kind: string;
+  kind_label: string | null;
   cover_image_url: string | null;
   duration_seconds: number | null;
   assigned_to_name: string | null;
@@ -145,6 +147,8 @@ export async function getEpisodeGallery(companyId: string, projectId: string, us
       status: e.status,
       progress: Number(e.progress ?? 0),
       pipeline_stage: e.pipeline_stage,
+      kind: e.kind ?? "regular",
+      kind_label: e.kind_label ?? null,
       cover_image_url: e.cover_image_url,
       duration_seconds: e.duration_seconds,
       assigned_to_name: assignee?.full_name ?? null,

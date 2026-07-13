@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
 import { reorderEpisodes } from "@/app/lib/episode-actions";
+import { isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { CompanyPipelineStage } from "@/app/lib/types";
 import EpisodeGalleryCard from "./EpisodeGalleryCard";
@@ -14,11 +15,13 @@ export default function EpisodeGallery({
   episodes,
   selectedId,
   onSelect,
+  itemNoun,
   onReorder,
 }: {
   episodes: EpisodeGalleryItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  itemNoun: ItemNoun;
   /** اختياري — الأب (EpisodeWorkspace.tsx) لا يستهلكه حالياً؛ التعديل مملوك لعمل آخر جارٍ
    * على هذا الفرع فلم نُلزمه به. عند تمريره مستقبلاً يُستدعى بعد نجاح إعادة الترتيب. */
   onReorder?: (orderedIds: string[]) => void;
@@ -73,34 +76,54 @@ export default function EpisodeGallery({
     return (
       <div className="empty-state card">
         <Icon name="video" size={30} className="text-muted" />
-        <p style={{ marginTop: 10 }}>لا توجد حلقات بعد</p>
+        <p style={{ marginTop: 10 }}>لا توجد {itemNoun.plural} بعد</p>
       </div>
     );
   }
 
+  const specialItems = items.filter((ep) => isSpecialEpisodeKind(ep.kind));
+  const regularItems = items.filter((ep) => !isSpecialEpisodeKind(ep.kind));
+
+  function renderCard(ep: EpisodeGalleryItem) {
+    return (
+      <EpisodeGalleryCard
+        key={ep.id}
+        episode={ep}
+        active={ep.id === selectedId}
+        onSelect={() => onSelect(ep.id)}
+        pipelineStages={pipelineStages}
+        itemNoun={itemNoun}
+        onChanged={(patch) => patchItem(ep.id, patch)}
+        onDeleted={() => removeItem(ep.id)}
+        dimmed={dragId !== null && dragId !== ep.id}
+        onDragStartHandle={() => setDragId(ep.id)}
+        onDragEndHandle={() => setDragId(null)}
+        onCardDragOver={(e) => {
+          if (dragId) e.preventDefault();
+        }}
+        onCardDrop={(e) => {
+          e.preventDefault();
+          dropOn(ep.id);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="episode-gallery-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-      {items.map((ep) => (
-        <EpisodeGalleryCard
-          key={ep.id}
-          episode={ep}
-          active={ep.id === selectedId}
-          onSelect={() => onSelect(ep.id)}
-          pipelineStages={pipelineStages}
-          onChanged={(patch) => patchItem(ep.id, patch)}
-          onDeleted={() => removeItem(ep.id)}
-          dimmed={dragId !== null && dragId !== ep.id}
-          onDragStartHandle={() => setDragId(ep.id)}
-          onDragEndHandle={() => setDragId(null)}
-          onCardDragOver={(e) => {
-            if (dragId) e.preventDefault();
-          }}
-          onCardDrop={(e) => {
-            e.preventDefault();
-            dropOn(ep.id);
-          }}
-        />
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {specialItems.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+            المقدمة والمقاطع الخاصة
+          </span>
+          {specialItems.map(renderCard)}
+        </div>
+      )}
+      {regularItems.length > 0 && (
+        <div className="episode-gallery-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+          {regularItems.map(renderCard)}
+        </div>
+      )}
     </div>
   );
 }

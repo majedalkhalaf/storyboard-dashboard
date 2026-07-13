@@ -11,6 +11,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
+import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
 import type { ClientPermissions, Episode, Note, ProjectFile } from "@/app/lib/types";
 
 // بطاقة حلقة قابلة لإعادة الاستخدام — الشكل نفسه المستخدم في تبويب "الحلقات"
@@ -26,6 +27,7 @@ export default function EpisodeGridCard({
   fileCount,
   noteCount,
   projectName,
+  itemNoun,
   unreadCount = 0,
 }: {
   episode: Episode;
@@ -38,6 +40,7 @@ export default function EpisodeGridCard({
   fileCount: number;
   noteCount: number;
   projectName?: string;
+  itemNoun: ItemNoun;
   /** عدد إشعارات العميل نفسه غير المقروءة الخاصة بهذه الحلقة تحديداً (رد الفريق،
    * تحديث حالة...) — نفس فكرة علامة التنبيهات على بطاقة الحلقة في لوحة الفريق. */
   unreadCount?: number;
@@ -95,6 +98,142 @@ export default function EpisodeGridCard({
       setDownloading(false);
       setProgress(null);
     }
+  }
+
+  const special = isSpecialEpisodeKind(episode.kind);
+  const kindDisplayLabel = getEpisodeKindLabel(episode, itemNoun.singular);
+
+  if (special) {
+    return (
+      <div style={{ position: "relative" }}>
+        {unreadCount > 0 && (
+          <span
+            title={`${unreadCount} تحديث جديد`}
+            style={{
+              position: "absolute",
+              top: -8,
+              insetInlineEnd: -8,
+              zIndex: 3,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              minWidth: 22,
+              height: 22,
+              borderRadius: 11,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 5px",
+              border: "2px solid var(--bg-primary)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+            }}
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+        <div
+          className="shot-card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: 10,
+            borderColor: "rgba(var(--gold-rgb),0.35)",
+            background: "rgba(var(--gold-rgb),0.05)",
+          }}
+        >
+          <Link
+            href={`/client/projects/${projectId}/episodes/${episode.id}`}
+            style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textDecoration: "none", color: "var(--text-primary)" }}
+          >
+            <div
+              style={{
+                width: 76,
+                height: 56,
+                borderRadius: 8,
+                flexShrink: 0,
+                overflow: "hidden",
+                background: episode.cover_image_url
+                  ? `center/cover no-repeat url(${episode.cover_image_url})`
+                  : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {!episode.cover_image_url && <Icon name="sparkles" size={18} className="nav-icon" />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span
+                className="chip"
+                style={{ fontSize: 10.5, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.12)", fontWeight: 700 }}
+              >
+                <Icon name="sparkles" size={11} /> {kindDisplayLabel}
+              </span>
+              <h3 style={{ fontSize: 13.5, fontWeight: 800, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{episode.title}</h3>
+              <div className="progress-bar" style={{ height: 4, marginTop: 6, maxWidth: 200 }}>
+                <div className="progress-fill" style={{ width: `${episode.progress ?? 0}%`, background: es.color }} />
+              </div>
+            </div>
+          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+            {canClient(permissions, "add_notes") && (
+              <button
+                className="btn-ghost"
+                title="طلب تعديل"
+                style={{ padding: "6px 8px" }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSent(false);
+                  setRequestOpen(true);
+                }}
+              >
+                <Icon name="edit" size={14} />
+              </button>
+            )}
+            {canDownload && fileCount > 0 && (
+              <button className="btn-ghost" title="تحميل الملفات" style={{ padding: "6px 8px" }} onClick={handleDownloadAll} disabled={downloading}>
+                <Icon name="archive" size={14} />
+              </button>
+            )}
+            <ApproveEpisode
+              episodeId={episode.id}
+              projectId={projectId}
+              companyId={companyId}
+              currentUserId={userId}
+              status={episode.status}
+              alreadyApproved={isApproved}
+              canApprove={canClient(permissions, "approve_episodes")}
+              variant="card"
+            />
+          </div>
+        </div>
+        {downloading && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+            </div>
+          </div>
+        )}
+
+        {requestOpen && (
+          <EditRequestComposer
+            open={requestOpen}
+            onClose={() => setRequestOpen(false)}
+            companyId={companyId}
+            projectId={projectId}
+            episodeId={episode.id}
+            targetType="episode"
+            targetId={episode.id}
+            currentUserId={userId}
+            canUploadAttachments={canClient(permissions, "upload_attachments")}
+            onCreated={() => setSent(true)}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -165,7 +304,7 @@ export default function EpisodeGridCard({
         </div>
         <div style={{ padding: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
-            {episode.number != null ? `الحلقة ${episode.number}` : "حلقة"}
+            {episode.number != null ? `${itemNoun.singular} ${episode.number}` : itemNoun.singular}
             {projectName ? ` · ${projectName}` : ""}
           </div>
           <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>{episode.title}</h3>

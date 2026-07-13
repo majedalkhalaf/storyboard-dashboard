@@ -10,8 +10,10 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { safeStorageKey } from "@/app/lib/storage-path";
-import { updateEpisodeTitle, updateEpisodePipelineStage, updateEpisodeNumber } from "@/app/lib/episode-actions";
+import { updateEpisodeTitle, updateEpisodePipelineStage, updateEpisodeNumber, updateEpisodeKind } from "@/app/lib/episode-actions";
 import { exportEpisodeZip } from "@/app/lib/zip-export";
+import { EPISODE_KIND_OPTIONS, type EpisodeKind } from "@/app/lib/constants";
+import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { CompanyPipelineStage } from "@/app/lib/types";
 import { formatDuration, relativeTime } from "./utils";
@@ -29,6 +31,7 @@ export default function EpisodeGalleryCard({
   active,
   onSelect,
   pipelineStages,
+  itemNoun,
   onChanged,
   onDeleted,
   onDragStartHandle,
@@ -41,6 +44,7 @@ export default function EpisodeGalleryCard({
   active: boolean;
   onSelect: () => void;
   pipelineStages: CompanyPipelineStage[];
+  itemNoun: ItemNoun;
   onChanged: (patch: Partial<EpisodeGalleryItem>) => void;
   onDeleted: () => void;
   onDragStartHandle: () => void;
@@ -99,6 +103,11 @@ export default function EpisodeGalleryCard({
     const label = pipelineStages.find((s) => s.key === key)?.label ?? key;
     onChanged({ pipeline_stage: key });
     await updateEpisodePipelineStage(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, stageKey: key, stageLabel: label });
+  }
+
+  async function saveKind(kind: EpisodeKind, kindLabel: string | null) {
+    onChanged({ kind, kind_label: kind === "custom" ? kindLabel : null });
+    await updateEpisodeKind(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, kind, kindLabel });
   }
 
   // تكرار الحلقة نفسها + مراحلها (episode_stages) داخل المشروع نفسه — لا تُنسخ
@@ -165,6 +174,120 @@ export default function EpisodeGalleryCard({
     } finally {
       setDeleting(false);
     }
+  }
+
+  const special = isSpecialEpisodeKind(episode.kind);
+  const kindDisplayLabel = getEpisodeKindLabel(episode, itemNoun.singular);
+
+  if (special) {
+    return (
+      <div style={{ position: "relative" }}>
+        {episode.unreadCount > 0 && (
+          <span
+            title={`${episode.unreadCount} إشعار غير مقروء`}
+            style={{
+              position: "absolute",
+              top: -8,
+              insetInlineEnd: -8,
+              zIndex: 3,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              minWidth: 22,
+              height: 22,
+              borderRadius: 11,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 5px",
+              border: "2px solid var(--bg-primary)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+            }}
+          >
+            {episode.unreadCount > 9 ? "9+" : episode.unreadCount}
+          </span>
+        )}
+        <div
+          className="card animate-fade-in"
+          role="button"
+          tabIndex={0}
+          onClick={onSelect}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect();
+            }
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: 10,
+            cursor: "pointer",
+            borderColor: active ? "var(--gold)" : "rgba(var(--gold-rgb),0.35)",
+            background: "rgba(var(--gold-rgb),0.05)",
+            boxShadow: active ? "0 0 0 1px var(--gold)" : "none",
+            opacity: dimmed ? 0.5 : 1,
+            transition: "border-color .15s, box-shadow .15s, opacity .15s",
+          }}
+        >
+          <div
+            style={{
+              width: 76,
+              height: 56,
+              borderRadius: 8,
+              flexShrink: 0,
+              position: "relative",
+              overflow: "hidden",
+              background: episode.cover_image_url
+                ? `center/cover no-repeat url(${episode.cover_image_url})`
+                : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {!episode.cover_image_url && <Icon name="sparkles" size={18} className="text-muted" />}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span className="chip" style={{ fontSize: 10.5, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.12)", fontWeight: 700 }}>
+                <Icon name="sparkles" size={11} /> {kindDisplayLabel}
+              </span>
+              <span onClick={(e) => e.stopPropagation()}>
+                <KindQuickSelect kind={episode.kind as EpisodeKind} kindLabel={episode.kind_label} onChange={saveKind} size="sm" />
+              </span>
+            </div>
+            <div onClick={(e) => e.stopPropagation()}>
+              <EditableTitle value={episode.title} onSave={saveTitle} fontSize={13.5} maxWidth={260} />
+            </div>
+            <div className="progress-bar" style={{ height: 4, marginTop: 6, maxWidth: 220 }}>
+              <div className="progress-fill" style={{ width: `${episode.progress}%` }} />
+            </div>
+          </div>
+
+          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+            <button className="btn-ghost" title="رفع ملف" onClick={onSelect} style={iconBtnStyle}>
+              <Icon name="upload" size={13} />
+            </button>
+            <button className="btn-ghost" title="تكرار" disabled={duplicating} onClick={duplicateEpisode} style={{ ...iconBtnStyle, cursor: duplicating ? "wait" : "pointer" }}>
+              <Icon name="copy" size={13} />
+            </button>
+            <button
+              className="btn-ghost"
+              title="حذف"
+              disabled={deleting}
+              onClick={deleteEpisode}
+              style={{ ...iconBtnStyle, color: "#ef4444", cursor: deleting ? "wait" : "pointer" }}
+            >
+              <Icon name="trash" size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -313,7 +436,7 @@ export default function EpisodeGalleryCard({
             }}
             style={{ position: "absolute", top: 8, right: 8, fontSize: 11, cursor: "pointer" }}
           >
-            {episode.number != null ? `حلقة ${episode.number}` : "بدون رقم"}
+            {episode.number != null ? `${itemNoun.singular} ${episode.number}` : "بدون رقم"}
           </span>
         )}
 
@@ -376,9 +499,14 @@ export default function EpisodeGalleryCard({
           </p>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
           <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>المرحلة:</span>
           <StageQuickSelect stages={pipelineStages} currentKey={episode.pipeline_stage} onChange={saveStage} size="sm" />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+          <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>التصنيف:</span>
+          <KindQuickSelect kind={episode.kind as EpisodeKind} kindLabel={episode.kind_label} onChange={saveKind} size="sm" />
         </div>
 
         <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>
@@ -451,6 +579,53 @@ export default function EpisodeGalleryCard({
         </div>
       </div>
       </div>
+    </div>
+  );
+}
+
+// اختيار سريع لتصنيف العنصر (عادي/مقدمة/انترو/نوع مخصص) — بنفس نمط StageQuickSelect،
+// مع حقل نص إضافي يظهر فقط عند اختيار "نوع مخصص" لكتابة اسم التصنيف.
+function KindQuickSelect({
+  kind,
+  kindLabel,
+  onChange,
+  size = "md",
+}: {
+  kind: EpisodeKind;
+  kindLabel: string | null;
+  onChange: (kind: EpisodeKind, kindLabel: string | null) => void;
+  size?: "sm" | "md";
+}) {
+  const [draftLabel, setDraftLabel] = useState(kindLabel ?? "");
+  const fontSize = size === "sm" ? 11 : 12.5;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <select
+        className="input-field"
+        value={kind}
+        onChange={(e) => {
+          const next = e.target.value as EpisodeKind;
+          onChange(next, next === "custom" ? draftLabel : null);
+        }}
+        style={{ width: "auto", fontSize, padding: size === "sm" ? "3px 6px" : undefined }}
+      >
+        {EPISODE_KIND_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {kind === "custom" && (
+        <input
+          className="input-field"
+          value={draftLabel}
+          onChange={(e) => setDraftLabel(e.target.value)}
+          onBlur={() => onChange("custom", draftLabel.trim() || null)}
+          onKeyDown={(e) => e.key === "Enter" && onChange("custom", draftLabel.trim() || null)}
+          placeholder="اسم التصنيف"
+          style={{ width: 110, fontSize, padding: size === "sm" ? "3px 6px" : undefined }}
+        />
+      )}
     </div>
   );
 }

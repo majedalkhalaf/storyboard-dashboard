@@ -201,6 +201,9 @@ export interface Project {
   code: string | null;
   bts_allow_likes: boolean;
   bts_allow_comments: boolean;
+  item_noun_key: string;
+  item_noun_custom_singular: string | null;
+  item_noun_custom_plural: string | null;
 }
 
 export interface ProjectServiceItem {
@@ -236,6 +239,8 @@ export interface Episode {
   created_at: string;
   updated_at: string;
   pipeline_stage: string;
+  kind: string;
+  kind_label: string | null;
 }
 
 // مرحلة "تغيير المرحلة" السريعة — منفصلة تماماً عن نظام episode_stages التفصيلي،

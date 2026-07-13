@@ -16,6 +16,7 @@ import type { CompanyPipelineStage } from "@/app/lib/types";
 import { getCompanyPipelineStages } from "@/app/lib/pipeline-stages";
 import { updateEpisodeTitle, updateEpisodePipelineStage } from "@/app/lib/episode-actions";
 import { exportEpisodeZip } from "@/app/lib/zip-export";
+import type { ItemNoun } from "@/app/lib/item-noun";
 import EpisodeGallery from "./EpisodeGallery";
 import EpisodeSidebar from "./EpisodeSidebar";
 import OverviewTab from "./episode-tabs/OverviewTab";
@@ -58,6 +59,7 @@ export default function EpisodeWorkspace({
   clientName,
   clientPhone,
   projectName,
+  itemNoun,
   gallery,
   initialEpisodeId,
   extraTabs,
@@ -71,6 +73,8 @@ export default function EpisodeWorkspace({
   clientPhone: string | null;
   /** اسم المشروع — يُستخدم في رسالة "تم رفع الفيديو" الجاهزة للعميل. */
   projectName: string;
+  /** تسمية عناصر المشروع (حلقة/فيديو إعلاني/عنصر/تسمية مخصّصة) لعرضها بدل "حلقة/الحلقات" الثابتة. */
+  itemNoun: ItemNoun;
   gallery: EpisodeGalleryItem[];
   initialEpisodeId: string | null;
   /** عناصر إضافية تُلحق أسفل قائمة تبويبات الحلقة لتكوّن قائمة جانبية واحدة
@@ -239,7 +243,7 @@ export default function EpisodeWorkspace({
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700 }}>الحلقات</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700 }}>{itemNoun.plural}</h2>
           {galleryItems.length > 0 && (
             <button
               className="btn-ghost"
@@ -254,7 +258,7 @@ export default function EpisodeWorkspace({
           )}
         </div>
         {galleryExpanded || galleryItems.length === 0 ? (
-          <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
+          <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} itemNoun={itemNoun} />
         ) : (
           <EpisodeMiniGrid episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
         )}
@@ -278,7 +282,7 @@ export default function EpisodeWorkspace({
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 {detail.number != null && (
                   <span className="chip chip-gold" style={{ fontSize: 11, flexShrink: 0 }}>
-                    حلقة {detail.number}
+                    {itemNoun.singular} {detail.number}
                   </span>
                 )}
                 <EditableTitle value={detail.title} onSave={saveTitle} fontSize={16} maxWidth={isMobile ? 200 : 420} />

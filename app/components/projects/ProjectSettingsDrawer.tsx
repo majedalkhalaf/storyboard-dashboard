@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
-import { PROJECT_TYPES } from "@/app/lib/constants";
+import { PROJECT_TYPES, ITEM_NOUN_OPTIONS, type ItemNounKey } from "@/app/lib/constants";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientRecord, Project, ProjectServiceItem } from "@/app/lib/types";
 import ClientsTab, { type ProjectClientRow } from "./ClientsTab";
@@ -41,6 +41,9 @@ export default function ProjectSettingsDrawer({
   const [clientId, setClientId] = useState(project.client_id ?? "");
   const [type, setType] = useState(project.type ?? "");
   const [customType, setCustomType] = useState(project.custom_type ?? "");
+  const [itemNounKey, setItemNounKey] = useState<ItemNounKey>((project.item_noun_key as ItemNounKey) ?? "episodes");
+  const [customSingular, setCustomSingular] = useState(project.item_noun_custom_singular ?? "");
+  const [customPlural, setCustomPlural] = useState(project.item_noun_custom_plural ?? "");
   const [description, setDescription] = useState(project.description ?? "");
   const [shootingDate, setShootingDate] = useState(project.shooting_date ?? "");
   const [deliveryDate, setDeliveryDate] = useState(project.delivery_date ?? "");
@@ -97,6 +100,9 @@ export default function ProjectSettingsDrawer({
         client_id: clientId || null,
         type: type || null,
         custom_type: type === "other" ? customType.trim() || null : null,
+        item_noun_key: itemNounKey,
+        item_noun_custom_singular: itemNounKey === "custom" ? customSingular.trim() || null : null,
+        item_noun_custom_plural: itemNounKey === "custom" ? customPlural.trim() || null : null,
         description: description.trim() || null,
         shooting_date: shootingDate || null,
         delivery_date: deliveryDate || null,
@@ -257,6 +263,39 @@ export default function ProjectSettingsDrawer({
                 <input className="input-field" value={customType} onChange={(e) => setCustomType(e.target.value)} />
               </div>
             )}
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>تسمية عناصر المشروع (حلقات/فيديوهات/عناصر/تسمية مخصّصة)</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: itemNounKey === "custom" ? 8 : 0 }}>
+                {ITEM_NOUN_OPTIONS.map((c) => {
+                  const active = itemNounKey === c.value;
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setItemNounKey(c.value)}
+                      className="chip"
+                      style={{
+                        cursor: "pointer",
+                        color: active ? "var(--gold)" : "var(--text-secondary)",
+                        borderColor: active ? "var(--gold)" : "var(--border)",
+                        background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-hover)",
+                        padding: "6px 14px",
+                        fontSize: 13,
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {itemNounKey === "custom" && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="input-field" placeholder="المفرد (مثال: بودكاست)" value={customSingular} onChange={(e) => setCustomSingular(e.target.value)} />
+                  <input className="input-field" placeholder="الجمع (مثال: حلقات البودكاست)" value={customPlural} onChange={(e) => setCustomPlural(e.target.value)} />
+                </div>
+              )}
+            </div>
 
             <div>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>وصف مختصر للمشروع</label>

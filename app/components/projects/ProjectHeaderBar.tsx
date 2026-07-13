@@ -11,6 +11,7 @@ import { logActivity } from "@/app/lib/activity";
 import { downloadCsv } from "@/app/lib/csv";
 import { exportProjectZip } from "@/app/lib/zip-export";
 import { PROJECT_STATUSES, PROJECT_TYPES } from "@/app/lib/constants";
+import type { ItemNoun } from "@/app/lib/item-noun";
 import type { Project } from "@/app/lib/types";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import { relativeTime } from "./utils";
@@ -19,6 +20,7 @@ export default function ProjectHeaderBar({
   project,
   clientName,
   gallery,
+  itemNoun,
   onNewEpisode,
   onOpenSettings,
   onOpenPresentation,
@@ -27,6 +29,7 @@ export default function ProjectHeaderBar({
   project: Project;
   clientName: string | null;
   gallery: EpisodeGalleryItem[];
+  itemNoun: ItemNoun;
   onNewEpisode: () => void;
   onOpenSettings: (tab: "info" | "clients") => void;
   onOpenPresentation: () => void;
@@ -64,7 +67,7 @@ export default function ProjectHeaderBar({
 
   function exportEpisodes() {
     downloadCsv(
-      `${project.name}-الحلقات`,
+      `${project.name}-${itemNoun.plural}`,
       gallery.map((e) => ({
         number: e.number ?? "",
         title: e.title,
@@ -152,7 +155,7 @@ export default function ProjectHeaderBar({
               <Icon name="clients" size={12} /> {clientName || "بدون عميل"}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <Icon name="video" size={12} /> {gallery.length} حلقة
+              <Icon name="video" size={12} /> {gallery.length} {itemNoun.singular}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <Icon name="clock" size={12} /> آخر تحديث {relativeTime(lastUpdate)}
@@ -184,13 +187,13 @@ export default function ProjectHeaderBar({
         </select>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <button className="btn btn-gold" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="حلقة جديدة" onClick={onNewEpisode}>
-            <Icon name="plus" size={14} /> {!isMobile && "حلقة جديدة"}
+          <button className="btn btn-gold" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title={`إضافة ${itemNoun.singular}`} onClick={onNewEpisode}>
+            <Icon name="plus" size={14} /> {!isMobile && `إضافة ${itemNoun.singular}`}
           </button>
           <button className="btn btn-outline" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="العرض الفني" onClick={onOpenPresentation}>
             <Icon name="proposals" size={14} /> {!isMobile && "العرض الفني"}
           </button>
-          <button className="btn btn-outline" style={{ padding: "9px 12px" }} title="تصدير قائمة الحلقات (CSV)" onClick={exportEpisodes}>
+          <button className="btn btn-outline" style={{ padding: "9px 12px" }} title={`تصدير قائمة ${itemNoun.plural} (CSV)`} onClick={exportEpisodes}>
             <Icon name="export" size={14} />
           </button>
           <ZipExportButton

@@ -5,30 +5,38 @@ import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
-import { DEFAULT_EPISODE_STAGES } from "@/app/lib/constants";
+import { DEFAULT_EPISODE_STAGES, EPISODE_KIND_OPTIONS, type EpisodeKind } from "@/app/lib/constants";
+import { getItemNoun, type ItemNoun } from "@/app/lib/item-noun";
 import { safeStorageKey } from "@/app/lib/storage-path";
 
 export default function EpisodeFormModal({
   projectId,
   nextNumber,
   nextSortOrder,
+  itemNoun,
   onClose,
   onCreated,
 }: {
   projectId: string;
   nextNumber: number;
   nextSortOrder: number;
+  /** تسمية عناصر المشروع (حلقة/فيديو إعلاني/عنصر/تسمية مخصّصة) — اختيارية، تُستخدم
+   * فقط لتخصيص نصوص الواجهة؛ تُهمَل بالكامل حين لا تتوفر (سياق عبر عدّة مشاريع). */
+  itemNoun?: ItemNoun;
   onClose: () => void;
   onCreated: () => void;
 }) {
   const supabase = createClient();
   const { userId, company } = useSession();
   const companyId = company!.id;
+  const noun = itemNoun ?? getItemNoun({});
 
   const [number, setNumber] = useState<string>(String(nextNumber));
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("");
+  const [kind, setKind] = useState<EpisodeKind>("regular");
+  const [kindLabel, setKindLabel] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -69,6 +77,8 @@ export default function EpisodeFormModal({
           title: title.trim(),
           description: description.trim() || null,
           type: type.trim() || null,
+          kind,
+          kind_label: kind === "custom" ? kindLabel.trim() || null : null,
           status: "not_started",
           cover_image_url: coverUrl,
           sort_order: nextSortOrder,
@@ -109,7 +119,7 @@ export default function EpisodeFormModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800 }}>حلقة جديدة</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 800 }}>إضافة {noun.singular}</h2>
           <button className="btn-ghost" style={{ padding: 6, borderRadius: 8 }} onClick={onClose}>
             <Icon name="close" size={18} />
           </button>
@@ -122,19 +132,54 @@ export default function EpisodeFormModal({
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>التصنيف</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {EPISODE_KIND_OPTIONS.map((k) => {
+                const active = kind === k.value;
+                return (
+                  <button
+                    key={k.value}
+                    type="button"
+                    onClick={() => setKind(k.value)}
+                    className="chip"
+                    style={{
+                      cursor: "pointer",
+                      color: active ? "var(--gold)" : "var(--text-secondary)",
+                      borderColor: active ? "var(--gold)" : "var(--border)",
+                      background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-hover)",
+                      padding: "6px 14px",
+                      fontSize: 13,
+                    }}
+                  >
+                    {k.label}
+                  </button>
+                );
+              })}
+            </div>
+            {kind === "custom" && (
+              <input
+                className="input-field"
+                value={kindLabel}
+                onChange={(e) => setKindLabel(e.target.value)}
+                placeholder="اكتب اسم التصنيف (مثال: برومو)"
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 10 }}>
             <div>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>الرقم</label>
               <input type="number" className="input-field" value={number} onChange={(e) => setNumber(e.target.value)} />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>النوع</label>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>وصف النوع (اختياري)</label>
               <input className="input-field" value={type} onChange={(e) => setType(e.target.value)} placeholder="مثال: مقابلة" />
             </div>
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>العنوان *</label>
-            <input className="input-field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الحلقة" />
+            <input className="input-field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`عنوان ${noun.singular}`} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>الوصف</label>
@@ -156,7 +201,7 @@ export default function EpisodeFormModal({
         </div>
 
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 14 }}>
-          سيتم إنشاء {DEFAULT_EPISODE_STAGES.length} مراحل تنفيذ افتراضية لهذه الحلقة.
+          سيتم إنشاء {DEFAULT_EPISODE_STAGES.length} مراحل تنفيذ افتراضية.
         </p>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
@@ -164,7 +209,7 @@ export default function EpisodeFormModal({
             إلغاء
           </button>
           <button className="btn btn-gold" onClick={create} disabled={saving}>
-            {saving ? "جارٍ الإنشاء..." : "إنشاء الحلقة"}
+            {saving ? "جارٍ الإنشاء..." : `إنشاء ${noun.singular}`}
           </button>
         </div>
       </div>

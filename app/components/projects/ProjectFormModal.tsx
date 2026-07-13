@@ -6,7 +6,7 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
-import { PROJECT_TYPES, DEFAULT_EPISODE_STAGES } from "@/app/lib/constants";
+import { PROJECT_TYPES, DEFAULT_EPISODE_STAGES, ITEM_NOUN_OPTIONS, type ItemNounKey } from "@/app/lib/constants";
 import { inferCategory, humanFileSize } from "@/app/components/projects/utils";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientRecord } from "@/app/lib/types";
@@ -18,7 +18,6 @@ interface Props {
 }
 
 type ClientMode = "existing" | "new";
-type ContentKind = "episodes" | "videos" | "images" | "items";
 
 const TYPE_META: Record<string, { icon: IconName; description: string }> = {
   podcast: { icon: "mic", description: "إنتاج محتوى صوتي مرئي" },
@@ -34,13 +33,6 @@ const TYPE_META: Record<string, { icon: IconName; description: string }> = {
   motion_graphics: { icon: "wand", description: "رسوم متحركة وموشن جرافيك" },
   other: { icon: "plus", description: "نوع مشروع مخصص" },
 };
-
-const CONTENT_KIND_OPTIONS: { key: ContentKind; label: string; countLabel: string; titlePrefix: string }[] = [
-  { key: "episodes", label: "حلقات", countLabel: "عدد الحلقات", titlePrefix: "الحلقة" },
-  { key: "videos", label: "فيديوهات", countLabel: "عدد الفيديوهات", titlePrefix: "الفيديو" },
-  { key: "images", label: "صور", countLabel: "عدد الصور", titlePrefix: "الصورة" },
-  { key: "items", label: "عناصر", countLabel: "عدد العناصر", titlePrefix: "العنصر" },
-];
 
 const STEP_LABELS = ["نوع المشروع", "المعلومات الأساسية", "الخدمات", "المراجعة والإنشاء"];
 
@@ -75,7 +67,9 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [initialFiles, setInitialFiles] = useState<File[]>([]);
-  const [contentKind, setContentKind] = useState<ContentKind | "">("");
+  const [itemNounKey, setItemNounKey] = useState<ItemNounKey>("episodes");
+  const [customSingular, setCustomSingular] = useState("");
+  const [customPlural, setCustomPlural] = useState("");
   const [contentCount, setContentCount] = useState(0);
 
   // step 3
@@ -101,8 +95,12 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
   }
 
   const typeLabel = type === "other" ? customType.trim() || "أخرى" : PROJECT_TYPES.find((t) => t.value === type)?.label ?? "";
+  const itemNounPlural = itemNounKey === "custom" ? customPlural.trim() || "عناصر" : ITEM_NOUN_OPTIONS.find((c) => c.value === itemNounKey)!.plural;
   const canNext1 = type !== "" && (type !== "other" || customType.trim() !== "");
-  const canNext2 = name.trim() !== "" && (clientMode === "existing" ? clientId !== "" : newClientName.trim() !== "");
+  const canNext2 =
+    name.trim() !== "" &&
+    (clientMode === "existing" ? clientId !== "" : newClientName.trim() !== "") &&
+    (itemNounKey !== "custom" || (customSingular.trim() !== "" && customPlural.trim() !== ""));
   const canSaveDraft = name.trim() !== "";
 
   function goNext() {
@@ -183,6 +181,9 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
         location: location.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
+        item_noun_key: itemNounKey,
+        item_noun_custom_singular: itemNounKey === "custom" ? customSingular.trim() : null,
+        item_noun_custom_plural: itemNounKey === "custom" ? customPlural.trim() : null,
       })
       .select("id")
       .single();
@@ -203,9 +204,9 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
       );
     }
 
-    // 5) إنشاء الحلقات/الفيديوهات/الصور/العناصر تلقائياً حسب نوع المحتوى المختار
-    if (contentKind && contentCount > 0) {
-      const meta = CONTENT_KIND_OPTIONS.find((c) => c.key === contentKind)!;
+    // 5) إنشاء العناصر (حلقات/فيديوهات/عناصر) تلقائياً بحسب العدد المطلوب
+    const titlePrefix = itemNounKey === "custom" ? customSingular.trim() || "عنصر" : ITEM_NOUN_OPTIONS.find((c) => c.value === itemNounKey)!.titlePrefix;
+    if (contentCount > 0) {
       for (let i = 0; i < contentCount; i++) {
         const { data: episode, error: eErr } = await supabase
           .from("episodes")
@@ -213,8 +214,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
             project_id: projectId,
             company_id: companyId,
             number: i + 1,
-            title: `${meta.titlePrefix} ${i + 1}`,
-            type: contentKind,
+            title: `${titlePrefix} ${i + 1}`,
             status: "not_started",
             sort_order: i,
             created_by: userId,
@@ -443,18 +443,15 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
               <input className="input-field" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="المدينة / الموقع" />
             </Field>
 
-            <Field label="نوع المحتوى">
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: contentKind ? 10 : 0 }}>
-                {CONTENT_KIND_OPTIONS.map((c) => {
-                  const active = contentKind === c.key;
+            <Field label="تسمية عناصر المشروع">
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                {ITEM_NOUN_OPTIONS.map((c) => {
+                  const active = itemNounKey === c.value;
                   return (
                     <button
-                      key={c.key}
+                      key={c.value}
                       type="button"
-                      onClick={() => {
-                        setContentKind(active ? "" : c.key);
-                        if (!active && contentCount === 0) setContentCount(1);
-                      }}
+                      onClick={() => setItemNounKey(c.value)}
                       className="chip"
                       style={{
                         cursor: "pointer",
@@ -470,23 +467,28 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
                   );
                 })}
               </div>
-              {contentKind && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                    {CONTENT_KIND_OPTIONS.find((c) => c.key === contentKind)?.countLabel}
-                  </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    <button type="button" className="btn btn-outline" style={{ padding: "6px 10px" }} onClick={() => setContentCount((n) => Math.max(0, n - 1))}>
-                      <Icon name="minus" size={14} />
-                    </button>
-                    <span style={{ width: 44, textAlign: "center", fontWeight: 700, fontSize: 15 }}>{contentCount}</span>
-                    <button type="button" className="btn btn-outline" style={{ padding: "6px 10px" }} onClick={() => setContentCount((n) => Math.min(99, n + 1))}>
-                      <Icon name="plus" size={14} />
-                    </button>
-                  </div>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>يمكنك تعديل العدد لاحقاً من داخل المشروع</span>
+              {itemNounKey === "custom" && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <input className="input-field" placeholder="المفرد (مثال: بودكاست)" value={customSingular} onChange={(e) => setCustomSingular(e.target.value)} />
+                  <input className="input-field" placeholder="الجمع (مثال: حلقات البودكاست)" value={customPlural} onChange={(e) => setCustomPlural(e.target.value)} />
                 </div>
               )}
+              {touched && itemNounKey === "custom" && (customSingular.trim() === "" || customPlural.trim() === "") && (
+                <p style={{ fontSize: 12, color: "var(--danger)", marginBottom: 10 }}>أدخل تسمية المفرد والجمع للمتابعة</p>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>عدد ابتدائي (اختياري)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                  <button type="button" className="btn btn-outline" style={{ padding: "6px 10px" }} onClick={() => setContentCount((n) => Math.max(0, n - 1))}>
+                    <Icon name="minus" size={14} />
+                  </button>
+                  <span style={{ width: 44, textAlign: "center", fontWeight: 700, fontSize: 15 }}>{contentCount}</span>
+                  <button type="button" className="btn btn-outline" style={{ padding: "6px 10px" }} onClick={() => setContentCount((n) => Math.min(99, n + 1))}>
+                    <Icon name="plus" size={14} />
+                  </button>
+                </div>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>يمكنك تعديل العدد لاحقاً من داخل المشروع</span>
+              </div>
             </Field>
 
             <Field label="وصف مختصر للمشروع">
@@ -553,10 +555,8 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
                 <SummaryRow label="العميل" value={clientMode === "existing" ? clients.find((c) => c.id === clientId)?.name ?? "—" : newClientName || "—"} />
                 <SummaryRow label="تاريخ التصوير" value={shootingDate || "—"} />
                 <SummaryRow label="تاريخ التسليم" value={deliveryDate || "—"} />
-                <SummaryRow
-                  label={contentKind ? CONTENT_KIND_OPTIONS.find((c) => c.key === contentKind)?.countLabel ?? "" : "عدد المحتوى"}
-                  value={contentKind ? String(contentCount) : "—"}
-                />
+                <SummaryRow label="تسمية العناصر" value={itemNounPlural} />
+                <SummaryRow label={`عدد ${itemNounPlural} الابتدائي`} value={String(contentCount)} />
                 <SummaryRow label="عدد الخدمات المختارة" value={String(services.length)} />
               </div>
             </div>
@@ -564,7 +564,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
             <div>
               <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 10 }}>سيتم إنشاء العناصر التالية تلقائياً</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
-                {autoCreatedItems(contentKind).map((it) => (
+                {autoCreatedItems(itemNounPlural).map((it) => (
                   <div key={it.label} className="card" style={{ padding: "12px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
                     <Icon name={it.icon} size={17} className="text-muted" />
                     <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{it.label}</span>
@@ -603,11 +603,10 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
   );
 }
 
-function autoCreatedItems(contentKind: ContentKind | ""): { icon: IconName; label: string }[] {
-  const contentLabel = CONTENT_KIND_OPTIONS.find((c) => c.key === contentKind)?.label ?? "الحلقات أو الفيديوهات";
+function autoCreatedItems(itemNounPlural: string): { icon: IconName; label: string }[] {
   return [
     { icon: "grid", label: "لوحة المشروع" },
-    { icon: "episodes", label: contentLabel },
+    { icon: "episodes", label: itemNounPlural },
     { icon: "files", label: "الملفات" },
     { icon: "tasks", label: "مراحل التنفيذ" },
     { icon: "message", label: "الملاحظات" },

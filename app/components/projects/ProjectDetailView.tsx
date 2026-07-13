@@ -13,6 +13,7 @@ import PresentationBuilderModal from "./presentation/PresentationBuilderModal";
 import Icon from "@/app/components/ui/Icon";
 import { type TabDef } from "@/app/components/ui/Tabs";
 import { PROJECT_TYPES } from "@/app/lib/constants";
+import { getItemNoun } from "@/app/lib/item-noun";
 import { formatDate } from "./utils";
 import ProjectFinanceSection from "./sections/ProjectFinanceSection";
 import ProjectContractsSection from "./sections/ProjectContractsSection";
@@ -70,12 +71,15 @@ export default function ProjectDetailView(props: Props) {
     setProject((p) => ({ ...p, ...patch }));
   }
 
+  const itemNoun = getItemNoun(project);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <ProjectHeaderBar
         project={project}
         clientName={clientName}
         gallery={gallery}
+        itemNoun={itemNoun}
         onNewEpisode={() => setShowEpisodeModal(true)}
         onOpenSettings={(t) => setSettingsTab(t)}
         onOpenPresentation={() => setShowPresentation(true)}
@@ -86,6 +90,7 @@ export default function ProjectDetailView(props: Props) {
         clientName={clientName}
         clientPhone={companyClients.find((c) => c.id === project.client_id)?.phone ?? null}
         projectName={project.name}
+        itemNoun={itemNoun}
         gallery={gallery}
         initialEpisodeId={initialEpisodeId}
         extraTabs={DETAILS_TABS}
@@ -102,7 +107,7 @@ export default function ProjectDetailView(props: Props) {
         overviewExtra={
           <div className="card animate-fade-in" style={{ padding: 18, marginTop: 14, display: "flex", flexDirection: "column", gap: 16 }}>
             <ProjectInfoBlock project={project} clientName={clientName} />
-            <ProjectStatsBlock gallery={gallery} />
+            <ProjectStatsBlock gallery={gallery} itemNounPlural={itemNoun.plural} />
           </div>
         }
       />
@@ -112,6 +117,7 @@ export default function ProjectDetailView(props: Props) {
           projectId={project.id}
           nextNumber={gallery.length + 1}
           nextSortOrder={gallery.length}
+          itemNoun={itemNoun}
           onClose={() => setShowEpisodeModal(false)}
           onCreated={() => router.refresh()}
         />
@@ -160,7 +166,7 @@ function ProjectInfoBlock({ project, clientName }: { project: Project; clientNam
   );
 }
 
-function ProjectStatsBlock({ gallery }: { gallery: EpisodeGalleryItem[] }) {
+function ProjectStatsBlock({ gallery, itemNounPlural }: { gallery: EpisodeGalleryItem[]; itemNounPlural: string }) {
   const episodeCount = gallery.length;
   const avgProgress = episodeCount ? Math.round(gallery.reduce((s, e) => s + e.progress, 0) / episodeCount) : 0;
   const approvedCount = gallery.filter((e) => e.hasActiveApproval).length;
@@ -168,7 +174,7 @@ function ProjectStatsBlock({ gallery }: { gallery: EpisodeGalleryItem[] }) {
   const notesCount = gallery.reduce((s, e) => s + e.notesCount + e.commentsCount, 0);
 
   const stats = [
-    { label: "الحلقات", value: episodeCount, icon: "video" as const },
+    { label: itemNounPlural, value: episodeCount, icon: "video" as const },
     { label: "متوسط الإنجاز", value: `${avgProgress}%`, icon: "barChart" as const },
     { label: "حلقات معتمدة", value: approvedCount, icon: "badgeCheck" as const },
     { label: "الملفات", value: filesCount, icon: "attachment" as const },

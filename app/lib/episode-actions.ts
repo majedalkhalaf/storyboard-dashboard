@@ -44,3 +44,19 @@ export async function reorderEpisodes(supabase: SupabaseClient, orderedIds: stri
 export async function updateEpisodeNumber(supabase: SupabaseClient, episodeId: string, number: number | null) {
   await supabase.from("episodes").update({ number }).eq("id", episodeId);
 }
+
+/** تغيير تصنيف العنصر (عادي/مقدمة/انترو/نوع مخصص) + تسجيل النشاط */
+export async function updateEpisodeKind(
+  supabase: SupabaseClient,
+  params: { companyId: string; projectId: string; episodeId: string; kind: string; kindLabel: string | null }
+) {
+  const { companyId, projectId, episodeId, kind, kindLabel } = params;
+  await supabase.from("episodes").update({ kind, kind_label: kind === "custom" ? kindLabel : null }).eq("id", episodeId);
+  await logActivity(supabase, {
+    companyId,
+    projectId,
+    episodeId,
+    action: "episode_kind_changed",
+    details: { kind, kind_label: kindLabel },
+  });
+}

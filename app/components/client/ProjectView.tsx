@@ -17,6 +17,7 @@ import { canClient } from "@/app/lib/permissions";
 import { useIsMobile } from "@/app/lib/useIsMobile";
 import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
+import { getItemNoun, isSpecialEpisodeKind } from "@/app/lib/item-noun";
 import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 interface FinanceSummary {
@@ -92,6 +93,7 @@ export default function ProjectView({
   useProjectRealtimeRefresh(project.id);
   const isMobile = useIsMobile();
   const approvedSet = new Set(approvedEpisodeIds);
+  const itemNoun = getItemNoun(project);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
   const showPayments = canClient(permissions, "payments");
@@ -102,7 +104,7 @@ export default function ProjectView({
   const showProjectValue = canClient(permissions, "show_project_value");
 
   const tabs: { key: TabKey; label: string; show: boolean }[] = [
-    { key: "episodes", label: "الحلقات", show: showEpisodes },
+    { key: "episodes", label: itemNoun.plural, show: showEpisodes },
     { key: "overview", label: "نظرة عامة", show: true },
     { key: "progress", label: "العمل الجاري", show: progressUpdates.length > 0 },
     { key: "files", label: "الملفات", show: showFiles },
@@ -282,7 +284,7 @@ export default function ProjectView({
           >
             {showEpisodes && (
               <>
-                <StatCard compact={isMobile} label="إجمالي الحلقات" value={episodes.length} icon="episodes" color="var(--gold)" />
+                <StatCard compact={isMobile} label={`إجمالي ${itemNoun.plural}`} value={episodes.length} icon="episodes" color="var(--gold)" />
                 <StatCard compact={isMobile} label="حلقات مكتملة" value={episodesCompleted} icon="checkCircle" color="var(--success)" />
                 <StatCard compact={isMobile} label="قيد التنفيذ" value={episodesInProgress} icon="clock" color="#F59E0B" />
                 <StatCard compact={isMobile} label="متبقية" value={episodesRemaining} icon="circle" color="#6B7280" />
@@ -338,6 +340,7 @@ export default function ProjectView({
               episodeFileCounts={episodeFileCounts}
               episodeNoteCounts={episodeNoteCounts}
               episodeUnreadCounts={episodeUnreadCounts}
+              itemNoun={itemNoun}
               userId={userId}
               userName={userName}
               permissions={permissions}
@@ -479,6 +482,7 @@ function EpisodesTab({
   episodeFileCounts,
   episodeNoteCounts,
   episodeUnreadCounts,
+  itemNoun,
   userId,
   userName,
   permissions,
@@ -489,6 +493,7 @@ function EpisodesTab({
   episodeFileCounts: Record<string, number>;
   episodeNoteCounts: Record<string, number>;
   episodeUnreadCounts: Record<string, number>;
+  itemNoun: ReturnType<typeof getItemNoun>;
   userId: string;
   userName: string | null;
   permissions: ClientPermissions;
@@ -512,17 +517,40 @@ function EpisodesTab({
     return sorted;
   }, [episodes, query, filter, sort]);
 
+  const specialEpisodes = filtered.filter((e) => isSpecialEpisodeKind(e.kind));
+  const regularEpisodes = filtered.filter((e) => !isSpecialEpisodeKind(e.kind));
+
+  function renderCard(ep: Episode) {
+    const isApproved = approvedSet.has(ep.id) || ep.status === "approved" || ep.status === "delivered";
+    return (
+      <EpisodeGridCard
+        key={ep.id}
+        episode={ep}
+        projectId={project.id}
+        companyId={project.company_id}
+        userId={userId}
+        userName={userName}
+        permissions={permissions}
+        isApproved={isApproved}
+        fileCount={episodeFileCounts[ep.id] ?? 0}
+        noteCount={episodeNoteCounts[ep.id] ?? 0}
+        itemNoun={itemNoun}
+        unreadCount={episodeUnreadCounts[ep.id] ?? 0}
+      />
+    );
+  }
+
   return (
     <div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ position: "relative", flex: "1 1 220px" }}>
-          <input className="input-field" placeholder="بحث عن حلقة..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ paddingInlineStart: 34 }} />
+          <input className="input-field" placeholder={`بحث عن ${itemNoun.singular}...`} value={query} onChange={(e) => setQuery(e.target.value)} style={{ paddingInlineStart: 34 }} />
           <span style={{ position: "absolute", insetInlineStart: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>
             <Icon name="search" size={15} />
           </span>
         </div>
         <select className="input-field" style={{ width: "auto" }} value={filter} onChange={(e) => setFilter(e.target.value as EpisodeFilter)}>
-          <option value="all">جميع الحلقات</option>
+          <option value="all">جميع {itemNoun.plural}</option>
           <option value="completed">مكتملة فقط</option>
           <option value="in_progress">قيد التنفيذ فقط</option>
           <option value="overdue">متأخرة فقط</option>
@@ -534,33 +562,28 @@ function EpisodesTab({
         </select>
       </div>
 
-      <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-        {filtered.length === 0 ? (
-          <div className="empty-state" style={{ gridColumn: "1 / -1", padding: 40 }}>
-            <Icon name="video" size={34} className="nav-icon" />
-            <p style={{ marginTop: 10 }}>لا توجد حلقات مطابقة.</p>
-          </div>
-        ) : (
-          filtered.map((ep) => {
-            const isApproved = approvedSet.has(ep.id) || ep.status === "approved" || ep.status === "delivered";
-            return (
-              <EpisodeGridCard
-                key={ep.id}
-                episode={ep}
-                projectId={project.id}
-                companyId={project.company_id}
-                userId={userId}
-                userName={userName}
-                permissions={permissions}
-                isApproved={isApproved}
-                fileCount={episodeFileCounts[ep.id] ?? 0}
-                noteCount={episodeNoteCounts[ep.id] ?? 0}
-                unreadCount={episodeUnreadCounts[ep.id] ?? 0}
-              />
-            );
-          })
-        )}
-      </div>
+      {filtered.length === 0 ? (
+        <div className="empty-state" style={{ padding: 40 }}>
+          <Icon name="video" size={34} className="nav-icon" />
+          <p style={{ marginTop: 10 }}>لا توجد {itemNoun.plural} مطابقة.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {specialEpisodes.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                المقدمة والمقاطع الخاصة
+              </span>
+              {specialEpisodes.map(renderCard)}
+            </div>
+          )}
+          {regularEpisodes.length > 0 && (
+            <div className="client-episodes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+              {regularEpisodes.map(renderCard)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
