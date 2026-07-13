@@ -11,7 +11,8 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
 import { isInternalAdmin } from "@/app/lib/permissions";
-import { STAGE_STATUSES } from "@/app/lib/constants";
+import { STAGE_STATUSES, EPISODE_KIND_OPTIONS, type EpisodeKind } from "@/app/lib/constants";
+import { updateEpisodeKind } from "@/app/lib/episode-actions";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { EpisodeFullDetail } from "@/app/lib/episode-detail";
 import { formatDate } from "../utils";
@@ -33,6 +34,12 @@ export default function OverviewTab({
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [kindLabelDraft, setKindLabelDraft] = useState(episode.kind_label ?? "");
+
+  async function saveKind(kind: EpisodeKind, kindLabel: string | null) {
+    onChanged({ kind, kind_label: kind === "custom" ? kindLabel : null });
+    await updateEpisodeKind(supabase, { companyId, projectId: episode.project_id, episodeId: episode.id, kind, kindLabel });
+  }
 
   async function save() {
     setEditing(false);
@@ -167,6 +174,48 @@ export default function OverviewTab({
             </p>
           )}
         </div>
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* التصنيف — عادي/مقدمة/انترو/نوع مخصص، متاح للتعديل في أي وقت حتى على الحلقات
+          القديمة، بنفس الاختيار المتاح عند الإنشاء. */}
+      <div>
+        <SectionHeading icon="sparkles" title="التصنيف" />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: episode.kind === "custom" ? 8 : 0 }}>
+          {EPISODE_KIND_OPTIONS.map((k) => {
+            const active = episode.kind === k.value;
+            return (
+              <button
+                key={k.value}
+                type="button"
+                onClick={() => saveKind(k.value, k.value === "custom" ? kindLabelDraft : null)}
+                className="chip"
+                style={{
+                  cursor: "pointer",
+                  color: active ? "var(--gold)" : "var(--text-secondary)",
+                  borderColor: active ? "var(--gold)" : "var(--border)",
+                  background: active ? "rgba(var(--gold-rgb),0.1)" : "var(--bg-hover)",
+                  padding: "6px 14px",
+                  fontSize: 13,
+                }}
+              >
+                {k.label}
+              </button>
+            );
+          })}
+        </div>
+        {episode.kind === "custom" && (
+          <input
+            className="input-field"
+            value={kindLabelDraft}
+            onChange={(e) => setKindLabelDraft(e.target.value)}
+            onBlur={() => saveKind("custom", kindLabelDraft.trim() || null)}
+            onKeyDown={(e) => e.key === "Enter" && saveKind("custom", kindLabelDraft.trim() || null)}
+            placeholder="اسم التصنيف (مثال: برومو)"
+            style={{ maxWidth: 280 }}
+          />
+        )}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)" }} />

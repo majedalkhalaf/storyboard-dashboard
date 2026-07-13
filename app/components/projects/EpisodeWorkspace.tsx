@@ -170,7 +170,7 @@ export default function EpisodeWorkspace({
 
   function applyPatch(patch: Partial<EpisodeFullDetail>) {
     setDetail((prev) => (prev ? { ...prev, ...patch } : prev));
-    if (selectedId && ("cover_image_url" in patch || "title" in patch)) {
+    if (selectedId && ("cover_image_url" in patch || "title" in patch || "kind" in patch)) {
       setGalleryItems((prev) =>
         prev.map((e) =>
           e.id === selectedId
@@ -178,6 +178,7 @@ export default function EpisodeWorkspace({
                 ...e,
                 ...("cover_image_url" in patch ? { cover_image_url: patch.cover_image_url ?? null } : {}),
                 ...("title" in patch ? { title: patch.title ?? e.title } : {}),
+                ...("kind" in patch ? { kind: patch.kind ?? e.kind, kind_label: patch.kind_label ?? null } : {}),
               }
             : e
         )
