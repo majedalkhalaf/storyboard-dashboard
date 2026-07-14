@@ -7,6 +7,7 @@ import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
 import { downloadWithProgress } from "@/app/lib/download";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
+import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
 import { trackVideoWatch } from "@/app/lib/client-activity-tracker";
 import type { Note, ProjectFile } from "@/app/lib/types";
@@ -332,7 +333,7 @@ export function VideoPlayerModal({
             )}
             {canDownload && file.client_can_download && !file.external_url && (
               <button className="btn btn-outline" style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }} onClick={handleDownload} disabled={downloading}>
-                <Icon name="export" size={14} /> {downloading ? `جارٍ التنزيل... ${downloadProgress}%` : "تحميل بالجودة الأصلية"}
+                <Icon name="export" size={14} /> {downloading ? "جارٍ التنزيل..." : "تحميل بالجودة الأصلية"}
               </button>
             )}
             <button className="btn btn-ghost" onClick={handleClose} aria-label="إغلاق" style={{ flexShrink: 0 }}>
@@ -341,8 +342,8 @@ export function VideoPlayerModal({
           </div>
 
           {downloading && (
-            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginBottom: 14 }}>
-              <div style={{ height: "100%", width: `${downloadProgress}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+            <div style={{ marginBottom: 14 }}>
+              <DownloadProgressBar stage="جارٍ التنزيل..." percent={downloadProgress} />
             </div>
           )}
           {downloadError && (

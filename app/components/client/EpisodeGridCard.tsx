@@ -12,6 +12,7 @@ import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
+import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import type { ClientPermissions, Episode, Note, ProjectFile } from "@/app/lib/types";
 
 // بطاقة حلقة قابلة لإعادة الاستخدام — الشكل نفسه المستخدم في تبويب "الحلقات"
@@ -212,9 +213,7 @@ export default function EpisodeGridCard({
         </div>
         {downloading && (
           <div style={{ marginTop: 8 }}>
-            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${progress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
-            </div>
+            <DownloadProgressBar stage={progress?.stage ?? "جارٍ التنزيل..."} percent={progress?.percent ?? 0} />
           </div>
         )}
 
@@ -349,7 +348,7 @@ export default function EpisodeGridCard({
         {canDownload && fileCount > 0 && (
           <button className="btn btn-outline" style={{ fontSize: 13, padding: "8px 12px" }} onClick={handleDownloadAll} disabled={downloading}>
             <Icon name="archive" size={15} />
-            {downloading ? `${progress?.stage ?? "جارٍ التحميل..."} ${progress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+            {downloading ? "جارٍ التنزيل..." : "تحميل جميع ملفات الحلقة"}
           </button>
         )}
         <ApproveEpisode
@@ -365,9 +364,7 @@ export default function EpisodeGridCard({
       </div>
       {downloading && (
         <div style={{ padding: "0 14px 14px" }}>
-          <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${progress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
-          </div>
+          <DownloadProgressBar stage={progress?.stage ?? "جارٍ التنزيل..."} percent={progress?.percent ?? 0} />
         </div>
       )}
       </div>

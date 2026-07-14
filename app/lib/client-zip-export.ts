@@ -1,6 +1,7 @@
 "use client";
 
 import JSZip from "jszip";
+import { fetchBlobWithRedirect } from "@/app/lib/download";
 import type { BehindScenesMediaItem, Contract, Episode, FileCategory, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 // تصدير مشروع العميل كملف ZIP — يعمل بالكامل داخل المتصفح، ويحترم صلاحيات العميل
@@ -22,11 +23,11 @@ function sanitizeName(name: string): string {
 
 async function fetchClientFileBlob(fileId: string): Promise<Blob | null> {
   try {
-    // هذا المسار يبثّ محتوى الملف مباشرة (وليس رابطاً JSON) منذ إصلاح تنزيل
-    // الملفات الجذري — نقرأ الاستجابة كملف مباشرة بلا أي جلب ثانٍ لرابط.
-    const res = await fetch(`/api/client-portal/files/${fileId}?download=1`);
-    if (!res.ok) return null;
-    return await res.blob();
+    // هذا المسار يُعيد رابط الملف الفعلي (JSON `{ url }`) بعد التحقق من الصلاحية
+    // — وليس بايتات الملف نفسها — لتفادي بثّ فيديوهات كبيرة عبر خادمنا (خطر
+    // توقّف الدالة السحابية منتصف النقل وإنتاج ملف مبتور). fetchBlobWithRedirect
+    // تتبع هذا الرابط وتجلب المحتوى الفعلي مباشرة من مصدره (R2/Supabase).
+    return await fetchBlobWithRedirect(`/api/client-portal/files/${fileId}?download=1`);
   } catch {
     return null;
   }

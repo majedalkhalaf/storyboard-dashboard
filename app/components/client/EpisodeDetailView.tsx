@@ -12,6 +12,7 @@ import ApproveEpisode from "@/app/components/client/ApproveEpisode";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import StatCard from "@/app/components/dashboard/StatCard";
+import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import { createClient } from "@/app/lib/supabase/client";
 import { useIsMobile } from "@/app/lib/useIsMobile";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
@@ -198,7 +199,7 @@ export default function EpisodeDetailView({
           {canDownloadFiles && files.length > 0 && (
             <button className="btn btn-outline" style={{ justifyContent: "center", fontSize: 13.5, padding: "10px 16px" }} onClick={handleDownloadAllFiles} disabled={downloading}>
               <Icon name="archive" size={16} />
-              {downloading ? `${downloadProgress?.stage ?? "جارٍ التحميل..."} ${downloadProgress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+              {downloading ? "جارٍ التنزيل..." : "تحميل جميع ملفات الحلقة"}
             </button>
           )}
           <ApproveEpisode
@@ -214,8 +215,8 @@ export default function EpisodeDetailView({
           />
         </div>
         {downloading && (
-          <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginTop: 10 }}>
-            <div style={{ height: "100%", width: `${downloadProgress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
+          <div style={{ marginTop: 10 }}>
+            <DownloadProgressBar stage={downloadProgress?.stage ?? "جارٍ التنزيل..."} percent={downloadProgress?.percent ?? 0} />
           </div>
         )}
       </div>
@@ -435,14 +436,10 @@ export default function EpisodeDetailView({
               {canDownloadFiles && files.length > 0 && (
                 <button className="btn btn-outline" style={{ alignSelf: "flex-end", fontSize: 13 }} onClick={handleDownloadAllFiles} disabled={downloading}>
                   <Icon name="archive" size={15} />
-                  {downloading ? `${downloadProgress?.stage ?? "جارٍ التحميل..."} ${downloadProgress?.percent ?? 0}%` : "تحميل جميع ملفات الحلقة"}
+                  {downloading ? "جارٍ التنزيل..." : "تحميل جميع ملفات الحلقة"}
                 </button>
               )}
-              {downloading && (
-                <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${downloadProgress?.percent ?? 0}%`, background: "var(--gold)", transition: "width 0.2s" }} />
-                </div>
-              )}
+              {downloading && <DownloadProgressBar stage={downloadProgress?.stage ?? "جارٍ التنزيل..."} percent={downloadProgress?.percent ?? 0} />}
               <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." />
             </div>
           )}

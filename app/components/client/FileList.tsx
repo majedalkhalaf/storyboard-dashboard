@@ -84,13 +84,13 @@ export default function FileList({
                 {errorId === file.id && <span style={{ color: "#ef4444" }}> — تعذّر الفتح</span>}
               </div>
               {loadingId === file.id && (
-                <div style={{ height: 5, borderRadius: 4, background: "var(--border)", overflow: "hidden", marginTop: 5 }}>
+                <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.09)", overflow: "hidden", marginTop: 5 }}>
                   <div
                     style={{
                       height: "100%",
                       width: `${progressById[file.id] ?? 0}%`,
-                      background: "var(--gold)",
-                      transition: "width 0.2s",
+                      background: "linear-gradient(90deg, var(--gold), #E8C067)",
+                      transition: "width 0.25s ease",
                     }}
                   />
                 </div>

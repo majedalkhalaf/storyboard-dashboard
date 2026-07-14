@@ -27,13 +27,18 @@ function saveBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-// تنزيل حقيقي بقراءة الاستجابة تدريجياً (stream) بدل الاعتماد على رابط خارجي
-// يفتحه المتصفح مباشرة — يحل ثلاث مشاكل معاً كانت وراء تعطّل تنزيل الملفات/
-// الفيديوهات الكبيرة تحديداً: (1) لا حاجة لـ CORS على الرابط النهائي لأن القراءة
-// تمر عبر fetch من نفس الأصل (same-origin) دائماً، (2) نتحكم بدقة بلحظة اكتمال
-// التنزيل فعلياً (تطابق البايتات المستلمة مع Content-Length) بدل ترك المتصفح
-// "يخمّن" متى انتهى تنزيل عبر تبويب/نافذة خارجية، و(3) يمنحنا تقدماً حقيقياً
-// (bytes محمَّلة من الإجمالي) لعرض شريط تقدّم فعلي بدل نسبة وهمية.
+// تنزيل حقيقي بقراءة الاستجابة تدريجياً (stream) بدل ترك المتصفح "يخمّن" متى
+// انتهى التنزيل عبر تبويب/نافذة خارجية — يمنحنا تحكماً دقيقاً بلحظة الاكتمال
+// الفعلية وتقدماً حقيقياً (bytes محمَّلة من الإجمالي) لعرض شريط تقدّم فعلي.
+//
+// بعض المسارات (تنزيل بوابة العميل، وتنزيل R2 لفريق العمل) لا تبثّ محتوى الملف
+// بنفسها — بل تُعيد رابط الملف الفعلي (مباشرة من Cloudflare R2 أو Supabase
+// Storage) كاستجابة JSON `{ url }`. هذا مقصود: بثّ ملفات فيديو كبيرة عبر خادمنا
+// (دالة سحابية على Netlify) كان يُنتج أحياناً ملفاً مبتوراً — يعمل لأول دقيقة أو
+// دقيقتين فقط ثم يتوقف رغم ظهور مدة الفيديو الصحيحة في الملف — لأن نقل ملف كبير
+// جداً عبر اتصال بطيء قد يتجاوز مهلة تنفيذ الدالة السحابية، فتُنهي المنصة الاتصال
+// منتصف البث بصمت. تنزيل الملف مباشرة من مصدره (R2/Supabase، بلا حد زمني على
+// النقل) يزيل هذا الخطر جذرياً مع الحفاظ الكامل على تقدّم التنزيل الحقيقي.
 export async function downloadWithProgress(
   input: string,
   init: RequestInit | undefined,
@@ -51,6 +56,20 @@ export async function downloadWithProgress(
     }
     throw new Error(message);
   }
+
+  if ((res.headers.get("content-type") || "").includes("application/json")) {
+    const { url } = (await res.json()) as { url?: string };
+    if (!url) throw new Error("تعذّر تنزيل الملف");
+    const fileRes = await fetch(url);
+    if (!fileRes.ok) throw new Error("تعذّر تنزيل الملف");
+    await streamResponseToFile(fileRes, filename, onProgress);
+    return;
+  }
+
+  await streamResponseToFile(res, filename, onProgress);
+}
+
+async function streamResponseToFile(res: Response, filename: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
   if (!res.body) {
     const blob = await res.blob();
     saveBlob(blob, filename);
@@ -71,4 +90,21 @@ export async function downloadWithProgress(
   }
   const blob = new Blob(chunks);
   saveBlob(blob, filename);
+}
+
+/** يجلب الملف كـ Blob مباشرة من رابطه الفعلي (بلا حفظ) — يُستخدم عند بناء أرشيف
+ * ZIP بالكامل داخل المتصفح، حيث تحتاج المكتبة البايتات فعلياً لا مجرد تنزيلها.
+ * يتبع نفس منطق downloadWithProgress: إن كانت الاستجابة الأولى `{ url }` JSON
+ * (رابط الملف الفعلي من R2/Supabase) يُجلب المحتوى منه مباشرة بدل بثّه عبر خادمنا. */
+export async function fetchBlobWithRedirect(input: string, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(input, init);
+  if (!res.ok) throw new Error(`تعذّر تنزيل الملف (${res.status})`);
+  if ((res.headers.get("content-type") || "").includes("application/json")) {
+    const { url } = (await res.json()) as { url?: string };
+    if (!url) throw new Error("تعذّر تنزيل الملف");
+    const fileRes = await fetch(url);
+    if (!fileRes.ok) throw new Error(`تعذّر تنزيل الملف (${fileRes.status})`);
+    return fileRes.blob();
+  }
+  return res.blob();
 }
