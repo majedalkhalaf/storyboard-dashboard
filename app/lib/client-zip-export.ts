@@ -21,23 +21,82 @@ function sanitizeName(name: string): string {
   return cleaned.slice(0, 100) || "بدون_اسم";
 }
 
-async function fetchClientFileBlob(fileId: string): Promise<Blob | null> {
+// حد التزامن عند تنزيل عدة ملفات لبناء أرشيف واحد — تنزيل الملفات بالتتابع
+// (ملف كامل ثم التالي) كان يُبطئ التصدير بلا داعٍ حين يكون الاتصال قادراً على
+// نقل أكثر من ملف في الوقت نفسه؛ 4 يوازن السرعة دون إغراق الاتصال بطلبات
+// متزامنة كثيرة جداً.
+const DOWNLOAD_CONCURRENCY = 4;
+
+async function mapWithConcurrency<T>(items: T[], concurrency: number, task: (item: T, index: number) => Promise<void>): Promise<void> {
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      await task(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker));
+}
+
+// يجمع تقدّم تنزيل عدة ملفات متزامنة (بايت لكل ملف) في نسبة واحدة سلسة (0..1)
+// بدل نسبة تقفز دفعة واحدة كل ملف يكتمل بالكامل فقط — وهو ما كان يبدو للعميل
+// وكأن التحميل "متوقف" طوال مدة تنزيل كل ملف كبير، خصوصاً مع عدد قليل من الملفات.
+function createByteProgressTracker(fileCount: number, onUpdate: (fraction: number) => void) {
+  const loaded = new Array<number>(fileCount).fill(0);
+  const total = new Array<number>(fileCount).fill(0);
+  function emit() {
+    let sum = 0;
+    for (let i = 0; i < fileCount; i++) sum += total[i] > 0 ? Math.min(1, loaded[i] / total[i]) : 0;
+    onUpdate(fileCount > 0 ? sum / fileCount : 1);
+  }
+  return {
+    update(index: number, l: number, t: number) {
+      loaded[index] = l;
+      total[index] = t;
+      emit();
+    },
+    complete(index: number) {
+      loaded[index] = total[index] || loaded[index] || 1;
+      total[index] = total[index] || loaded[index] || 1;
+      emit();
+    },
+  };
+}
+
+async function fetchClientFileBlob(fileId: string, onProgress?: (loaded: number, total: number) => void): Promise<Blob | null> {
   try {
     // هذا المسار يُعيد رابط الملف الفعلي (JSON `{ url }`) بعد التحقق من الصلاحية
     // — وليس بايتات الملف نفسها — لتفادي بثّ فيديوهات كبيرة عبر خادمنا (خطر
     // توقّف الدالة السحابية منتصف النقل وإنتاج ملف مبتور). fetchBlobWithRedirect
-    // تتبع هذا الرابط وتجلب المحتوى الفعلي مباشرة من مصدره (R2/Supabase).
-    return await fetchBlobWithRedirect(`/api/client-portal/files/${fileId}?download=1`);
+    // تتبع هذا الرابط وتجلب المحتوى الفعلي مباشرة من مصدره (R2/Supabase)،
+    // بتقدّم بايت حقيقي عبر onProgress بدل نسبة تُعرف فقط بعد اكتمال الملف كاملاً.
+    return await fetchBlobWithRedirect(`/api/client-portal/files/${fileId}?download=1`, undefined, onProgress);
   } catch {
     return null;
   }
 }
 
-async function fetchBlobFromUrl(url: string): Promise<Blob | null> {
+async function fetchBlobFromUrl(url: string, onProgress?: (loaded: number, total: number) => void): Promise<Blob | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return await res.blob();
+    if (!res.body) {
+      const blob = await res.blob();
+      onProgress?.(blob.size, blob.size);
+      return blob;
+    }
+    const total = Number(res.headers.get("Content-Length")) || 0;
+    const reader = res.body.getReader();
+    const chunks: BlobPart[] = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value as BlobPart);
+      loaded += value?.byteLength ?? 0;
+      onProgress?.(loaded, total || loaded);
+    }
+    return new Blob(chunks);
   } catch {
     return null;
   }
@@ -76,22 +135,33 @@ const CATEGORY_FOLDER_AR: Record<FileCategory, string> = {
   other: "مرفقات_أخرى",
 };
 
-// يضيف مجموعة ملفات إلى مجلد zip، مقسّمة إلى مجلدات فرعية حسب تصنيف الملف
-// الفعلي المخزَّن في قاعدة البيانات (category) — الروابط الخارجية (لا ملف
-// حقيقي لتنزيله) تُدرج كسطر نصي بدل محاولة تنزيلها.
-async function addFilesToFolder(parentFolder: JSZip, files: ProjectFile[], onEach: () => void): Promise<void> {
-  const linkFiles = files.filter((f) => f.external_url);
-  const downloadable = files.filter((f) => !f.external_url);
-  for (const f of downloadable) {
-    const blob = await fetchClientFileBlob(f.id);
-    onEach();
-    const folder = parentFolder.folder(CATEGORY_FOLDER_AR[f.category] ?? "مرفقات_أخرى")!;
-    if (blob) folder.file(sanitizeName(f.name), blob);
-    else folder.file(`${sanitizeName(f.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
+// يضيف مجموعة ملفات (قد تنتمي لمجلدات مختلفة، مثلاً مجلد كل حلقة) إلى الأرشيف
+// دفعة واحدة بتنزيل متزامن (DOWNLOAD_CONCURRENCY) وتقدّم بايت مُجمَّع واحد —
+// بدل تنزيل كل مجلد على حدة بالتتابع. كل ملف يُوضع داخل مجلد فرعي حسب تصنيفه
+// الفعلي المخزَّن في قاعدة البيانات (category)؛ الروابط الخارجية (لا ملف حقيقي
+// لتنزيله) تُدرج كسطر نصي بدل محاولة تنزيلها.
+async function addFilesToFolder(entries: { file: ProjectFile; folder: JSZip }[], onProgress: (fraction: number) => void): Promise<void> {
+  const linkEntries = entries.filter((e) => e.file.external_url);
+  const downloadable = entries.filter((e) => !e.file.external_url);
+  const tracker = createByteProgressTracker(downloadable.length, onProgress);
+
+  await mapWithConcurrency(downloadable, DOWNLOAD_CONCURRENCY, async ({ file, folder }, i) => {
+    const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total));
+    const categoryFolder = folder.folder(CATEGORY_FOLDER_AR[file.category] ?? "مرفقات_أخرى")!;
+    if (blob) categoryFolder.file(sanitizeName(file.name), blob);
+    else categoryFolder.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
+    tracker.complete(i);
+  });
+
+  const linksByFolder = new Map<JSZip, ProjectFile[]>();
+  for (const { file, folder } of linkEntries) {
+    const list = linksByFolder.get(folder) ?? [];
+    list.push(file);
+    linksByFolder.set(folder, list);
   }
-  if (linkFiles.length > 0) {
-    const lines = linkFiles.map((f) => `${f.name}: ${f.external_url}`);
-    parentFolder.folder("روابط")!.file("روابط.txt", lines.join("\n"));
+  for (const [folder, files] of linksByFolder) {
+    const lines = files.map((f) => `${f.name}: ${f.external_url}`);
+    folder.folder("روابط")!.file("روابط.txt", lines.join("\n"));
   }
 }
 
@@ -136,20 +206,25 @@ export async function exportClientProjectZip(
       .join("\n")
   );
 
-  const totalFiles = projectFiles.length + Object.values(episodeFilesByEpisode).reduce((s, a) => s + a.length, 0);
-  let doneFiles = 0;
-  const bump = () => {
-    doneFiles += 1;
-    onProgress?.({ stage: `جاري تنزيل الملف ${doneFiles} من ${totalFiles || 1}...`, percent: 4 + Math.round((doneFiles / Math.max(totalFiles, 1)) * 56) });
-  };
-
+  const entries: { file: ProjectFile; folder: JSZip }[] = [];
   for (const ep of episodes) {
     const files = episodeFilesByEpisode[ep.id] ?? [];
     if (files.length === 0) continue;
-    await addFilesToFolder(root.folder(`الحلقة_${sanitizeName(ep.title)}`)!, files, bump);
+    const folder = root.folder(`الحلقة_${sanitizeName(ep.title)}`)!;
+    for (const f of files) entries.push({ file: f, folder });
   }
   if (projectFiles.length > 0) {
-    await addFilesToFolder(root.folder("ملفات_المشروع_المشتركة")!, projectFiles, bump);
+    const folder = root.folder("ملفات_المشروع_المشتركة")!;
+    for (const f of projectFiles) entries.push({ file: f, folder });
+  }
+
+  if (entries.length > 0) {
+    await addFilesToFolder(entries, (fraction) => {
+      onProgress?.({
+        stage: `جاري تنزيل الملفات (${Math.min(entries.length, Math.round(fraction * entries.length))}/${entries.length})...`,
+        percent: 4 + Math.round(fraction * 56),
+      });
+    });
   }
 
   onProgress?.({ stage: "جاري تجهيز التقارير والمستندات...", percent: 62 });
@@ -214,9 +289,11 @@ export async function exportClientProjectZip(
   }
 
   assertNonEmpty(zip);
-  onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 });
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
-    onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 + Math.round(meta.percent * 0.08) });
+  onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 92 });
+  // بلا ضغط (STORE): معظم المحتوى فيديوهات/صور مضغوطة أصلاً، فضغط DEFLATE
+  // فوقها يستهلك وقت معالجة طويلاً بلا أي توفير حقيقي في الحجم — تجميع مباشر أسرع بكثير.
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
+    onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 92 + Math.round(meta.percent * 0.08) });
   });
   triggerDownload(blob, `${sanitizeName(project.name)}.zip`);
   onProgress?.({ stage: "اكتمل التنزيل", percent: 100 });
@@ -232,17 +309,32 @@ export async function exportEpisodeFilesZip(episodeTitle: string, files: Project
     return;
   }
   const zip = new JSZip();
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    onProgress?.({ stage: `جاري تنزيل الملف ${i + 1} من ${files.length}...`, percent: Math.round((i / files.length) * 88) });
-    const blob = await fetchClientFileBlob(file.id);
-    if (blob) zip.file(sanitizeName(file.name), blob);
-    else zip.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
+  const linkFiles = files.filter((f) => f.external_url);
+  const downloadable = files.filter((f) => !f.external_url);
+
+  if (downloadable.length > 0) {
+    const tracker = createByteProgressTracker(downloadable.length, (fraction) => {
+      onProgress?.({
+        stage: `جاري تنزيل الملفات (${Math.min(downloadable.length, Math.round(fraction * downloadable.length))}/${downloadable.length})...`,
+        percent: Math.round(fraction * 88),
+      });
+    });
+    await mapWithConcurrency(downloadable, DOWNLOAD_CONCURRENCY, async (file, i) => {
+      const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total));
+      if (blob) zip.file(sanitizeName(file.name), blob);
+      else zip.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
+      tracker.complete(i);
+    });
   }
+  if (linkFiles.length > 0) {
+    const lines = linkFiles.map((f) => `${f.name}: ${f.external_url}`);
+    zip.folder("روابط")!.file("روابط.txt", lines.join("\n"));
+  }
+
   assertNonEmpty(zip);
-  onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 });
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
-    onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 + Math.round(meta.percent * 0.1) });
+  onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 90 });
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
+    onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 90 + Math.round(meta.percent * 0.1) });
   });
   triggerDownload(blob, `${sanitizeName(episodeTitle)}.zip`);
   onProgress?.({ stage: "اكتمل التنزيل", percent: 100 });
@@ -323,17 +415,22 @@ export async function exportAnnouncementMediaZip(title: string, media: BehindSce
     return;
   }
   const zip = new JSZip();
-  for (let i = 0; i < media.length; i++) {
-    const item = media[i];
-    onProgress?.({ stage: `جاري تنزيل الملف ${i + 1} من ${media.length}...`, percent: Math.round((i / media.length) * 88) });
-    const blob = await fetchBlobFromUrl(item.url);
+  const tracker = createByteProgressTracker(media.length, (fraction) => {
+    onProgress?.({
+      stage: `جاري تنزيل الملفات (${Math.min(media.length, Math.round(fraction * media.length))}/${media.length})...`,
+      percent: Math.round(fraction * 88),
+    });
+  });
+  await mapWithConcurrency(media, DOWNLOAD_CONCURRENCY, async (item, i) => {
+    const blob = await fetchBlobFromUrl(item.url, (loaded, total) => tracker.update(i, loaded, total));
     if (blob) zip.file(sanitizeName(item.name), blob);
     else zip.file(`${sanitizeName(item.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير.");
-  }
+    tracker.complete(i);
+  });
   assertNonEmpty(zip);
-  onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 });
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
-    onProgress?.({ stage: "جاري ضغط الملف...", percent: 90 + Math.round(meta.percent * 0.1) });
+  onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 90 });
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
+    onProgress?.({ stage: "جاري تجميع الأرشيف...", percent: 90 + Math.round(meta.percent * 0.1) });
   });
   triggerDownload(blob, `${sanitizeName(title)}.zip`);
   onProgress?.({ stage: "اكتمل التنزيل", percent: 100 });

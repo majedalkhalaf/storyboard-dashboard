@@ -181,7 +181,7 @@ export async function exportEpisodeZip(supabase: SupabaseClient, companyId: stri
   await addEpisodeFolder(zip, supabase, detail, (p) => onProgress?.({ stage: p.stage, percent: 5 + Math.round(p.percent * 0.8) }));
   assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف...", percent: 88 });
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 88 + Math.round(meta.percent * 0.12) });
   });
   triggerDownload(blob, `${sanitizeName(detail.title)}.zip`);
@@ -292,7 +292,7 @@ export async function exportProjectZip(
 
   assertNonEmpty(zip);
   onProgress?.({ stage: "جاري ضغط الملف (قد يستغرق وقتاً في المشاريع الكبيرة)...", percent: 92 });
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" }, (meta) => {
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
     onProgress?.({ stage: "جاري ضغط الملف...", percent: 92 + Math.round(meta.percent * 0.08) });
   });
   triggerDownload(blob, `${sanitizeName(project.name)}.zip`);

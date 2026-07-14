@@ -93,14 +93,14 @@ export async function downloadWithProgress(
   await streamResponseToFile(res, filename, onProgress);
 }
 
-async function streamResponseToFile(res: Response, filename: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
+// قراءة استجابة تدريجياً مع تقدّم بايت حقيقي — أساس مشترك لكل من التنزيل
+// المباشر (streamResponseToFile) وجلب Blob لبناء أرشيف ZIP (fetchBlobWithRedirect).
+async function readBlobWithProgress(res: Response, onProgress?: (loaded: number, total: number) => void): Promise<Blob> {
   if (!res.body) {
     const blob = await res.blob();
-    saveBlob(blob, filename);
     onProgress?.(blob.size, blob.size);
-    return;
+    return blob;
   }
-
   const total = Number(res.headers.get("Content-Length")) || 0;
   const reader = res.body.getReader();
   const chunks: BlobPart[] = [];
@@ -112,15 +112,20 @@ async function streamResponseToFile(res: Response, filename: string, onProgress?
     loaded += value?.byteLength ?? 0;
     onProgress?.(loaded, total || loaded);
   }
-  const blob = new Blob(chunks);
+  return new Blob(chunks);
+}
+
+async function streamResponseToFile(res: Response, filename: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
+  const blob = await readBlobWithProgress(res, onProgress);
   saveBlob(blob, filename);
 }
 
-/** يجلب الملف كـ Blob مباشرة من رابطه الفعلي (بلا حفظ) — يُستخدم عند بناء أرشيف
- * ZIP بالكامل داخل المتصفح، حيث تحتاج المكتبة البايتات فعلياً لا مجرد تنزيلها.
- * يتبع نفس منطق downloadWithProgress: إن كانت الاستجابة الأولى `{ url }` JSON
- * (رابط الملف الفعلي من R2/Supabase) يُجلب المحتوى منه مباشرة بدل بثّه عبر خادمنا. */
-export async function fetchBlobWithRedirect(input: string, init?: RequestInit): Promise<Blob> {
+/** يجلب الملف كـ Blob مباشرة من رابطه الفعلي (بلا حفظ)، بتقدّم بايت حقيقي عبر
+ * onProgress — يُستخدم عند بناء أرشيف ZIP بالكامل داخل المتصفح، حيث تحتاج
+ * المكتبة البايتات فعلياً لا مجرد تنزيلها. يتبع نفس منطق downloadWithProgress:
+ * إن كانت الاستجابة الأولى `{ url }` JSON (رابط الملف الفعلي من R2/Supabase)
+ * يُجلب المحتوى منه مباشرة بدل بثّه عبر خادمنا. */
+export async function fetchBlobWithRedirect(input: string, init?: RequestInit, onProgress?: (loaded: number, total: number) => void): Promise<Blob> {
   const res = await fetch(input, init);
   if (!res.ok) throw new Error(`تعذّر تنزيل الملف (${res.status})`);
   if ((res.headers.get("content-type") || "").includes("application/json")) {
@@ -128,7 +133,7 @@ export async function fetchBlobWithRedirect(input: string, init?: RequestInit): 
     if (!url) throw new Error("تعذّر تنزيل الملف");
     const fileRes = await fetch(url);
     if (!fileRes.ok) throw new Error(`تعذّر تنزيل الملف (${fileRes.status})`);
-    return fileRes.blob();
+    return readBlobWithProgress(fileRes, onProgress);
   }
-  return res.blob();
+  return readBlobWithProgress(res, onProgress);
 }
