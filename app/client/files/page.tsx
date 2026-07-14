@@ -60,7 +60,7 @@ export default async function ClientFilesPage() {
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
                   {p.project.name} <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>({p.files.length})</span>
                 </h3>
-                <FileList files={p.files} permissions={p.permissions} />
+                <FileList files={p.files} permissions={p.permissions} zipTitle={p.project.name} />
               </div>
             ))}
         </div>

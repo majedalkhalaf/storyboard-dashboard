@@ -355,7 +355,7 @@ export default function ProjectView({
             </div>
           )}
 
-          {active === "files" && <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات على مستوى المشروع بعد." />}
+          {active === "files" && <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات على مستوى المشروع بعد." zipTitle={project.name} />}
 
           {active === "notes" && (
             <NotesThread

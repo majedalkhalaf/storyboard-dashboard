@@ -440,7 +440,7 @@ export default function EpisodeDetailView({
                 </button>
               )}
               {downloading && <DownloadProgressBar stage={downloadProgress?.stage ?? "جارٍ التنزيل..."} percent={downloadProgress?.percent ?? 0} />}
-              <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." />
+              <FileList files={files} permissions={permissions} emptyLabel="لا توجد ملفات لهذه الحلقة بعد." zipTitle={episode.title} />
             </div>
           )}
 
