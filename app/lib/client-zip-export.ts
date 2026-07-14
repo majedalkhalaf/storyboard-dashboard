@@ -1,7 +1,7 @@
 "use client";
 
 import JSZip from "jszip";
-import { fetchBlobWithRedirect } from "@/app/lib/download";
+import { fetchBlobWithRedirect, downloadWithProgress } from "@/app/lib/download";
 import type { BehindScenesMediaItem, Contract, Episode, FileCategory, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 // تصدير مشروع العميل كملف ZIP — يعمل بالكامل داخل المتصفح، ويحترم صلاحيات العميل
@@ -67,6 +67,42 @@ function createByteProgressTracker(fileCount: number, onUpdate: (fraction: numbe
 
 function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
+}
+
+// حد إجمالي لحجم الملفات قبل تجميعها في أرشيف ZIP واحد داخل المتصفح — تجميع
+// عدة فيديوهات كبيرة في Blob واحد ضخم يصطدم بحدود تخزين Blob الداخلية في
+// Chrome (NotReadableError) عند تجاوز حجم إجمالي معيّن، بغضّ النظر عن التزامن
+// أو عدد إعادات المحاولة، لأن المشكلة في حجم الأرشيف النهائي نفسه وليس في
+// تنزيل الملفات المصدرية. تجاوز هذا الحد يُحوّل التصدير تلقائياً لتنزيل كل
+// ملف على حدة (نفس مسار التنزيل المفرد المُثبَت نجاحه) بدل تجميعها في أرشيف
+// واحد، فيتفادى المشكلة جذرياً بدل معالجتها بإعادة محاولات لا تحل السبب.
+const ZIP_SIZE_THRESHOLD_BYTES = 700 * 1024 * 1024;
+
+// تنزيل كل ملف على حدة (بدل تجميعها في أرشيف) — كل ملف يُنتج Blob بحجمه هو
+// فقط، لا بحجم كل الملفات مجتمعة، فيبقى دوماً أصغر بكثير من حدود Chrome.
+async function downloadFilesIndividually(
+  files: ProjectFile[],
+  onProgress: (fraction: number) => void,
+  signal?: AbortSignal
+): Promise<{ name: string; message: string }[]> {
+  const tracker = createByteProgressTracker(files.length, onProgress);
+  const failures: { name: string; message: string }[] = [];
+  await mapWithConcurrency(files, DOWNLOAD_CONCURRENCY, async (file, i) => {
+    try {
+      await downloadWithProgress(
+        `/api/client-portal/files/${file.id}?download=1`,
+        undefined,
+        file.name,
+        (loaded, total) => tracker.update(i, loaded, total),
+        signal
+      );
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+      failures.push({ name: file.name, message: err instanceof Error ? err.message : "خطأ غير معروف" });
+    }
+    tracker.complete(i);
+  });
+  return failures;
 }
 
 // رسالة الخطأ الفعلية للفشل تُمرَّر لِـ onFileError كي تُجمَّع وتُعرض للمستخدم
@@ -271,16 +307,38 @@ export async function exportClientProjectZip(
 
   let fileFailures: { name: string; message: string }[] = [];
   if (entries.length > 0) {
-    fileFailures = await addFilesToFolder(
-      entries,
-      (fraction) => {
-        onProgress?.({
-          stage: `جاري تنزيل الملفات (${Math.min(entries.length, Math.round(fraction * entries.length))}/${entries.length})...`,
-          percent: 4 + Math.round(fraction * 56),
-        });
-      },
-      signal
-    );
+    const downloadableEntries = entries.filter((e) => !e.file.external_url);
+    const linkOnlyEntries = entries.filter((e) => e.file.external_url);
+    const totalBytes = downloadableEntries.reduce((sum, e) => sum + (e.file.size_bytes || 0), 0);
+
+    if (totalBytes > ZIP_SIZE_THRESHOLD_BYTES) {
+      // الحجم الإجمالي كبير جداً لتجميعه في أرشيف واحد داخل المتصفح بأمان (خطر
+      // Blob غير قابل للحل بإعادة المحاولة) — تُكتب الروابط الخارجية فقط داخل
+      // الأرشيف (ملخص المشروع والتقارير)، وتُنزَّل الملفات الفعلية كل واحد على
+      // حدة بدل تجميعها.
+      await addFilesToFolder(linkOnlyEntries, () => {}, signal);
+      fileFailures = await downloadFilesIndividually(
+        downloadableEntries.map((e) => e.file),
+        (fraction) => {
+          onProgress?.({
+            stage: `الملفات كبيرة جداً لتجميعها في أرشيف واحد — جارٍ تنزيل كل ملف على حدة (${Math.min(downloadableEntries.length, Math.round(fraction * downloadableEntries.length))}/${downloadableEntries.length})...`,
+            percent: 4 + Math.round(fraction * 56),
+          });
+        },
+        signal
+      );
+    } else {
+      fileFailures = await addFilesToFolder(
+        entries,
+        (fraction) => {
+          onProgress?.({
+            stage: `جاري تنزيل الملفات (${Math.min(entries.length, Math.round(fraction * entries.length))}/${entries.length})...`,
+            percent: 4 + Math.round(fraction * 56),
+          });
+        },
+        signal
+      );
+    }
   }
 
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -366,9 +424,25 @@ export async function exportEpisodeFilesZip(episodeTitle: string, files: Project
     onProgress?.({ stage: "لا توجد ملفات لهذه الحلقة", percent: 100 });
     return;
   }
-  const zip = new JSZip();
   const linkFiles = files.filter((f) => f.external_url);
   const downloadable = files.filter((f) => !f.external_url);
+  const totalBytes = downloadable.reduce((sum, f) => sum + (f.size_bytes || 0), 0);
+
+  if (totalBytes > ZIP_SIZE_THRESHOLD_BYTES) {
+    // الحجم الإجمالي كبير جداً لتجميعه في أرشيف واحد داخل المتصفح بأمان — تُنزَّل
+    // الملفات كل واحد على حدة بدل الفشل مع خطأ Blob غير قابل للحل بإعادة المحاولة.
+    const failures = await downloadFilesIndividually(downloadable, (fraction) => {
+      onProgress?.({
+        stage: `الملفات كبيرة جداً لتجميعها في أرشيف واحد — جارٍ تنزيل كل ملف على حدة (${Math.min(downloadable.length, Math.round(fraction * downloadable.length))}/${downloadable.length})...`,
+        percent: Math.round(fraction * 100),
+      });
+    }, signal);
+    onProgress?.({ stage: "اكتمل تنزيل الملفات (كل ملف على حدة بسبب حجمها الكبير)", percent: 100 });
+    if (failures.length > 0) throw buildFailureError(failures);
+    return;
+  }
+
+  const zip = new JSZip();
   const fileFailures: { name: string; message: string }[] = [];
 
   if (downloadable.length > 0) {
