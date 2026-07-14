@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getCurrentSession } from "@/app/lib/supabase/session";
-import { r2PublicUrl } from "@/app/lib/r2-client";
+import { createR2Client, r2BucketName } from "@/app/lib/r2-client";
 
-// يُعيد رابط الملف الفعلي مباشرة من R2 (بعد التحقق أن المفتاح يتبع نطاق شركة
-// المستخدم) بدل سحب الملف على خادمنا وإعادة بثّه — بثّ فيديو كبير عبر خادمنا
-// كان يعرّض التنزيل لخطر توقّف الدالة السحابية (Netlify) منتصف النقل إن تجاوز
-// وقت النقل مهلة تنفيذها، فينتج ملفاً مبتوراً. اسم الملف عند الحفظ يُحدَّد من
-// جهة المتصفح (a.download) في downloadWithProgress، فلا حاجة لـ Content-Disposition هنا.
+// يُعيد رابطاً موقّتاً موقّعاً (presigned) لتنزيل الملف مباشرة من R2 (بعد التحقق
+// أن المفتاح يتبع نطاق شركة المستخدم) بدل سحب الملف على خادمنا وإعادة بثّه —
+// بثّ فيديو كبير عبر خادمنا كان يعرّض التنزيل لخطر توقّف الدالة السحابية
+// (Netlify) منتصف النقل إن تجاوز وقت النقل مهلة تنفيذها، فينتج ملفاً مبتوراً.
+// الرابط الموقّع يفرض Content-Disposition: attachment من R2 نفسه بالاسم
+// الصحيح — يعمل حتى مع تنزيل مباشر بلا قراءة JS للبايتات (المسار المُفضَّل
+// على الجوال لتفادي تحميل ملفات كبيرة كاملة في الذاكرة).
+function contentDisposition(rawName: string): string {
+  const asciiFallback = rawName.replace(/[^\x20-\x7E]/g, "_");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(rawName)}`;
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getCurrentSession();
@@ -22,7 +31,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "غير مصرح بهذا المسار" }, { status: 403 });
     }
 
-    return NextResponse.json({ url: r2PublicUrl(body.key) });
+    const r2 = createR2Client();
+    const url = await getSignedUrl(
+      r2,
+      new GetObjectCommand({ Bucket: r2BucketName(), Key: body.key, ResponseContentDisposition: contentDisposition(body.fileName) }),
+      { expiresIn: 3600 }
+    );
+    return NextResponse.json({ url });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "تعذّر تنزيل الملف" }, { status: 500 });
   }

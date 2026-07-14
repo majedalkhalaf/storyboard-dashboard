@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { canClient } from "@/app/lib/permissions";
-import { r2PublicUrl } from "@/app/lib/r2-client";
+import { createR2Client, r2BucketName, r2PublicUrl } from "@/app/lib/r2-client";
+
+function contentDisposition(rawName: string): string {
+  // اسم عربي/يونيكود داخل Content-Disposition يحتاج الصيغة القياسية filename*=UTF-8''
+  // (RFC 6266) مع اسم احتياطي ASCII فقط — متصفحات كثيرة لا تفكّ ترميز filename="%.."
+  // العادي تلقائياً فيظهر اسم الملف المحمَّل حرفياً بصيغته المرمَّزة بدل اسمه الحقيقي.
+  const asciiFallback = rawName.replace(/[^\x20-\x7E]/g, "_");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(rawName)}`;
+}
 
 // يُرجع رابط الملف الفعلي (مباشرة من Cloudflare R2 أو رابطاً موقّتاً موقّعاً من
 // Supabase Storage) بعد التحقق أن المستخدم عميل نشط على المشروع ولديه صلاحية
@@ -53,12 +63,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
       return NextResponse.json({ error: "غير مصرح بالوصول لهذا الملف" }, { status: 403 });
     }
 
+    const rawName = file.original_name || file.name;
+
     if (file.bucket_name === "r2") {
+      if (isDownload) {
+        // رابط موقّع (presigned) يفرض Content-Disposition: attachment من R2 نفسه —
+        // يعمل بشكل صحيح حتى مع تنزيل مباشر (بلا قراءة JS للبايتات) على الجوال،
+        // بخلاف الرابط العام المستخدم للعرض فقط الذي لا يفرض تنزيلاً أبداً.
+        const r2 = createR2Client();
+        const url = await getSignedUrl(
+          r2,
+          new GetObjectCommand({ Bucket: r2BucketName(), Key: file.storage_path, ResponseContentDisposition: contentDisposition(rawName) }),
+          { expiresIn: 3600 }
+        );
+        return NextResponse.json({ url });
+      }
       return NextResponse.json({ url: r2PublicUrl(file.storage_path) });
     }
 
     // ساعة كاملة تكفي لتنزيل ملفات كبيرة على اتصال بطيء دون انتهاء صلاحية الرابط أثناء النقل.
-    const { data: signed, error } = await admin.storage.from(file.bucket_name || "project-files").createSignedUrl(file.storage_path, 3600);
+    const { data: signed, error } = await admin.storage
+      .from(file.bucket_name || "project-files")
+      .createSignedUrl(file.storage_path, 3600, isDownload ? { download: rawName } : undefined);
     if (error || !signed) {
       return NextResponse.json({ error: "تعذّر إنشاء رابط التحميل" }, { status: 500 });
     }

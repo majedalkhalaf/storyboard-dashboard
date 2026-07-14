@@ -8,6 +8,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import { downloadWithProgress } from "@/app/lib/download";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
+import MediaWatermark from "@/app/components/client/MediaWatermark";
 import { formatDuration, relativeTime } from "@/app/components/client/utils";
 import { trackVideoWatch } from "@/app/lib/client-activity-tracker";
 import type { Note, ProjectFile } from "@/app/lib/types";
@@ -177,6 +178,7 @@ export function VideoPlayerModal({
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [editRequestOpen, setEditRequestOpen] = useState(false);
+  const [watermarkLogoUrl, setWatermarkLogoUrl] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const maxWatchedRef = useRef(0);
@@ -219,6 +221,26 @@ export function VideoPlayerModal({
       cancelled = true;
     };
   }, [file]);
+
+  // العلامة المائية اختيارية لكل شركة — تُجلب مرة واحدة فقط عند فتح المشغّل،
+  // بلا حاجة لتمرير بيانات الشركة كاملة عبر كل مكوّنات بطاقة/صفحة الحلقة.
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from("companies")
+      .select("client_portal_watermark_enabled, client_portal_logo_url")
+      .eq("id", companyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.client_portal_watermark_enabled && data.client_portal_logo_url) {
+          setWatermarkLogoUrl(data.client_portal_logo_url);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
 
   function seekTo(seconds: number) {
     if (videoRef.current) videoRef.current.currentTime = seconds;
@@ -355,20 +377,25 @@ export function VideoPlayerModal({
           {loadingSrc ? (
             <div className="skeleton" style={{ height: 320, borderRadius: 12 }} />
           ) : src && !srcError ? (
-            <video
-              ref={videoRef}
-              src={src}
-              controls
-              playsInline
-              onTimeUpdate={(e) => {
-                const t = e.currentTarget.currentTime;
-                setCurrentTime(t);
-                if (t > maxWatchedRef.current) maxWatchedRef.current = t;
-              }}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
-              onError={() => setSrcError(true)}
-              style={{ width: "100%", maxHeight: 420, borderRadius: 12, background: "#000", display: "block" }}
-            />
+            <div style={{ position: "relative" }}>
+              <video
+                ref={videoRef}
+                src={src}
+                controls
+                playsInline
+                controlsList={canDownload ? undefined : "nodownload"}
+                onContextMenu={(e) => e.preventDefault()}
+                onTimeUpdate={(e) => {
+                  const t = e.currentTarget.currentTime;
+                  setCurrentTime(t);
+                  if (t > maxWatchedRef.current) maxWatchedRef.current = t;
+                }}
+                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+                onError={() => setSrcError(true)}
+                style={{ width: "100%", maxHeight: 420, borderRadius: 12, background: "#000", display: "block" }}
+              />
+              {watermarkLogoUrl && <MediaWatermark logoUrl={watermarkLogoUrl} />}
+            </div>
           ) : (
             <div className="empty-state">تعذّر تحميل الفيديو</div>
           )}

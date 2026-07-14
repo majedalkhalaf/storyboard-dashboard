@@ -249,6 +249,7 @@ function IdentityTab({ company, admin }: { company: Company; admin: boolean }) {
     font_ar: company.font_ar ?? "Tajawal",
     font_en: company.font_en ?? "Inter",
     default_signature_key: company.default_signature_key,
+    client_portal_watermark_enabled: company.client_portal_watermark_enabled,
   });
   const [assets, setAssets] = useState<Record<string, string | null>>({
     logo_url: company.logo_url,
@@ -312,6 +313,19 @@ function IdentityTab({ company, admin }: { company: Company; admin: boolean }) {
           <AssetUploader label="صورة غلاف الشركة" url={assets.cover_image_url} onFile={(f) => handleUpload("cover", "cover_image_url", f)} />
           <AssetUploader label="صورة بوابة العملاء" url={assets.client_portal_logo_url} onFile={(f) => handleUpload("client-portal-logo", "client_portal_logo_url", f)} />
         </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={form.client_portal_watermark_enabled}
+            onChange={(e) => setForm({ ...form, client_portal_watermark_enabled: e.target.checked })}
+            style={{ accentColor: "var(--gold)" }}
+          />
+          إظهار علامة مائية (شعار الشركة) فوق الفيديوهات والصور في بوابة العميل
+        </label>
+        {form.client_portal_watermark_enabled && !assets.client_portal_logo_url && (
+          <p style={{ fontSize: 11.5, color: "var(--gold)" }}>ارفع &ldquo;صورة بوابة العملاء&rdquo; أعلاه ليظهر الشعار كعلامة مائية.</p>
+        )}
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           <ColorField label="اللون الأساسي" value={form.primary_color} onChange={(v) => setForm({ ...form, primary_color: v })} />

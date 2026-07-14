@@ -7,6 +7,8 @@ import { CLIENT_PERMISSION_LABELS } from "@/app/lib/constants";
 import { CLIENT_PERMISSION_GROUPS, permissionCountOf, permissionTotalCount } from "@/app/lib/client-invite-catalog";
 import type { ClientPermissions, CompanyPermissionTemplate } from "@/app/lib/types";
 
+const DOWNLOAD_PERMISSION_KEYS: (keyof ClientPermissions)[] = ["download_files", "download_episode_zip", "download_project"];
+
 // محرر صلاحيات العميل الموحّد — يُستخدم داخل نافذة الدعوة الجديدة ومحرر
 // صلاحيات العميل الحالي في تبويب "العملاء" سواء بسواء، بدل وجود نموذجين
 // مختلفين لنفس المفهوم. مقسّم لبطاقات قابلة للطي حسب الموضوع، مع بحث فوري،
@@ -90,8 +92,47 @@ export default function ClientPermissionsEditor({
   const total = permissionTotalCount();
   const granted = permissionCountOf(permissions);
 
+  // مفتاح إيقاف/تفعيل التحميل بضغطة واحدة — يُطفئ الصلاحيات الثلاث المرتبطة
+  // بالتحميل معاً (ملفات الحلقة، ZIP الحلقة، ZIP المشروع كاملاً) دفعة واحدة،
+  // بدل الحاجة لفتح مجموعة "الملفات والوسائط" وتعديل كل صلاحية على حدة —
+  // بطلب صريح لإمكانية منع العميل من التحميل فوراً من فريق العمل.
+  const downloadsBlocked = DOWNLOAD_PERMISSION_KEYS.every((k) => !permissions[k]);
+  function toggleDownloadsKillSwitch() {
+    const next = { ...permissions };
+    for (const k of DOWNLOAD_PERMISSION_KEYS) next[k] = downloadsBlocked;
+    onChange(next);
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <button
+        type="button"
+        onClick={toggleDownloadsKillSwitch}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "10px 14px",
+          borderRadius: 10,
+          cursor: "pointer",
+          textAlign: "start",
+          border: downloadsBlocked ? "1px solid #ef4444" : "1px solid var(--border)",
+          background: downloadsBlocked ? "rgba(239,68,68,0.1)" : "var(--bg-hover)",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700, color: downloadsBlocked ? "#ef4444" : "var(--text-primary)" }}>
+          <Icon name={downloadsBlocked ? "alert" : "export"} size={15} />
+          {downloadsBlocked ? "التحميل معطّل حالياً عن هذا العميل" : "تعطيل كل التحميلات فوراً"}
+        </span>
+        <span
+          className="chip"
+          style={{ fontSize: 11, color: downloadsBlocked ? "#ef4444" : "var(--text-secondary)", borderColor: downloadsBlocked ? "#ef4444" : "var(--border)" }}
+        >
+          {downloadsBlocked ? "إعادة التفعيل" : "تعطيل"}
+        </span>
+      </button>
+
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
           {granted} من {total} صلاحية مفعّلة

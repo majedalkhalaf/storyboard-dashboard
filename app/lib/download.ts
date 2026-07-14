@@ -16,6 +16,19 @@ export function openUrl(url: string, newTab = true) {
   a.remove();
 }
 
+// حدّ حجم آمن قبل تفضيل تنزيل مباشر (بلا تجميع بايتات في الذاكرة) على الجوال —
+// متصفحات الجوال (خصوصاً Safari على iOS) لديها سقف ذاكرة أشد صرامة بكثير من
+// الحاسوب لكل تبويب؛ تجميع فيديو كبير جداً كـ Blob واحد في الذاكرة قبل حفظه قد
+// يُعطّل التبويب أو يفشل بصمت. 60 ميجابايت حدّ متحفّظ يغطي أغلب الصور/المستندات
+// بأمان عبر المسار العادي، ويحوّل الفيديوهات الكبيرة فعلياً لتنزيل مباشر أكثر
+// موثوقية على الجوال.
+const MOBILE_SAFE_BUFFER_LIMIT = 60 * 1024 * 1024;
+
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /mobi|iphone|android|ipad|tablet/i.test(navigator.userAgent);
+}
+
 function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -62,6 +75,17 @@ export async function downloadWithProgress(
     if (!url) throw new Error("تعذّر تنزيل الملف");
     const fileRes = await fetch(url);
     if (!fileRes.ok) throw new Error("تعذّر تنزيل الملف");
+
+    const total = Number(fileRes.headers.get("Content-Length")) || 0;
+    if (isMobileDevice() && total > MOBILE_SAFE_BUFFER_LIMIT) {
+      // على الجوال، نتجنّب قراءة كل بايتات ملف كبير في الذاكرة — نترك متصفح
+      // الجهاز نفسه يتولّى النقل تدريجياً كتنزيل مباشر (كما يحدث لأي رابط تنزيل
+      // عادي)، على حساب نسبة تقدّم دقيقة لا يمكن معرفتها بلا قراءة الاستجابة.
+      await fileRes.body?.cancel().catch(() => {});
+      openUrl(url, false);
+      return;
+    }
+
     await streamResponseToFile(fileRes, filename, onProgress);
     return;
   }

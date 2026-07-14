@@ -95,6 +95,7 @@ export interface Company {
   document_logo_url: string | null;
   cover_image_url: string | null;
   client_portal_logo_url: string | null;
+  client_portal_watermark_enabled: boolean;
   name_en: string | null;
   trade_name: string | null;
   short_description: string | null;
