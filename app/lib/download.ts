@@ -56,9 +56,10 @@ export async function downloadWithProgress(
   input: string,
   init: RequestInit | undefined,
   filename: string,
-  onProgress?: (loaded: number, total: number) => void
+  onProgress?: (loaded: number, total: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
-  const res = await fetch(input, init);
+  const res = await fetch(input, { ...init, signal });
   if (!res.ok) {
     let message = "تعذّر تنزيل الملف";
     try {
@@ -73,7 +74,7 @@ export async function downloadWithProgress(
   if ((res.headers.get("content-type") || "").includes("application/json")) {
     const { url } = (await res.json()) as { url?: string };
     if (!url) throw new Error("تعذّر تنزيل الملف");
-    const fileRes = await fetch(url);
+    const fileRes = await fetch(url, { signal });
     if (!fileRes.ok) throw new Error("تعذّر تنزيل الملف");
 
     const total = Number(fileRes.headers.get("Content-Length")) || 0;
@@ -125,13 +126,18 @@ async function streamResponseToFile(res: Response, filename: string, onProgress?
  * المكتبة البايتات فعلياً لا مجرد تنزيلها. يتبع نفس منطق downloadWithProgress:
  * إن كانت الاستجابة الأولى `{ url }` JSON (رابط الملف الفعلي من R2/Supabase)
  * يُجلب المحتوى منه مباشرة بدل بثّه عبر خادمنا. */
-export async function fetchBlobWithRedirect(input: string, init?: RequestInit, onProgress?: (loaded: number, total: number) => void): Promise<Blob> {
-  const res = await fetch(input, init);
+export async function fetchBlobWithRedirect(
+  input: string,
+  init?: RequestInit,
+  onProgress?: (loaded: number, total: number) => void,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const res = await fetch(input, { ...init, signal });
   if (!res.ok) throw new Error(`تعذّر تنزيل الملف (${res.status})`);
   if ((res.headers.get("content-type") || "").includes("application/json")) {
     const { url } = (await res.json()) as { url?: string };
     if (!url) throw new Error("تعذّر تنزيل الملف");
-    const fileRes = await fetch(url);
+    const fileRes = await fetch(url, { signal });
     if (!fileRes.ok) throw new Error(`تعذّر تنزيل الملف (${fileRes.status})`);
     return readBlobWithProgress(fileRes, onProgress);
   }

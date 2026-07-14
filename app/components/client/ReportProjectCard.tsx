@@ -5,6 +5,7 @@ import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { projectStatusMeta } from "@/app/components/client/utils";
 import type { Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
@@ -44,7 +45,20 @@ export default function ReportProjectCard({
       for (const f of files) {
         if (f.episode_id) (episodeFilesByEpisode[f.episode_id] ??= []).push(f);
       }
-      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, {}, setProgress);
+      await runTrackedDownload(project.name, async ({ signal, onProgress }) => {
+        await exportClientProjectZip(
+          project,
+          episodes,
+          projectFiles,
+          episodeFilesByEpisode,
+          {},
+          (p) => {
+            setProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setBusyKind(null);
       setProgress(null);

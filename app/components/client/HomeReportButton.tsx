@@ -4,6 +4,7 @@ import { useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportClientProjectZip, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import type { Episode, Project, ProjectFile } from "@/app/lib/types";
 
 // أيقونة "تحميل تقرير كامل عن المشروع" فوق صورة الغلاف في الصفحة الرئيسية —
@@ -29,7 +30,20 @@ export default function HomeReportButton({ project }: { project: Project }) {
       for (const f of files) {
         if (f.episode_id) (episodeFilesByEpisode[f.episode_id] ??= []).push(f);
       }
-      await exportClientProjectZip(project, episodes, projectFiles, episodeFilesByEpisode, {}, setProgress);
+      await runTrackedDownload(project.name, async ({ signal, onProgress }) => {
+        await exportClientProjectZip(
+          project,
+          episodes,
+          projectFiles,
+          episodeFilesByEpisode,
+          {},
+          (p) => {
+            setProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setBusy(false);
       setProgress(null);

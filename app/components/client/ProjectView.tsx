@@ -17,6 +17,7 @@ import { canClient } from "@/app/lib/permissions";
 import { useIsMobile } from "@/app/lib/useIsMobile";
 import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/app/components/client/utils";
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { getItemNoun, isSpecialEpisodeKind } from "@/app/lib/item-noun";
 import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
@@ -165,23 +166,29 @@ export default function ProjectView({
         if (n.episode_id) (episodeNotesByEpisode[n.episode_id] ??= []).push(n);
       }
 
-      await exportClientProjectZip(
-        project,
-        episodes,
-        projectFiles,
-        episodeFilesByEpisode,
-        {
-          finance: showFinance ? finance : null,
-          lastPayment: showPayments ? lastPayment : null,
-          projectNotes,
-          episodeNotesByEpisode,
-          meetingNotes,
-          contracts: (contractRows ?? []) as Contract[],
-          invoices: (invoiceRows ?? []) as Invoice[],
-          payments: (paymentRows ?? []) as Payment[],
-        },
-        setExportProgress
-      );
+      await runTrackedDownload(project.name, async ({ signal, onProgress }) => {
+        await exportClientProjectZip(
+          project,
+          episodes,
+          projectFiles,
+          episodeFilesByEpisode,
+          {
+            finance: showFinance ? finance : null,
+            lastPayment: showPayments ? lastPayment : null,
+            projectNotes,
+            episodeNotesByEpisode,
+            meetingNotes,
+            contracts: (contractRows ?? []) as Contract[],
+            invoices: (invoiceRows ?? []) as Invoice[],
+            payments: (paymentRows ?? []) as Payment[],
+          },
+          (p) => {
+            setExportProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setExporting(false);
       setExportProgress(null);

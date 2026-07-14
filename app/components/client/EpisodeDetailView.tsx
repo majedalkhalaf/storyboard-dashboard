@@ -16,6 +16,7 @@ import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import { createClient } from "@/app/lib/supabase/client";
 import { useIsMobile } from "@/app/lib/useIsMobile";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { STAGE_STATUSES, STORYBOARD_SCENE_STATUSES } from "@/app/lib/constants";
@@ -160,7 +161,20 @@ export default function EpisodeDetailView({
     if (downloading) return;
     setDownloading(true);
     try {
-      await exportEpisodeFilesZip(episode.title, files, setDownloadProgress);
+      // يُسجَّل التصدير في المخزن العام (download-queue-store) فيظهر في اللوحة
+      // العائمة الثابتة عبر كل الصفحات، ويستمر (وقابل للإلغاء الحقيقي) حتى لو
+      // غادر العميل صفحة الحلقة هذه أثناء التنزيل.
+      await runTrackedDownload(episode.title, async ({ signal, onProgress }) => {
+        await exportEpisodeFilesZip(
+          episode.title,
+          files,
+          (p) => {
+            setDownloadProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setDownloading(false);
       setDownloadProgress(null);

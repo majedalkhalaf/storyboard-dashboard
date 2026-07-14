@@ -362,6 +362,24 @@ body {
   text-align: center;
 }
 
+/* ── TRANSFER HUB (لوحة تنزيل/رفع عائمة ثابتة الظهور) ── */
+.transfer-hub {
+  position: fixed;
+  bottom: 20px;
+  inset-inline-start: 20px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  z-index: 300;
+}
+@media (max-width: 767px) {
+  .transfer-hub {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
+    inset-inline-start: 12px;
+    inset-inline-end: 12px;
+    width: auto;
+  }
+}
+
 /* ── BOTTOM NAV (mobile) ── */
 .bottom-nav {
   display: none;

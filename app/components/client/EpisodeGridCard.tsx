@@ -9,6 +9,7 @@ import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { VideoPlayerModal } from "@/app/components/client/ClientVideoPlayer";
 import { createClient } from "@/app/lib/supabase/client";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
@@ -94,7 +95,21 @@ export default function EpisodeGridCard({
     try {
       const supabase = createClient();
       const { data } = await supabase.from("files").select("*").eq("episode_id", episode.id).eq("client_visible", true);
-      await exportEpisodeFilesZip(episode.title, (data ?? []) as ProjectFile[], setProgress);
+      const episodeFiles = (data ?? []) as ProjectFile[];
+      // يُسجَّل التصدير في المخزن العام (download-queue-store) فيظهر في اللوحة
+      // العائمة الثابتة عبر كل الصفحات، ويستمر (وقابل للإلغاء الحقيقي) حتى لو
+      // انتقل العميل بعيداً عن هذه البطاقة أثناء التنزيل.
+      await runTrackedDownload(episode.title, async ({ signal, onProgress }) => {
+        await exportEpisodeFilesZip(
+          episode.title,
+          episodeFiles,
+          (p) => {
+            setProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setDownloading(false);
       setProgress(null);

@@ -6,6 +6,7 @@ import { fileIconName, formatBytes } from "@/app/components/client/utils";
 import { trackFileDownload } from "@/app/lib/client-activity-tracker";
 import { openUrl, downloadWithProgress } from "@/app/lib/download";
 import { exportEpisodeFilesZip, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import type { ClientPermissions, ProjectFile } from "@/app/lib/types";
 
@@ -44,10 +45,23 @@ export default function FileList({
     setLoadingId(file.id);
     setProgressById((prev) => ({ ...prev, [file.id]: 0 }));
     try {
-      await downloadWithProgress(`/api/client-portal/files/${file.id}?download=1`, undefined, file.name, (loaded, total) =>
-        setProgressById((prev) => ({ ...prev, [file.id]: total > 0 ? Math.round((loaded / total) * 100) : 0 }))
-      );
-      trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
+      // يُسجَّل التنزيل في المخزن العام (download-queue-store) فيظهر في اللوحة
+      // العائمة الثابتة، ويستمر (وقابل للإلغاء الحقيقي عبر "×") حتى لو انتقل
+      // العميل لقسم آخر أو دخل حلقة أخرى أثناء التنزيل.
+      await runTrackedDownload(file.name, async ({ signal, onProgress }) => {
+        await downloadWithProgress(
+          `/api/client-portal/files/${file.id}?download=1`,
+          undefined,
+          file.name,
+          (loaded, total) => {
+            const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+            setProgressById((prev) => ({ ...prev, [file.id]: percent }));
+            onProgress("جارٍ التنزيل...", percent);
+          },
+          signal
+        );
+        trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
+      });
     } catch {
       setErrorId(file.id);
     } finally {
@@ -75,10 +89,20 @@ export default function FileList({
     setZipping(true);
     setZipProgress({ stage: "جاري تجهيز الملفات...", percent: 0 });
     try {
-      await exportEpisodeFilesZip(zipTitle, selected, setZipProgress);
-      for (const file of selected) {
-        if (!file.external_url) trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
-      }
+      await runTrackedDownload(zipTitle, async ({ signal, onProgress }) => {
+        await exportEpisodeFilesZip(
+          zipTitle,
+          selected,
+          (p) => {
+            setZipProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+        for (const file of selected) {
+          if (!file.external_url) trackFileDownload(file.name, file.id, { projectId: file.project_id, episodeId: file.episode_id });
+        }
+      });
     } catch {
       setZipError(true);
     } finally {

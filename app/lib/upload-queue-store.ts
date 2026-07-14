@@ -37,6 +37,7 @@ const items = new Map<string, InternalItem>();
 const listeners = new Set<() => void>();
 let version = 0;
 const scopeCache = new Map<string, { version: number; list: QueueItem[] }>();
+let allCache: { version: number; list: QueueItem[] } | null = null;
 
 function notify() {
   version++;
@@ -71,6 +72,24 @@ export function useUploadQueue(scopeKey: string): QueueItem[] {
   return useSyncExternalStore(
     subscribe,
     () => getSnapshot(scopeKey),
+    () => []
+  );
+}
+
+function getAllSnapshot(): QueueItem[] {
+  if (allCache && allCache.version === version) return allCache.list;
+  const list = Array.from(items.values()).map(toPublic);
+  allCache = { version, list };
+  return list;
+}
+
+/** يُعيد كل عمليات الرفع الجارية عبر التطبيق بأكمله (بلا حصر بنطاق مشروع/حلقة
+ * معيّن) — يُستخدم في اللوحة العائمة الثابتة (TransferHub) المركَّبة في AppShell
+ * كي تبقى ظاهرة بغضّ النظر عن أي صفحة يتصفّحها المستخدم داخل لوحة الفريق. */
+export function useAllUploadItems(): QueueItem[] {
+  return useSyncExternalStore(
+    subscribe,
+    getAllSnapshot,
     () => []
   );
 }

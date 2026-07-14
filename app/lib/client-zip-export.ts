@@ -63,22 +63,27 @@ function createByteProgressTracker(fileCount: number, onUpdate: (fraction: numbe
   };
 }
 
-async function fetchClientFileBlob(fileId: string, onProgress?: (loaded: number, total: number) => void): Promise<Blob | null> {
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function fetchClientFileBlob(fileId: string, onProgress?: (loaded: number, total: number) => void, signal?: AbortSignal): Promise<Blob | null> {
   try {
     // هذا المسار يُعيد رابط الملف الفعلي (JSON `{ url }`) بعد التحقق من الصلاحية
     // — وليس بايتات الملف نفسها — لتفادي بثّ فيديوهات كبيرة عبر خادمنا (خطر
     // توقّف الدالة السحابية منتصف النقل وإنتاج ملف مبتور). fetchBlobWithRedirect
     // تتبع هذا الرابط وتجلب المحتوى الفعلي مباشرة من مصدره (R2/Supabase)،
     // بتقدّم بايت حقيقي عبر onProgress بدل نسبة تُعرف فقط بعد اكتمال الملف كاملاً.
-    return await fetchBlobWithRedirect(`/api/client-portal/files/${fileId}?download=1`, undefined, onProgress);
-  } catch {
+    return await fetchBlobWithRedirect(`/api/client-portal/files/${fileId}?download=1`, undefined, onProgress, signal);
+  } catch (err) {
+    if (isAbortError(err)) throw err;
     return null;
   }
 }
 
-async function fetchBlobFromUrl(url: string, onProgress?: (loaded: number, total: number) => void): Promise<Blob | null> {
+async function fetchBlobFromUrl(url: string, onProgress?: (loaded: number, total: number) => void, signal?: AbortSignal): Promise<Blob | null> {
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     if (!res.body) {
       const blob = await res.blob();
@@ -97,7 +102,8 @@ async function fetchBlobFromUrl(url: string, onProgress?: (loaded: number, total
       onProgress?.(loaded, total || loaded);
     }
     return new Blob(chunks);
-  } catch {
+  } catch (err) {
+    if (isAbortError(err)) throw err;
     return null;
   }
 }
@@ -140,13 +146,13 @@ const CATEGORY_FOLDER_AR: Record<FileCategory, string> = {
 // بدل تنزيل كل مجلد على حدة بالتتابع. كل ملف يُوضع داخل مجلد فرعي حسب تصنيفه
 // الفعلي المخزَّن في قاعدة البيانات (category)؛ الروابط الخارجية (لا ملف حقيقي
 // لتنزيله) تُدرج كسطر نصي بدل محاولة تنزيلها.
-async function addFilesToFolder(entries: { file: ProjectFile; folder: JSZip }[], onProgress: (fraction: number) => void): Promise<void> {
+async function addFilesToFolder(entries: { file: ProjectFile; folder: JSZip }[], onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
   const linkEntries = entries.filter((e) => e.file.external_url);
   const downloadable = entries.filter((e) => !e.file.external_url);
   const tracker = createByteProgressTracker(downloadable.length, onProgress);
 
   await mapWithConcurrency(downloadable, DOWNLOAD_CONCURRENCY, async ({ file, folder }, i) => {
-    const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total));
+    const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total), signal);
     const categoryFolder = folder.folder(CATEGORY_FOLDER_AR[file.category] ?? "مرفقات_أخرى")!;
     if (blob) categoryFolder.file(sanitizeName(file.name), blob);
     else categoryFolder.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
@@ -187,7 +193,8 @@ export async function exportClientProjectZip(
   projectFiles: ProjectFile[],
   episodeFilesByEpisode: Record<string, ProjectFile[]>,
   extras: ExportExtras,
-  onProgress?: (p: ExportProgress) => void
+  onProgress?: (p: ExportProgress) => void,
+  signal?: AbortSignal
 ) {
   const zip = new JSZip();
   const root = zip.folder(sanitizeName(project.name))!;
@@ -219,14 +226,19 @@ export async function exportClientProjectZip(
   }
 
   if (entries.length > 0) {
-    await addFilesToFolder(entries, (fraction) => {
-      onProgress?.({
-        stage: `جاري تنزيل الملفات (${Math.min(entries.length, Math.round(fraction * entries.length))}/${entries.length})...`,
-        percent: 4 + Math.round(fraction * 56),
-      });
-    });
+    await addFilesToFolder(
+      entries,
+      (fraction) => {
+        onProgress?.({
+          stage: `جاري تنزيل الملفات (${Math.min(entries.length, Math.round(fraction * entries.length))}/${entries.length})...`,
+          percent: 4 + Math.round(fraction * 56),
+        });
+      },
+      signal
+    );
   }
 
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
   onProgress?.({ stage: "جاري تجهيز التقارير والمستندات...", percent: 62 });
 
   const allEpisodeNotes = Object.entries(extras.episodeNotesByEpisode ?? {}).flatMap(([, notes]) => notes);
@@ -259,7 +271,7 @@ export async function exportClientProjectZip(
     for (const c of extras.contracts) {
       const summary = `العقد: ${c.title}\nالحالة: ${c.status}\nالقيمة: ${c.amount != null ? `${c.amount.toLocaleString("ar-SA-u-nu-latn")} ر.س` : "—"}\nتاريخ آخر تحديث: ${c.updated_at}`;
       if (c.pdf_url) {
-        const blob = await fetchBlobFromUrl(c.pdf_url);
+        const blob = await fetchBlobFromUrl(c.pdf_url, undefined, signal);
         if (blob) folder.file(`${sanitizeName(c.title)}.pdf`, blob);
         else folder.file(`${sanitizeName(c.title)}.txt`, summary);
       } else {
@@ -273,7 +285,7 @@ export async function exportClientProjectZip(
     for (const inv of extras.invoices ?? []) {
       const summary = `فاتورة رقم: ${inv.number}\nتاريخ الإصدار: ${inv.issue_date}\nالمبلغ: ${(inv.amount + inv.tax).toLocaleString("ar-SA-u-nu-latn")} ر.س\nالحالة: ${inv.status}`;
       if (inv.pdf_url) {
-        const blob = await fetchBlobFromUrl(inv.pdf_url);
+        const blob = await fetchBlobFromUrl(inv.pdf_url, undefined, signal);
         if (blob) folder.file(`فاتورة_${sanitizeName(inv.number)}.pdf`, blob);
         else folder.file(`فاتورة_${sanitizeName(inv.number)}.txt`, summary);
       } else {
@@ -303,7 +315,7 @@ export async function exportClientProjectZip(
 // مرتبط بها) في ملف ZIP واحد مسطّح — يُستخدم من بطاقة الحلقة وصفحة الحلقة
 // وتبويب "الملفات" داخلها، بنفس آلية التحقق من الصلاحيات المستخدمة في تصدير
 // المشروع الكامل (كل ملف عبر مسار موقّع من الخادم يتحقق من صلاحية العميل).
-export async function exportEpisodeFilesZip(episodeTitle: string, files: ProjectFile[], onProgress?: (p: ExportProgress) => void) {
+export async function exportEpisodeFilesZip(episodeTitle: string, files: ProjectFile[], onProgress?: (p: ExportProgress) => void, signal?: AbortSignal) {
   if (files.length === 0) {
     onProgress?.({ stage: "لا توجد ملفات لهذه الحلقة", percent: 100 });
     return;
@@ -320,7 +332,7 @@ export async function exportEpisodeFilesZip(episodeTitle: string, files: Project
       });
     });
     await mapWithConcurrency(downloadable, DOWNLOAD_CONCURRENCY, async (file, i) => {
-      const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total));
+      const blob = await fetchClientFileBlob(file.id, (loaded, total) => tracker.update(i, loaded, total), signal);
       if (blob) zip.file(sanitizeName(file.name), blob);
       else zip.file(`${sanitizeName(file.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير — قد يكون الرابط منتهياً أو الملف كبيراً جداً.");
       tracker.complete(i);
@@ -409,7 +421,7 @@ export async function downloadAnnouncementMediaItem(item: BehindScenesMediaItem)
   if (blob) triggerDownload(blob, sanitizeName(item.name));
 }
 
-export async function exportAnnouncementMediaZip(title: string, media: BehindScenesMediaItem[], onProgress?: (p: ExportProgress) => void) {
+export async function exportAnnouncementMediaZip(title: string, media: BehindScenesMediaItem[], onProgress?: (p: ExportProgress) => void, signal?: AbortSignal) {
   if (media.length === 0) {
     onProgress?.({ stage: "لا توجد وسائط لهذا الإعلان", percent: 100 });
     return;
@@ -422,7 +434,7 @@ export async function exportAnnouncementMediaZip(title: string, media: BehindSce
     });
   });
   await mapWithConcurrency(media, DOWNLOAD_CONCURRENCY, async (item, i) => {
-    const blob = await fetchBlobFromUrl(item.url, (loaded, total) => tracker.update(i, loaded, total));
+    const blob = await fetchBlobFromUrl(item.url, (loaded, total) => tracker.update(i, loaded, total), signal);
     if (blob) zip.file(sanitizeName(item.name), blob);
     else zip.file(`${sanitizeName(item.name)}_تعذّر_التنزيل.txt`, "تعذّر تنزيل هذا الملف أثناء التصدير.");
     tracker.complete(i);

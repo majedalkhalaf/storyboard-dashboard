@@ -6,6 +6,7 @@ import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoCommentThread from "@/app/components/projects/VideoCommentThread";
 import { createClient } from "@/app/lib/supabase/client";
 import { downloadWithProgress } from "@/app/lib/download";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import DownloadProgressBar from "@/app/components/client/DownloadProgressBar";
 import MediaWatermark from "@/app/components/client/MediaWatermark";
@@ -297,9 +298,22 @@ export function VideoPlayerModal({
     setDownloadProgress(0);
     setDownloadError(null);
     try {
-      await downloadWithProgress(`/api/client-portal/files/${file.id}?download=1`, undefined, file.name, (loaded, total) =>
-        setDownloadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
-      );
+      // يُسجَّل في المخزن العام (download-queue-store) فيظهر في اللوحة العائمة
+      // الثابتة ويستمر (وقابل للإلغاء الحقيقي) حتى لو أُغلقت نافذة الفيديو هذه
+      // أو غادر العميل الصفحة أثناء تنزيل فيديو كبير.
+      await runTrackedDownload(file.name, async ({ signal, onProgress }) => {
+        await downloadWithProgress(
+          `/api/client-portal/files/${file.id}?download=1`,
+          undefined,
+          file.name,
+          (loaded, total) => {
+            const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+            setDownloadProgress(percent);
+            onProgress("جارٍ التنزيل...", percent);
+          },
+          signal
+        );
+      });
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "تعذّر تنزيل الفيديو");
     } finally {

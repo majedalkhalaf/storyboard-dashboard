@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Icon, { type IconName } from "@/app/components/ui/Icon";
 import AccountMenu from "@/app/components/AccountMenu";
 import ClientNotificationsBell from "@/app/components/client/ClientNotificationsBell";
+import ClientTransferHub from "@/app/components/client/ClientTransferHub";
 import { relativeTime } from "@/app/components/client/utils";
 import { useSession } from "@/app/providers/SessionProvider";
 import { startActivityTracking, trackPageView } from "@/app/lib/client-activity-tracker";
@@ -343,6 +344,8 @@ export default function ClientShell({
           </div>
         </div>
       </div>
+
+      <ClientTransferHub />
     </div>
   );
 }

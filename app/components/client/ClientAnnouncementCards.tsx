@@ -5,6 +5,7 @@ import Icon from "@/app/components/ui/Icon";
 import ModalPortal from "@/app/components/ui/ModalPortal";
 import VideoWithMuteToggle from "@/app/components/ui/VideoWithMuteToggle";
 import { exportAnnouncementMediaZip, downloadAnnouncementMediaItem, type ExportProgress } from "@/app/lib/client-zip-export";
+import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { relativeTime } from "@/app/components/client/utils";
 import type { BehindScenesMediaItem, ClientAnnouncement } from "@/app/lib/types";
 
@@ -165,7 +166,17 @@ function AnnouncementModal({ announcement, onClose }: { announcement: ClientAnno
     if (downloadingAll) return;
     setDownloadingAll(true);
     try {
-      await exportAnnouncementMediaZip(announcement.title || "إعلان", announcement.media, setProgress);
+      await runTrackedDownload(announcement.title || "إعلان", async ({ signal, onProgress }) => {
+        await exportAnnouncementMediaZip(
+          announcement.title || "إعلان",
+          announcement.media,
+          (p) => {
+            setProgress(p);
+            onProgress(p.stage, p.percent);
+          },
+          signal
+        );
+      });
     } finally {
       setDownloadingAll(false);
       setProgress(null);

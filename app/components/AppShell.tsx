@@ -9,6 +9,7 @@ import BrandingProvider from "./BrandingProvider";
 import AccountMenu from "./AccountMenu";
 import NotificationsBell from "./NotificationsBell";
 import GlobalSearch from "./GlobalSearch";
+import UploadTransferHub from "./UploadTransferHub";
 import Icon from "@/app/components/ui/Icon";
 import { useSession } from "@/app/providers/SessionProvider";
 
@@ -92,6 +93,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+
+      <UploadTransferHub />
     </div>
   );
 }
