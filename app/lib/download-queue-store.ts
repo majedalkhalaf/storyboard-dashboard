@@ -123,6 +123,17 @@ function friendlyErrorMessage(err: unknown): string {
 /** يلفّ أي عملية تنزيل/تصدير بتسجيلها في المخزن العام (تظهر في اللوحة العائمة
  * فوراً وتبقى مرئية بغضّ النظر عن الصفحة الحالية)، ويمنحها AbortController حقيقياً
  * يُستدعى عند ضغط المستخدم على "×" في اللوحة العائمة. */
+// عدد محاولات إعادة المحاولة القصوى بعد خطأ Blob العابر — أرشيفات الحلقات
+// التي تضمّ عدة فيديوهات كبيرة أثبتت فعلياً أن محاولة واحدة إضافية غير كافية
+// دائماً؛ 2 إعادة محاولة (3 محاولات إجمالاً) مع مهلة قصيرة بينها تمنح متصفح
+// Chrome فرصة أفضل لتحرير تخزين الـ Blob المؤقت قبل إعادة المحاولة.
+const MAX_TRANSIENT_RETRIES = 2;
+const RETRY_COOLDOWN_MS = 1200;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runTrackedDownload(
   label: string,
   task: (ctx: { signal: AbortSignal; onProgress: (stage: string, percent: number) => void }) => Promise<void>
@@ -132,19 +143,21 @@ export async function runTrackedDownload(
   const item = items.get(id);
   if (item) item.abort = () => controller.abort();
 
-  async function attempt(isRetry: boolean): Promise<void> {
-    if (isRetry) updateDownloadProgress(id, "إعادة المحاولة بعد خطأ مؤقت...", 0);
+  async function attempt(attemptNumber: number): Promise<void> {
+    if (attemptNumber > 0) updateDownloadProgress(id, `إعادة المحاولة بعد خطأ مؤقت... (${attemptNumber}/${MAX_TRANSIENT_RETRIES})`, 0);
     await task({ signal: controller.signal, onProgress: (stage, percent) => updateDownloadProgress(id, stage, percent) });
   }
 
   try {
-    try {
-      await attempt(false);
-    } catch (err) {
-      if (!controller.signal.aborted && !isAbortError(err) && isTransientBlobError(err)) {
-        await attempt(true);
-      } else {
-        throw err;
+    for (let i = 0; i <= MAX_TRANSIENT_RETRIES; i++) {
+      try {
+        await attempt(i);
+        break;
+      } catch (err) {
+        if (controller.signal.aborted || isAbortError(err) || !isTransientBlobError(err) || i === MAX_TRANSIENT_RETRIES) {
+          throw err;
+        }
+        await delay(RETRY_COOLDOWN_MS);
       }
     }
     finishDownloadItem(id, "success");
