@@ -102,6 +102,24 @@ function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
 }
 
+// خطأ Chromium معروف (NotReadableError) يظهر أحياناً عند تجميع Blob كبير جداً
+// (أرشيف ZIP يضمّ فيديوهات ضخمة) — المتصفح يخزّن أجزاء الـ Blob داخلياً على القرص
+// مؤقتاً، وإن فشل الوصول لهذا التخزين المؤقت (غالباً بسبب امتلاء مساحة التخزين أو
+// ضغط على الذاكرة) يُلقي هذا الخطأ رغم أن كل بايتات الملف وصلت فعلياً بنجاح عبر
+// الشبكة. الخطأ عابر في أغلب الحالات، فإعادة محاولة واحدة تلقائية كافية غالباً.
+function isTransientBlobError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === "NotReadableError") return true;
+  const msg = err instanceof Error ? err.message : "";
+  return msg.includes("could not be read") || msg.includes("reference to a file was acquired");
+}
+
+function friendlyErrorMessage(err: unknown): string {
+  if (isTransientBlobError(err)) {
+    return "تعذّر إكمال التنزيل بسبب خطأ مؤقت من المتصفح — يُرجى التأكد من توفر مساحة تخزين كافية على جهازك ثم إعادة المحاولة.";
+  }
+  return err instanceof Error ? err.message : "تعذّر التنزيل";
+}
+
 /** يلفّ أي عملية تنزيل/تصدير بتسجيلها في المخزن العام (تظهر في اللوحة العائمة
  * فوراً وتبقى مرئية بغضّ النظر عن الصفحة الحالية)، ويمنحها AbortController حقيقياً
  * يُستدعى عند ضغط المستخدم على "×" في اللوحة العائمة. */
@@ -114,15 +132,28 @@ export async function runTrackedDownload(
   const item = items.get(id);
   if (item) item.abort = () => controller.abort();
 
-  try {
+  async function attempt(isRetry: boolean): Promise<void> {
+    if (isRetry) updateDownloadProgress(id, "إعادة المحاولة بعد خطأ مؤقت...", 0);
     await task({ signal: controller.signal, onProgress: (stage, percent) => updateDownloadProgress(id, stage, percent) });
+  }
+
+  try {
+    try {
+      await attempt(false);
+    } catch (err) {
+      if (!controller.signal.aborted && !isAbortError(err) && isTransientBlobError(err)) {
+        await attempt(true);
+      } else {
+        throw err;
+      }
+    }
     finishDownloadItem(id, "success");
   } catch (err) {
     if (controller.signal.aborted || isAbortError(err)) {
       finishDownloadItem(id, "cancelled");
       return;
     }
-    finishDownloadItem(id, "error", err instanceof Error ? err.message : "تعذّر التنزيل");
+    finishDownloadItem(id, "error", friendlyErrorMessage(err));
     throw err;
   }
 }
