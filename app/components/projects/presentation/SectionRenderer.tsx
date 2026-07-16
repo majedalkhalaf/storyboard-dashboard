@@ -55,8 +55,34 @@ const REGISTRY: Record<string, React.ComponentType<SectionProps>> = {
   thanks: ThanksSection,
 };
 
+// نقطة مشتركة وحيدة تُستخدم من كل قنوات العرض الأربع (المعاينة الحيّة، صفحة
+// المشاركة العامة، نسخة الطباعة/PDF، تصدير HTML) — إضافة شعار الشركة كعلامة
+// مائية ثابتة هنا مرة واحدة تكفي لظهوره في كل صفحة عبر كل القنوات معاً، بدل
+// تعديل كل قسم من الأقسام الـ24 على حدة. الغلاف يستثنى لأنه يعرض شعاراً كبيراً
+// خاصاً به أصلاً (CoverSection).
 export default function SectionRenderer({ sectionKey, ...props }: { sectionKey: string } & SectionProps) {
   const Cmp = REGISTRY[sectionKey];
   if (!Cmp) return null;
-  return <Cmp {...props} />;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <Cmp {...props} />
+      {sectionKey !== "cover" && props.data.companyLogoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={props.data.companyLogoUrl}
+          alt=""
+          style={{
+            position: "absolute",
+            bottom: 18,
+            insetInlineEnd: 22,
+            maxHeight: 30,
+            maxWidth: 100,
+            objectFit: "contain",
+            opacity: 0.8,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+    </div>
+  );
 }

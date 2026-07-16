@@ -1,17 +1,33 @@
 "use client";
 
 import Icon from "@/app/components/ui/Icon";
-import { PRESENTATION_THEME_LIST } from "@/app/lib/presentation-themes";
+import { PRESENTATION_THEME_LIST, buildBrandTheme } from "@/app/lib/presentation-themes";
+import type { PresentationData } from "@/app/lib/presentation-sections";
 import type { PresentationTemplate } from "@/app/lib/types";
 
-export default function TemplatePanel({ value, onChange }: { value: PresentationTemplate; onChange: (t: PresentationTemplate) => void }) {
+export default function TemplatePanel({
+  value,
+  onChange,
+  data,
+}: {
+  value: PresentationTemplate;
+  onChange: (t: PresentationTemplate) => void;
+  data: PresentationData;
+}) {
+  // قالب "هوية الشركة" يُحسَب فعلياً من ألوان الشركة الحقيقية بدل الاعتماد على
+  // المدخل الثابت الافتراضي في PRESENTATION_THEME_LIST — كي تعكس بطاقة المعاينة
+  // نفسها الألوان الفعلية المُعدَّة في إعدادات الشركة.
+  const brandTheme = buildBrandTheme(data);
+  const themeList = [brandTheme, ...PRESENTATION_THEME_LIST.filter((t) => t.key !== "brand")];
+
   return (
     <div>
       <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-        اختر القالب البصري — يُطبَّق فوراً على المعاينة والتصدير، ويمكنك تغييره في أي وقت لاحقاً.
+        اختر القالب البصري — يُطبَّق فوراً على المعاينة والتصدير، ويمكنك تغييره في أي وقت لاحقاً. قالب
+        &ldquo;هوية الشركة&rdquo; يطابق ألوان شركتك المُعدَّة في الإعدادات تلقائياً وبدقة كاملة.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-        {PRESENTATION_THEME_LIST.map((theme) => {
+        {themeList.map((theme) => {
           const active = value === theme.key;
           return (
             <button

@@ -12,8 +12,11 @@ export default function ReferencesSection({ data, theme }: SectionProps) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {links.map((link) => (
-            <div
+            <a
               key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -22,12 +25,14 @@ export default function ReferencesSection({ data, theme }: SectionProps) {
                 border: `1px solid ${theme.border}`,
                 borderRadius: 10,
                 padding: "12px 16px",
+                textDecoration: "none",
+                color: "inherit",
               }}
             >
               <Icon name="link" size={16} className="text-muted" />
               <span style={{ fontSize: 13, flex: 1 }}>{link.name}</span>
               <span style={{ fontSize: 11, color: theme.accent, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{link.url}</span>
-            </div>
+            </a>
           ))}
         </div>
       )}

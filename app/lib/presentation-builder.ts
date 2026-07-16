@@ -3,7 +3,8 @@
 import { createClient } from "@/app/lib/supabase/client";
 import { fetchPresentationData } from "@/app/lib/presentation-data-server";
 import { buildDefaultSectionConfig, type PresentationData } from "@/app/lib/presentation-sections";
-import type { ProjectPresentation } from "@/app/lib/types";
+import { generateSmartPresentationTexts } from "@/app/lib/presentation-copywriter";
+import type { PresentationDefaultTexts, PresentationTexts, ProjectPresentation } from "@/app/lib/types";
 
 export interface PresentationBundle {
   data: PresentationData;
@@ -21,15 +22,23 @@ export async function loadPresentationBundle(companyId: string, userId: string, 
   const { data: existing } = await supabase.from("project_presentations").select("*").eq("project_id", projectId).maybeSingle();
   if (existing) return { data, presentation: existing as ProjectPresentation };
 
-  const defaults = data; // company.presentation_defaults already merged by caller when reading company row separately if needed
+  // النصوص الابتدائية لأول عرض لهذا المشروع: نصوص الشركة العامة (نبذة/رؤية/قيم/
+  // كلمة المدير) من إعدادات الشركة الافتراضية، مدموجة بنصوص تسويقية خاصة بهذا
+  // المشروع تحديداً (تُبنى فوراً من اسمه ووصفه وخدماته وحلقاته الفعلية — بلا أي
+  // اعتماد على ذكاء اصطناعي خارجي). كلاهما قابل للتعديل الكامل لاحقاً من تبويب النصوص.
+  const { data: companyRow } = await supabase.from("companies").select("presentation_defaults").eq("id", companyId).single();
+  const companyDefaults = (companyRow?.presentation_defaults ?? {}) as PresentationDefaultTexts;
+  const smartTexts = generateSmartPresentationTexts(data);
+  const initialTexts: PresentationTexts = { ...companyDefaults, ...smartTexts };
+
   const { data: created, error } = await supabase
     .from("project_presentations")
     .insert({
       company_id: companyId,
       project_id: projectId,
       created_by: userId,
-      sections: buildDefaultSectionConfig(defaults),
-      texts: {},
+      sections: buildDefaultSectionConfig(data),
+      texts: initialTexts,
     })
     .select("*")
     .single();

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/app/components/ui/Icon";
 import { setPresentationSharing, type PresentationBundle } from "@/app/lib/presentation-builder";
-import { PRESENTATION_THEMES } from "@/app/lib/presentation-themes";
+import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import { buildPresentationPptx } from "@/app/lib/presentation-pptx";
 
 export default function ShareExportPanel({
@@ -43,7 +43,7 @@ export default function ShareExportPanel({
     setBuildingPptx(true);
     setPptxError(null);
     try {
-      const theme = PRESENTATION_THEMES[bundle.presentation.template];
+      const theme = getPresentationTheme(bundle.presentation.template, bundle.data);
       await buildPresentationPptx(bundle.data, bundle.presentation, theme);
     } catch {
       setPptxError("تعذّر إنشاء ملف PowerPoint. حاول مجدداً.");

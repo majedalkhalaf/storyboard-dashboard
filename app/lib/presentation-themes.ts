@@ -17,6 +17,10 @@ export interface PresentationTheme {
 }
 
 export const PRESENTATION_THEMES: Record<PresentationTemplate, PresentationTheme> = {
+  // مدخل ثابت افتراضي فقط لاكتمال النوع (Record) واستخدامه كمعاينة قبل تحميل بيانات
+  // الشركة — الاستخدام الفعلي دائماً عبر getPresentationTheme() التي تحسب الألوان
+  // الحقيقية من primary_color/secondary_color/accent_color الفعلية للشركة.
+  brand: { key: "brand", label: "هوية الشركة", bg: "#0A0A0B", card: "#151517", text: "#F5F5F5", muted: "#9A9A9F", accent: "#CE902F", border: "rgba(255,255,255,0.08)", fontHeading: "'IBM Plex Sans Arabic', sans-serif", mood: "dark" },
   minimal: { key: "minimal", label: "Minimal", bg: "#0F0F11", card: "#18181D", text: "#F5F5F5", muted: "#9A9A9F", accent: "#CE902F", border: "rgba(255,255,255,0.08)", fontHeading: "'IBM Plex Sans Arabic', sans-serif", mood: "dark" },
   luxury: { key: "luxury", label: "Luxury", bg: "#0B0904", card: "#171208", text: "#F3E9D2", muted: "#B7A788", accent: "#E2A33D", border: "rgba(226,163,61,0.25)", fontHeading: "'IBM Plex Sans Arabic', serif", mood: "dark" },
   dark: { key: "dark", label: "Dark", bg: "#000000", card: "#121212", text: "#FFFFFF", muted: "#8A8A8A", accent: "#CE902F", border: "rgba(255,255,255,0.06)", fontHeading: "'IBM Plex Sans Arabic', sans-serif", mood: "dark" },
@@ -31,3 +35,36 @@ export const PRESENTATION_THEMES: Record<PresentationTemplate, PresentationTheme
 };
 
 export const PRESENTATION_THEME_LIST = Object.values(PRESENTATION_THEMES);
+
+interface BrandColors {
+  companyPrimaryColor: string;
+  companySecondaryColor: string;
+  companyAccentColor: string;
+}
+
+// قالب "هوية الشركة" — محسوب مباشرة من ألوان الشركة الفعلية بدل قوالب ثابتة، كي
+// يطابق العرض الفني الهوية البصرية المُعرَّفة في إعدادات الشركة 100%: primary_color
+// هو لون التمييز الرئيسي (العناوين والتمييز)، secondary_color لون البطاقات الداكن
+// المشتقّ، accent_color لون تمييز ثانوي (بطاقات "الفرصة" المميّزة). الخلفية تبقى
+// داكنة فاخرة دوماً بما يوافق الهوية العامة الثابتة للنظام.
+export function buildBrandTheme(colors: BrandColors): PresentationTheme {
+  return {
+    key: "brand",
+    label: "هوية الشركة",
+    bg: "#0A0A0B",
+    card: "#151517",
+    text: "#F5F5F5",
+    muted: "#9A9A9F",
+    accent: colors.companyPrimaryColor || "#CE902F",
+    border: "rgba(255,255,255,0.08)",
+    fontHeading: "'IBM Plex Sans Arabic', sans-serif",
+    mood: "dark",
+  };
+}
+
+/** يُعيد قالب "هوية الشركة" المحسوب فعلياً عند اختياره، أو أحد القوالب الثابتة
+ * الأخرى كما هي — نقطة الوصول الوحيدة الصحيحة للحصول على قالب أي عرض فعلياً. */
+export function getPresentationTheme(template: PresentationTemplate, colors: BrandColors): PresentationTheme {
+  if (template === "brand") return buildBrandTheme(colors);
+  return PRESENTATION_THEMES[template];
+}

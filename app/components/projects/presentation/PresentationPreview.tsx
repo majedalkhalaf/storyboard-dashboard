@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
 import { PRESENTATION_SECTIONS } from "@/app/lib/presentation-sections";
-import { PRESENTATION_THEMES } from "@/app/lib/presentation-themes";
+import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { PresentationBundle } from "@/app/lib/presentation-builder";
 import SectionRenderer from "./SectionRenderer";
 
@@ -20,7 +20,7 @@ export function useOrderedEnabledSections(bundle: PresentationBundle) {
 export default function PresentationPreview({ bundle }: { bundle: PresentationBundle }) {
   const ordered = useOrderedEnabledSections(bundle);
   const [index, setIndex] = useState(0);
-  const theme = PRESENTATION_THEMES[bundle.presentation.template];
+  const theme = getPresentationTheme(bundle.presentation.template, bundle.data);
   const currentKey = ordered[Math.min(index, ordered.length - 1)];
 
   if (ordered.length === 0) {

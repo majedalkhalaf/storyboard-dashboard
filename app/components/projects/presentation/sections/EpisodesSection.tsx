@@ -20,7 +20,13 @@ export default function EpisodesSection({ data, theme }: SectionProps) {
           {episodes.map((ep) => {
             const meta = statusMeta(ep.status);
             return (
-              <div key={ep.id} style={{ background: theme.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}` }}>
+              <a
+                key={ep.id}
+                href={`/client/projects/${data.projectId}/episodes/${ep.id}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ background: theme.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}`, textDecoration: "none", color: "inherit", display: "block" }}
+              >
                 <div style={{ width: "100%", height: 100, background: theme.bg, position: "relative" }}>
                   {ep.cover_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -58,7 +64,7 @@ export default function EpisodesSection({ data, theme }: SectionProps) {
                     <div style={{ height: "100%", width: `${ep.progress}%`, background: theme.accent, borderRadius: 3 }} />
                   </div>
                 </div>
-              </div>
+              </a>
             );
           })}
         </div>

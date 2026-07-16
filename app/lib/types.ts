@@ -887,6 +887,7 @@ export interface ProjectFavorite {
 
 // ── Presentation Builder ──
 export type PresentationTemplate =
+  | "brand"
   | "minimal"
   | "luxury"
   | "dark"

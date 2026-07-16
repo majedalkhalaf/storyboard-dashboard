@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import { fetchPresentationData } from "@/app/lib/presentation-data-server";
 import { PRESENTATION_SECTIONS } from "@/app/lib/presentation-sections";
-import { PRESENTATION_THEMES } from "@/app/lib/presentation-themes";
+import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { ProjectPresentation } from "@/app/lib/types";
 import SectionRenderer from "@/app/components/projects/presentation/SectionRenderer";
 import PrintButton from "@/app/components/finance/PrintButton";
@@ -68,7 +68,7 @@ export default async function PresentationPrintPage({ params }: { params: Promis
   const data = await fetchPresentationData(supabase, companyId, id);
   if (!data) notFound();
 
-  const theme = PRESENTATION_THEMES[presentation.template];
+  const theme = getPresentationTheme(presentation.template, data);
   const ordered = presentation.sections
     .filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key))
     .map((s) => s.key);

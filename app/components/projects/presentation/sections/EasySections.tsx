@@ -1,6 +1,7 @@
 import Icon from "@/app/components/ui/Icon";
 import type { PresentationData } from "@/app/lib/presentation-sections";
 import type { PresentationTheme } from "@/app/lib/presentation-themes";
+import { HighlightedText } from "@/app/lib/presentation-highlight";
 import type { PresentationTexts } from "@/app/lib/types";
 
 export interface SectionProps {
@@ -33,6 +34,47 @@ export function SlideTitle({ theme, children }: { theme: PresentationTheme; chil
   return <h2 style={{ fontSize: 28, fontWeight: 800, color: theme.accent, marginBottom: 20 }}>{children}</h2>;
 }
 
+function whatsappHref(number: string): string {
+  return `https://wa.me/${number.replace(/\D/g, "")}`;
+}
+
+function websiteHref(url: string): string {
+  return url.startsWith("http") ? url : `https://${url}`;
+}
+
+// معلومات تواصل حقيقية قابلة للنقر مباشرة (tel:/mailto:/wa.me/رابط الموقع) —
+// تُستخدم في نبذة الشركة وصفحة الشكر، بدل نص ثابت غير قابل للتفاعل.
+export function CompanyContactBlock({ data, theme }: { data: PresentationData; theme: PresentationTheme }) {
+  const links: { key: string; icon: "phone" | "mail" | "link"; label: string; href: string }[] = [];
+  if (data.companyPhone) links.push({ key: "phone", icon: "phone", label: data.companyPhone, href: `tel:${data.companyPhone}` });
+  if (data.companyWhatsapp) links.push({ key: "whatsapp", icon: "phone", label: "واتساب", href: whatsappHref(data.companyWhatsapp) });
+  if (data.companyEmail) links.push({ key: "email", icon: "mail", label: data.companyEmail, href: `mailto:${data.companyEmail}` });
+  if (data.companyWebsite) links.push({ key: "website", icon: "link", label: data.companyWebsite, href: websiteHref(data.companyWebsite) });
+
+  if (links.length === 0 && !data.companyAddress) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 24, justifyContent: "center", alignItems: "center" }}>
+      {links.map((l) => (
+        <a
+          key={l.key}
+          href={l.href}
+          target={l.href.startsWith("http") ? "_blank" : undefined}
+          rel={l.href.startsWith("http") ? "noreferrer" : undefined}
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: theme.accent, textDecoration: "none" }}
+        >
+          <Icon name={l.icon} size={13} /> {l.label}
+        </a>
+      ))}
+      {data.companyAddress && (
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: theme.muted }}>
+          <Icon name="location" size={13} /> {data.companyAddress}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function CoverSection({ data, theme }: SectionProps) {
   return (
     <Slide
@@ -48,8 +90,9 @@ export function CoverSection({ data, theme }: SectionProps) {
       }}
     >
       {data.companyLogoUrl && (
+        // شعار كبير وواسع على الغلاف تحديداً — أول ما يراه العميل عند فتح العرض
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.companyLogoUrl} alt="" style={{ height: 48, marginBottom: 24, objectFit: "contain" }} />
+        <img src={data.companyLogoUrl} alt="" style={{ maxHeight: 110, maxWidth: "55%", marginBottom: 28, objectFit: "contain" }} />
       )}
       <div style={{ fontSize: 12, letterSpacing: 3, color: theme.accent, marginBottom: 10 }}>عرض مقترح إبداعي</div>
       <h1 style={{ fontSize: 44, fontWeight: 900 }}>{data.projectName}</h1>
@@ -64,9 +107,16 @@ export function WelcomeSection({ data, texts, theme }: SectionProps) {
     <Slide theme={theme}>
       <SlideTitle theme={theme}>رسالة ترحيبية{data.clientName ? ` إلى ${data.clientName}` : ""}</SlideTitle>
       <p style={{ fontSize: 16, lineHeight: 2, color: theme.text, opacity: 0.9, whiteSpace: "pre-wrap" }}>
-        {texts.welcome_message || "نتشرّف بتقديم هذا العرض المقترح لمشروعكم، ونتطلّع للعمل معكم على تحويل الفكرة إلى محتوى احترافي متكامل."}
+        <HighlightedText
+          theme={theme}
+          text={texts.welcome_message || "نتشرّف بتقديم هذا العرض المقترح لمشروعكم، ونتطلّع للعمل معكم على تحويل الفكرة إلى محتوى احترافي متكامل."}
+        />
       </p>
-      {texts.project_message && <p style={{ fontSize: 14, marginTop: 20, color: theme.muted, whiteSpace: "pre-wrap" }}>{texts.project_message}</p>}
+      {texts.project_message && (
+        <p style={{ fontSize: 14, marginTop: 20, color: theme.muted, whiteSpace: "pre-wrap" }}>
+          <HighlightedText theme={theme} text={texts.project_message} />
+        </p>
+      )}
     </Slide>
   );
 }
@@ -76,27 +126,34 @@ export function CompanyBioSection({ data, texts, theme }: SectionProps) {
     <Slide theme={theme}>
       <SlideTitle theme={theme}>نبذة عن الشركة</SlideTitle>
       <p style={{ fontSize: 15, lineHeight: 1.9, color: theme.text, opacity: 0.9, whiteSpace: "pre-wrap", marginBottom: 20 }}>
-        {texts.company_bio || `${data.companyName} شركة إنتاج إعلامي متخصصة في تحويل الأفكار إلى محتوى احترافي.`}
+        <HighlightedText theme={theme} text={texts.company_bio || `${data.companyName} شركة إنتاج إعلامي متخصصة في تحويل الأفكار إلى محتوى احترافي.`} />
       </p>
       {(texts.company_vision || texts.company_values) && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 10 }}>
           {texts.company_vision && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: theme.accent, marginBottom: 6 }}>الرؤية</div>
-              <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>{texts.company_vision}</p>
+              <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>
+                <HighlightedText theme={theme} text={texts.company_vision} />
+              </p>
             </div>
           )}
           {texts.company_values && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: theme.accent, marginBottom: 6 }}>القيم</div>
-              <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>{texts.company_values}</p>
+              <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>
+                <HighlightedText theme={theme} text={texts.company_values} />
+              </p>
             </div>
           )}
         </div>
       )}
       {texts.ceo_message && (
-        <p style={{ fontSize: 13, marginTop: 24, color: theme.muted, fontStyle: "italic", whiteSpace: "pre-wrap" }}>« {texts.ceo_message} »</p>
+        <p style={{ fontSize: 13, marginTop: 24, color: theme.muted, fontStyle: "italic", whiteSpace: "pre-wrap" }}>
+          « <HighlightedText theme={theme} text={texts.ceo_message} /> »
+        </p>
       )}
+      <CompanyContactBlock data={data} theme={theme} />
     </Slide>
   );
 }
@@ -123,7 +180,9 @@ export function WhyProjectSection({ texts, theme }: SectionProps) {
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{c.label}</div>
-            <p style={{ fontSize: 13, lineHeight: 1.7, opacity: 0.9, whiteSpace: "pre-wrap" }}>{c.value || "—"}</p>
+            <p style={{ fontSize: 13, lineHeight: 1.7, opacity: 0.9, whiteSpace: "pre-wrap" }}>
+              {c.value ? <HighlightedText theme={theme} text={c.value} boldColor={c.highlight ? "#0A0A0B" : undefined} /> : "—"}
+            </p>
           </div>
         ))}
       </div>
@@ -156,7 +215,9 @@ export function AudienceSection({ texts, theme }: SectionProps) {
   return (
     <Slide theme={theme}>
       <SlideTitle theme={theme}>الجمهور المستهدف</SlideTitle>
-      <p style={{ fontSize: 15, lineHeight: 1.9, whiteSpace: "pre-wrap", color: theme.text, opacity: 0.9 }}>{texts.audience || "—"}</p>
+      <p style={{ fontSize: 15, lineHeight: 1.9, whiteSpace: "pre-wrap", color: theme.text, opacity: 0.9 }}>
+        {texts.audience ? <HighlightedText theme={theme} text={texts.audience} /> : "—"}
+      </p>
     </Slide>
   );
 }
@@ -166,7 +227,7 @@ export function CreativeIdeaSection({ data, texts, theme }: SectionProps) {
     <Slide theme={theme}>
       <SlideTitle theme={theme}>الفكرة الإبداعية</SlideTitle>
       <p style={{ fontSize: 15, lineHeight: 1.9, whiteSpace: "pre-wrap", color: theme.text, opacity: 0.9 }}>
-        {texts.creative_idea || data.projectDescription || "—"}
+        <HighlightedText theme={theme} text={texts.creative_idea || data.projectDescription || "—"} />
       </p>
     </Slide>
   );
@@ -197,7 +258,9 @@ export function ShootingStyleSection({ texts, theme }: SectionProps) {
   return (
     <Slide theme={theme}>
       <SlideTitle theme={theme}>أسلوب التصوير</SlideTitle>
-      <p style={{ fontSize: 15, lineHeight: 1.9, whiteSpace: "pre-wrap", color: theme.text, opacity: 0.9 }}>{texts.shooting_style || "—"}</p>
+      <p style={{ fontSize: 15, lineHeight: 1.9, whiteSpace: "pre-wrap", color: theme.text, opacity: 0.9 }}>
+        {texts.shooting_style ? <HighlightedText theme={theme} text={texts.shooting_style} /> : "—"}
+      </p>
     </Slide>
   );
 }
@@ -235,8 +298,11 @@ export function TermsSection({ texts, theme }: SectionProps) {
 export function ThanksSection({ data, texts, theme }: SectionProps) {
   return (
     <Slide theme={theme} style={{ alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-      <h1 style={{ fontSize: 32, fontWeight: 900, color: theme.accent }}>{texts.thanks_message || "شكراً لثقتكم بنا"}</h1>
+      <h1 style={{ fontSize: 32, fontWeight: 900, color: theme.accent }}>
+        <HighlightedText theme={theme} text={texts.thanks_message || "شكراً لثقتكم بنا"} />
+      </h1>
       <p style={{ fontSize: 13, color: theme.muted, marginTop: 20 }}>{data.companyName}</p>
+      <CompanyContactBlock data={data} theme={theme} />
     </Slide>
   );
 }

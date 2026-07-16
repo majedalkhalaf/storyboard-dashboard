@@ -84,6 +84,14 @@ export interface PresentationData {
   projectId: string;
   companyName: string;
   companyLogoUrl: string | null;
+  companyPrimaryColor: string;
+  companySecondaryColor: string;
+  companyAccentColor: string;
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyWebsite: string | null;
+  companyWhatsapp: string | null;
+  companyAddress: string | null;
   clientName: string | null;
   clientLogoUrl: string | null;
   projectName: string;

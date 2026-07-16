@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { fetchPresentationData } from "@/app/lib/presentation-data-server";
 import { PRESENTATION_SECTIONS } from "@/app/lib/presentation-sections";
-import { PRESENTATION_THEMES } from "@/app/lib/presentation-themes";
+import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { ProjectPresentation } from "@/app/lib/types";
 import PresentationShareViewer from "./PresentationShareViewer";
 
@@ -31,7 +31,7 @@ export default async function PublicPresentationPage({ params }: { params: Promi
   const data = await fetchPresentationData(admin, presentation.company_id, presentation.project_id);
   if (!data) notFound();
 
-  const theme = PRESENTATION_THEMES[presentation.template];
+  const theme = getPresentationTheme(presentation.template, data);
   const ordered = presentation.sections
     .filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key))
     .map((s) => s.key);

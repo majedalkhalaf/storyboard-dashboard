@@ -1,5 +1,6 @@
 import { PRESENTATION_SECTIONS, type PresentationData } from "@/app/lib/presentation-sections";
 import type { PresentationTheme } from "@/app/lib/presentation-themes";
+import { buildPptxHighlightRuns } from "@/app/lib/presentation-highlight";
 import type { ProjectPresentation, PresentationTexts } from "@/app/lib/types";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
 
@@ -14,9 +15,19 @@ function hex(color: string): string {
   return color.replace("#", "").toUpperCase();
 }
 
-function newSlide(pptx: Pptx, theme: PresentationTheme): PptxSlide {
+// شعار الشركة الحالي المطلوب وضعه كعلامة مائية صغيرة أعلى كل شريحة — متغيّر
+// على مستوى الوحدة (module scope) بدل تمرير logoUrl كمعامل عبر كل دالة renderX
+// (أكثر من 25 دالة) — buildPresentationPptx هي نقطة الدخول الوحيدة وتُستدعى
+// دفعة واحدة غير متزامنة مع أي استدعاء آخر (بناء ملف PowerPoint من ضغطة زر واحدة)،
+// فلا خطر تداخل قيم بين استدعاءين مختلفين.
+let currentCompanyLogoUrl: string | null = null;
+
+function newSlide(pptx: Pptx, theme: PresentationTheme, opts?: { skipLogo?: boolean }): PptxSlide {
   const slide = pptx.addSlide();
   slide.background = { color: hex(theme.bg) };
+  if (currentCompanyLogoUrl && !opts?.skipLogo) {
+    slide.addImage({ path: currentCompanyLogoUrl, x: 8.55, y: 0.22, w: 0.75, h: 0.5, sizing: { type: "contain", w: 0.75, h: 0.5 } });
+  }
   return slide;
 }
 
@@ -36,14 +47,14 @@ function addTitle(slide: PptxSlide, theme: PresentationTheme, title: string) {
 }
 
 function addParagraph(slide: PptxSlide, theme: PresentationTheme, text: string, y = 1.25) {
-  slide.addText(text || "—", {
+  // buildPptxHighlightRuns يترجم صيغة **كلمة** (نفس نظام presentation-highlight.tsx
+  // المستخدم في المعاينة/HTML) إلى تشغيلات نصية بارزة بلون هوية الشركة (theme.accent)،
+  // بدل عرض النجمتين كنصّ خام في ملف PowerPoint الفعلي.
+  slide.addText(buildPptxHighlightRuns(text || "—", theme, { fontSize: 14, color: hex(theme.text), fontFace: "Arial" }), {
     x: 0.5,
     y,
     w: 9,
     h: 3.9,
-    fontSize: 14,
-    color: hex(theme.text),
-    fontFace: "Arial",
     align: "right",
     rtlMode: true,
     valign: "top",
@@ -67,6 +78,51 @@ function addBulletList(slide: PptxSlide, theme: PresentationTheme, items: string
       valign: "top",
     }
   );
+}
+
+// نسخة من addBulletList تدعم صيغة **كلمة** داخل كل بند — تُبنى كتشغيلات نصية
+// متتالية بدل نصّ خام، مع وضع علامة bullet على أول تشغيلة وbreakLine على آخر
+// تشغيلة في كل بند، محافظةً على نفس شكل القائمة النقطية.
+function addRichBulletList(slide: PptxSlide, theme: PresentationTheme, items: string[], y = 1.25) {
+  const safeItems = items.length ? items : ["لا توجد بيانات مضافة بعد"];
+  const runs: { text: string; options: Record<string, unknown> }[] = [];
+  for (const item of safeItems) {
+    const itemRuns = buildPptxHighlightRuns(item, theme, { fontSize: 13, color: hex(theme.text), fontFace: "Arial" });
+    itemRuns.forEach((r, j) => {
+      runs.push({
+        text: r.text,
+        options: {
+          ...r.options,
+          ...(j === 0 ? { bullet: true } : {}),
+          ...(j === itemRuns.length - 1 ? { breakLine: true, paraSpaceAfter: 8 } : {}),
+        },
+      });
+    });
+  }
+  slide.addText(runs, { x: 0.5, y, w: 9, h: 4, align: "right", rtlMode: true, valign: "top" });
+}
+
+// سطر تواصل حقيقي قابل للنقر (هاتف/واتساب/بريد/موقع) بروابط hyperlink فعلية
+// مدعومة أصلاً في pptxgenjs — لا نصّ ثابت غير تفاعلي.
+function buildContactRuns(data: PresentationData, theme: PresentationTheme): { text: string; options: Record<string, unknown> }[] {
+  const items: { label: string; url: string }[] = [];
+  if (data.companyPhone) items.push({ label: data.companyPhone, url: `tel:${data.companyPhone}` });
+  if (data.companyWhatsapp) items.push({ label: "واتساب", url: `https://wa.me/${data.companyWhatsapp.replace(/\D/g, "")}` });
+  if (data.companyEmail) items.push({ label: data.companyEmail, url: `mailto:${data.companyEmail}` });
+  if (data.companyWebsite) items.push({ label: data.companyWebsite, url: data.companyWebsite.startsWith("http") ? data.companyWebsite : `https://${data.companyWebsite}` });
+
+  const runs: { text: string; options: Record<string, unknown> }[] = [];
+  items.forEach((item, i) => {
+    if (i > 0) runs.push({ text: "   |   ", options: { color: hex(theme.muted), fontSize: 11 } });
+    runs.push({ text: item.label, options: { color: hex(theme.accent), fontSize: 11, hyperlink: { url: item.url } } });
+  });
+  return runs;
+}
+
+function addContactLine(slide: PptxSlide, theme: PresentationTheme, data: PresentationData, y: number) {
+  const runs = buildContactRuns(data, theme);
+  if (runs.length === 0) return;
+  slide.addText(runs, { x: 0.5, y, w: 9, h: 0.4, align: "center", rtlMode: true });
 }
 
 function addTable(slide: PptxSlide, theme: PresentationTheme, header: string[], rows: string[][], y = 1.25) {
@@ -107,7 +163,12 @@ function episodeStatusLabel(status: string): string {
 // ── شرائح خاصة بكل قسم (تغطي الـ25 قسماً المعروفة حالياً) ──
 
 function renderCover(pptx: Pptx, theme: PresentationTheme, data: PresentationData) {
-  const slide = newSlide(pptx, theme);
+  // شعار كبير وواسع على شريحة الغلاف تحديداً (بدل العلامة المائية الصغيرة
+  // المعتادة في newSlide) — أول ما يراه العميل عند فتح العرض.
+  const slide = newSlide(pptx, theme, { skipLogo: true });
+  if (data.companyLogoUrl) {
+    slide.addImage({ path: data.companyLogoUrl, x: 3.25, y: 0.5, w: 3.5, h: 1.2, sizing: { type: "contain", w: 3.5, h: 1.2 } });
+  }
   slide.addText(data.projectName || "عرض تقديمي", {
     x: 0.5,
     y: 2.1,
@@ -157,12 +218,13 @@ function renderCompanyBio(pptx: Pptx, theme: PresentationTheme, data: Presentati
   if (texts.company_values) parts.push(`القيم: ${texts.company_values}`);
   if (texts.ceo_message) parts.push(`« ${texts.ceo_message} »`);
   addParagraph(slide, theme, parts.join("\n\n"));
+  addContactLine(slide, theme, data, 5.2);
 }
 
 function renderWhyProject(pptx: Pptx, theme: PresentationTheme, texts: PresentationTexts) {
   const slide = newSlide(pptx, theme);
   addTitle(slide, theme, "لماذا هذا المشروع");
-  addBulletList(slide, theme, [
+  addRichBulletList(slide, theme, [
     `المشكلة: ${texts.why_problem || "—"}`,
     `الفرصة: ${texts.why_opportunity || "—"}`,
     `الفائدة: ${texts.why_value || "—"}`,
@@ -368,6 +430,7 @@ function renderThanks(pptx: Pptx, theme: PresentationTheme, data: PresentationDa
     rtlMode: true,
   });
   slide.addText(data.companyName || "", { x: 0.5, y: 3.4, w: 9, h: 0.5, fontSize: 13, color: hex(theme.muted), align: "center", rtlMode: true });
+  addContactLine(slide, theme, data, 4.0);
 }
 
 // شبكة احتياطية لأي مفتاح قسم مستقبلي لم يُخصَّص له عرض بعد — لا يُترَك فارغاً أبداً.
@@ -454,12 +517,17 @@ export async function buildPresentationPptx(data: PresentationData, presentation
   pptx.author = data.companyName || "";
   pptx.title = data.projectName || "عرض تقديمي";
 
-  const ordered = presentation.sections.filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
+  currentCompanyLogoUrl = data.companyLogoUrl;
+  try {
+    const ordered = presentation.sections.filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
 
-  for (const key of ordered) {
-    renderSection(pptx, key, data, presentation.texts, theme);
+    for (const key of ordered) {
+      renderSection(pptx, key, data, presentation.texts, theme);
+    }
+
+    const safeName = (data.projectName || "presentation").replace(/[\\/:*?"<>|]/g, "").trim() || "presentation";
+    await pptx.writeFile({ fileName: `${safeName}.pptx` });
+  } finally {
+    currentCompanyLogoUrl = null;
   }
-
-  const safeName = (data.projectName || "presentation").replace(/[\\/:*?"<>|]/g, "").trim() || "presentation";
-  await pptx.writeFile({ fileName: `${safeName}.pptx` });
 }
