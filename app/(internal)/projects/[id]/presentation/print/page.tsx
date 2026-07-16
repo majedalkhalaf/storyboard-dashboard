@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import { fetchPresentationData } from "@/app/lib/presentation-data-server";
@@ -11,6 +12,17 @@ import PrintButton from "@/app/components/finance/PrintButton";
 import Icon from "@/app/components/ui/Icon";
 
 export const dynamic = "force-dynamic";
+
+// عنوان الصفحة يُحدَّد باسم المشروع تحديداً (بدل عنوان النظام العام) لأن متصفحات
+// الطباعة (Ctrl+P → حفظ كـ PDF) تقترح اسم الملف افتراضياً من عنوان الصفحة <title>.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const session = await getCurrentSession();
+  if (!session?.company) return {};
+  const supabase = await createClient();
+  const { data: project } = await supabase.from("projects").select("name").eq("id", id).eq("company_id", session.company.id).maybeSingle();
+  return { title: project?.name ? `${project.name} — العرض الفني` : "العرض الفني" };
+}
 
 // CSS خاص بطباعة العرض التقديمي: كل قسم صفحة كاملة 16:9 مستقلة، وفاصل صفحة بينها،
 // مع print-color-adjust: exact حتى تُطبَع خلفيات القوالب الملوّنة فعلياً (المتصفحات

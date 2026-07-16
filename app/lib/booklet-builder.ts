@@ -11,15 +11,18 @@ export interface BookletBundle {
   booklet: ProjectBooklet;
 }
 
+function isBlankTextValue(value: unknown): boolean {
+  return value == null || (typeof value === "string" && value.trim() === "");
+}
+
 // نفس فكرة loadPresentationBundle تماماً: يُنشئ صفاً افتراضياً عند أول فتح لمُنشئ
-// الكتيّب لهذا المشروع، أو يعيد الصف الموجود مسبقاً مع بيانات المشروع الحيّة الحالية.
+// الكتيّب لهذا المشروع، أو يعيد الصف الموجود مسبقاً مع بيانات المشروع الحيّة الحالية —
+// ويُكمّل أي حقل نصي ما زال فارغاً في كتيّب موجود مسبقاً (دون الكتابة فوق أي تعديل
+// حقيقي من المستخدم)، لنفس السبب الموثَّق في loadPresentationBundle.
 export async function loadBookletBundle(companyId: string, userId: string, projectId: string): Promise<BookletBundle> {
   const supabase = createClient();
   const data = await fetchBookletData(supabase, companyId, projectId);
   if (!data) throw new Error("تعذّر تحميل بيانات المشروع لإنشاء الكتيّب");
-
-  const { data: existing } = await supabase.from("project_booklets").select("*").eq("project_id", projectId).maybeSingle();
-  if (existing) return { data, booklet: existing as ProjectBooklet };
 
   // نصوص الشركة العامة (نبذة/رؤية/قيم/كلمة المدير) من نفس مصدر العرض الفني،
   // مدموجة بنصوص رجعية-محورية خاصة بهذا الكتيّب (رسالة تسليم/ملخص إنجازات/ختامية)
@@ -27,13 +30,32 @@ export async function loadBookletBundle(companyId: string, userId: string, proje
   const { data: companyRow } = await supabase.from("companies").select("presentation_defaults").eq("id", companyId).single();
   const companyDefaults = (companyRow?.presentation_defaults ?? {}) as PresentationDefaultTexts;
   const smartTexts = generateSmartBookletTexts(data);
-  const initialTexts: BookletTexts = {
+  const fallbackTexts: BookletTexts = {
     company_bio: companyDefaults.company_bio,
     company_values: companyDefaults.company_values,
     company_vision: companyDefaults.company_vision,
     ceo_message: companyDefaults.ceo_message,
     ...smartTexts,
   };
+
+  const { data: existing } = await supabase.from("project_booklets").select("*").eq("project_id", projectId).maybeSingle();
+
+  if (existing) {
+    const currentTexts = (existing.texts ?? {}) as BookletTexts;
+    const merged: BookletTexts = { ...currentTexts };
+    let changed = false;
+    (Object.keys(fallbackTexts) as (keyof BookletTexts)[]).forEach((key) => {
+      if (isBlankTextValue(currentTexts[key]) && !isBlankTextValue(fallbackTexts[key])) {
+        (merged as Record<string, unknown>)[key] = fallbackTexts[key];
+        changed = true;
+      }
+    });
+
+    if (!changed) return { data, booklet: existing as ProjectBooklet };
+
+    await supabase.from("project_booklets").update({ texts: merged }).eq("id", existing.id);
+    return { data, booklet: { ...(existing as ProjectBooklet), texts: merged } };
+  }
 
   const { data: created, error } = await supabase
     .from("project_booklets")
@@ -42,7 +64,7 @@ export async function loadBookletBundle(companyId: string, userId: string, proje
       project_id: projectId,
       created_by: userId,
       sections: buildDefaultBookletSectionConfig(data),
-      texts: initialTexts,
+      texts: fallbackTexts,
     })
     .select("*")
     .single();

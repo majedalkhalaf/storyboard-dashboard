@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
+import type { Metadata } from "next";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { fetchPresentationData } from "@/app/lib/presentation-data-server";
 import { PRESENTATION_SECTIONS } from "@/app/lib/presentation-sections";
@@ -9,6 +10,22 @@ import type { ProjectPresentation } from "@/app/lib/types";
 import PresentationShareViewer from "./PresentationShareViewer";
 
 export const dynamic = "force-dynamic";
+
+// عنوان الصفحة باسم المشروع — يُستخدم كاقتراح افتراضي لاسم الملف عند حفظ هذه
+// الصفحة كـ PDF من متصفح العميل (Ctrl+P → حفظ كـ PDF).
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const admin = createAdminClient();
+  const { data: presentationRow } = await admin
+    .from("project_presentations")
+    .select("project_id, company_id")
+    .eq("share_token", token)
+    .eq("share_enabled", true)
+    .maybeSingle();
+  if (!presentationRow) return {};
+  const { data: project } = await admin.from("projects").select("name").eq("id", presentationRow.project_id).maybeSingle();
+  return { title: project?.name ? `${project.name} — العرض الفني` : "العرض الفني" };
+}
 
 // صفحة مشاركة عامة بالكامل — بلا تسجيل دخول وبلا أي علاقة بـ(internal)/AppShell. المطابقة
 // تتم صراحةً في الكود (share_token + share_enabled=true) عبر عميل service_role، وليس عبر

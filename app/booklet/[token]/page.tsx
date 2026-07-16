@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
+import type { Metadata } from "next";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { fetchBookletData } from "@/app/lib/booklet-data-server";
 import { BOOKLET_SECTIONS } from "@/app/lib/booklet-sections";
@@ -9,6 +10,22 @@ import type { ProjectBooklet } from "@/app/lib/types";
 import BookletShareViewer from "./BookletShareViewer";
 
 export const dynamic = "force-dynamic";
+
+// عنوان الصفحة باسم المشروع — يُستخدم كاقتراح افتراضي لاسم الملف عند حفظ هذه
+// الصفحة كـ PDF من متصفح العميل (Ctrl+P → حفظ كـ PDF).
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const admin = createAdminClient();
+  const { data: bookletRow } = await admin
+    .from("project_booklets")
+    .select("project_id, company_id")
+    .eq("share_token", token)
+    .eq("share_enabled", true)
+    .maybeSingle();
+  if (!bookletRow) return {};
+  const { data: project } = await admin.from("projects").select("name").eq("id", bookletRow.project_id).maybeSingle();
+  return { title: project?.name ? `${project.name} — كتيّب المشروع` : "كتيّب المشروع" };
+}
 
 // نفس present/[token]/page.tsx تماماً (عميل service_role + مطابقة صريحة لـ
 // share_token/share_enabled بدل سياسة RLS عامة) لكن لجدول project_booklets.
