@@ -930,6 +930,33 @@ export interface ProjectPresentation {
   updated_at: string;
 }
 
+// نصوص كتيّب المشروع النهائي — أضيَق من نصوص العرض الفني عمداً: معظم محتوى
+// الكتيّب مُستخرج مباشرة من بيانات المشروع الفعلية (حلقات/نشاط/رحلة/ملفات) لا
+// حقول نصية حرة، وتبقى هذه الحقول فقط للنصوص السردية القابلة للتخصيص.
+export interface BookletTexts {
+  handover_message?: string;
+  achievements_summary?: string;
+  closing_message?: string;
+  company_bio?: string;
+  company_values?: string;
+  company_vision?: string;
+  ceo_message?: string;
+}
+
+export interface ProjectBooklet {
+  id: string;
+  company_id: string;
+  project_id: string;
+  template: PresentationTemplate;
+  sections: PresentationSectionConfig[];
+  texts: BookletTexts;
+  share_token: string | null;
+  share_enabled: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ClientSession {
   id: string;
   company_id: string;

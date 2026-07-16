@@ -24,6 +24,7 @@ export default function ProjectHeaderBar({
   onNewEpisode,
   onOpenSettings,
   onOpenPresentation,
+  onOpenBooklet,
   onProjectChanged,
 }: {
   project: Project;
@@ -33,6 +34,7 @@ export default function ProjectHeaderBar({
   onNewEpisode: () => void;
   onOpenSettings: (tab: "info" | "clients") => void;
   onOpenPresentation: () => void;
+  onOpenBooklet: () => void;
   onProjectChanged: (patch: Partial<Project>) => void;
 }) {
   const supabase = createClient();
@@ -192,6 +194,9 @@ export default function ProjectHeaderBar({
           </button>
           <button className="btn btn-outline" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="العرض الفني" onClick={onOpenPresentation}>
             <Icon name="proposals" size={14} /> {!isMobile && "العرض الفني"}
+          </button>
+          <button className="btn btn-outline" style={isMobile ? { padding: 9 } : { padding: "9px 14px", fontSize: 12 }} title="كتيّب المشروع" onClick={onOpenBooklet}>
+            <Icon name="fileCheck" size={14} /> {!isMobile && "كتيّب المشروع"}
           </button>
           <button className="btn btn-outline" style={{ padding: "9px 12px" }} title={`تصدير قائمة ${itemNoun.plural} (CSV)`} onClick={exportEpisodes}>
             <Icon name="export" size={14} />

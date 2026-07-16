@@ -1,153 +1,26 @@
 import { PRESENTATION_SECTIONS, type PresentationData } from "@/app/lib/presentation-sections";
 import type { PresentationTheme } from "@/app/lib/presentation-themes";
-import { buildPptxHighlightRuns } from "@/app/lib/presentation-highlight";
 import type { ProjectPresentation, PresentationTexts } from "@/app/lib/types";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
+import {
+  type Pptx,
+  type PptxSlide,
+  hex,
+  setPptxLogo,
+  newSlide,
+  addTitle,
+  addParagraph,
+  addBulletList,
+  addRichBulletList,
+  addContactLine,
+  addTable,
+} from "@/app/lib/presentation-pptx-primitives";
 
 // يبني ملف PowerPoint حقيقي (شريحة واحدة لكل قسم مفعّل، بنفس ترتيب المعاينة) اعتماداً على
 // pptxgenjs الذي يعمل بالكامل في المتصفح (لا حاجة لأي جولة سيرفر). يُستورَد ديناميكياً هنا
 // عمداً كي لا يدخل ضمن حزمة السيرفر أبداً ويُحمَّل فقط عند الضغط الفعلي على زر التنزيل.
-type PptxGenJSType = typeof import("pptxgenjs");
-type Pptx = InstanceType<PptxGenJSType["default"]>;
-type PptxSlide = ReturnType<Pptx["addSlide"]>;
-
-function hex(color: string): string {
-  return color.replace("#", "").toUpperCase();
-}
-
-// شعار الشركة الحالي المطلوب وضعه كعلامة مائية صغيرة أعلى كل شريحة — متغيّر
-// على مستوى الوحدة (module scope) بدل تمرير logoUrl كمعامل عبر كل دالة renderX
-// (أكثر من 25 دالة) — buildPresentationPptx هي نقطة الدخول الوحيدة وتُستدعى
-// دفعة واحدة غير متزامنة مع أي استدعاء آخر (بناء ملف PowerPoint من ضغطة زر واحدة)،
-// فلا خطر تداخل قيم بين استدعاءين مختلفين.
-let currentCompanyLogoUrl: string | null = null;
-
-function newSlide(pptx: Pptx, theme: PresentationTheme, opts?: { skipLogo?: boolean }): PptxSlide {
-  const slide = pptx.addSlide();
-  slide.background = { color: hex(theme.bg) };
-  if (currentCompanyLogoUrl && !opts?.skipLogo) {
-    slide.addImage({ path: currentCompanyLogoUrl, x: 8.55, y: 0.22, w: 0.75, h: 0.5, sizing: { type: "contain", w: 0.75, h: 0.5 } });
-  }
-  return slide;
-}
-
-function addTitle(slide: PptxSlide, theme: PresentationTheme, title: string) {
-  slide.addText(title, {
-    x: 0.5,
-    y: 0.35,
-    w: 9,
-    h: 0.7,
-    fontSize: 26,
-    bold: true,
-    color: hex(theme.accent),
-    fontFace: "Arial",
-    align: "right",
-    rtlMode: true,
-  });
-}
-
-function addParagraph(slide: PptxSlide, theme: PresentationTheme, text: string, y = 1.25) {
-  // buildPptxHighlightRuns يترجم صيغة **كلمة** (نفس نظام presentation-highlight.tsx
-  // المستخدم في المعاينة/HTML) إلى تشغيلات نصية بارزة بلون هوية الشركة (theme.accent)،
-  // بدل عرض النجمتين كنصّ خام في ملف PowerPoint الفعلي.
-  slide.addText(buildPptxHighlightRuns(text || "—", theme, { fontSize: 14, color: hex(theme.text), fontFace: "Arial" }), {
-    x: 0.5,
-    y,
-    w: 9,
-    h: 3.9,
-    align: "right",
-    rtlMode: true,
-    valign: "top",
-  });
-}
-
-function addBulletList(slide: PptxSlide, theme: PresentationTheme, items: string[], y = 1.25) {
-  const safeItems = items.length ? items : ["لا توجد بيانات مضافة بعد"];
-  slide.addText(
-    safeItems.map((text) => ({ text, options: { bullet: true, breakLine: true, paraSpaceAfter: 8 } })),
-    {
-      x: 0.5,
-      y,
-      w: 9,
-      h: 4,
-      fontSize: 13,
-      color: hex(theme.text),
-      fontFace: "Arial",
-      align: "right",
-      rtlMode: true,
-      valign: "top",
-    }
-  );
-}
-
-// نسخة من addBulletList تدعم صيغة **كلمة** داخل كل بند — تُبنى كتشغيلات نصية
-// متتالية بدل نصّ خام، مع وضع علامة bullet على أول تشغيلة وbreakLine على آخر
-// تشغيلة في كل بند، محافظةً على نفس شكل القائمة النقطية.
-function addRichBulletList(slide: PptxSlide, theme: PresentationTheme, items: string[], y = 1.25) {
-  const safeItems = items.length ? items : ["لا توجد بيانات مضافة بعد"];
-  const runs: { text: string; options: Record<string, unknown> }[] = [];
-  for (const item of safeItems) {
-    const itemRuns = buildPptxHighlightRuns(item, theme, { fontSize: 13, color: hex(theme.text), fontFace: "Arial" });
-    itemRuns.forEach((r, j) => {
-      runs.push({
-        text: r.text,
-        options: {
-          ...r.options,
-          ...(j === 0 ? { bullet: true } : {}),
-          ...(j === itemRuns.length - 1 ? { breakLine: true, paraSpaceAfter: 8 } : {}),
-        },
-      });
-    });
-  }
-  slide.addText(runs, { x: 0.5, y, w: 9, h: 4, align: "right", rtlMode: true, valign: "top" });
-}
-
-// سطر تواصل حقيقي قابل للنقر (هاتف/واتساب/بريد/موقع) بروابط hyperlink فعلية
-// مدعومة أصلاً في pptxgenjs — لا نصّ ثابت غير تفاعلي.
-function buildContactRuns(data: PresentationData, theme: PresentationTheme): { text: string; options: Record<string, unknown> }[] {
-  const items: { label: string; url: string }[] = [];
-  if (data.companyPhone) items.push({ label: data.companyPhone, url: `tel:${data.companyPhone}` });
-  if (data.companyWhatsapp) items.push({ label: "واتساب", url: `https://wa.me/${data.companyWhatsapp.replace(/\D/g, "")}` });
-  if (data.companyEmail) items.push({ label: data.companyEmail, url: `mailto:${data.companyEmail}` });
-  if (data.companyWebsite) items.push({ label: data.companyWebsite, url: data.companyWebsite.startsWith("http") ? data.companyWebsite : `https://${data.companyWebsite}` });
-
-  const runs: { text: string; options: Record<string, unknown> }[] = [];
-  items.forEach((item, i) => {
-    if (i > 0) runs.push({ text: "   |   ", options: { color: hex(theme.muted), fontSize: 11 } });
-    runs.push({ text: item.label, options: { color: hex(theme.accent), fontSize: 11, hyperlink: { url: item.url } } });
-  });
-  return runs;
-}
-
-function addContactLine(slide: PptxSlide, theme: PresentationTheme, data: PresentationData, y: number) {
-  const runs = buildContactRuns(data, theme);
-  if (runs.length === 0) return;
-  slide.addText(runs, { x: 0.5, y, w: 9, h: 0.4, align: "center", rtlMode: true });
-}
-
-function addTable(slide: PptxSlide, theme: PresentationTheme, header: string[], rows: string[][], y = 1.25) {
-  const headRow = header.map((label) => ({
-    text: label,
-    options: { bold: true, color: "FFFFFF", fill: { color: hex(theme.accent) }, align: "right" as const, fontSize: 11 },
-  }));
-  const bodyRows = rows.length
-    ? rows.map((r) =>
-        r.map((cell) => ({
-          text: cell || "—",
-          options: { color: hex(theme.text), fill: { color: hex(theme.card) }, align: "right" as const, fontSize: 11 },
-        }))
-      )
-    : [header.map(() => ({ text: "لا توجد بيانات", options: { color: hex(theme.muted), fill: { color: hex(theme.card) }, align: "right" as const, fontSize: 11 } }))];
-
-  slide.addTable([headRow, ...bodyRows], {
-    x: 0.5,
-    y,
-    w: 9,
-    color: hex(theme.text),
-    border: { type: "solid", color: theme.border.startsWith("rgba") ? "333333" : hex(theme.border), pt: 0.5 },
-    autoPage: true,
-  });
-}
+// أدوات بناء الشرائح العامة (newSlide/addTitle/addParagraph...) مشتركة مع
+// booklet-pptx.ts عبر presentation-pptx-primitives.ts.
 
 function durationLabel(seconds: number | null): string {
   if (!seconds) return "—";
@@ -517,7 +390,7 @@ export async function buildPresentationPptx(data: PresentationData, presentation
   pptx.author = data.companyName || "";
   pptx.title = data.projectName || "عرض تقديمي";
 
-  currentCompanyLogoUrl = data.companyLogoUrl;
+  setPptxLogo(data.companyLogoUrl);
   try {
     const ordered = presentation.sections.filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
 
@@ -528,6 +401,6 @@ export async function buildPresentationPptx(data: PresentationData, presentation
     const safeName = (data.projectName || "presentation").replace(/[\\/:*?"<>|]/g, "").trim() || "presentation";
     await pptx.writeFile({ fileName: `${safeName}.pptx` });
   } finally {
-    currentCompanyLogoUrl = null;
+    setPptxLogo(null);
   }
 }

@@ -210,6 +210,7 @@ export async function fetchPresentationData(
     clientLogoUrl,
     projectName: project.name,
     projectCoverUrl: project.cover_image_url,
+    projectCreatedAt: project.created_at,
     projectDescription: project.description,
     projectLocation: project.location,
     shootingDate: project.shooting_date,

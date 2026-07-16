@@ -10,6 +10,7 @@ import ProjectSettingsDrawer from "./ProjectSettingsDrawer";
 import EpisodeWorkspace from "./EpisodeWorkspace";
 import EpisodeFormModal from "@/app/components/episodes/EpisodeFormModal";
 import PresentationBuilderModal from "./presentation/PresentationBuilderModal";
+import BookletBuilderModal from "./booklet/BookletBuilderModal";
 import Icon from "@/app/components/ui/Icon";
 import { type TabDef } from "@/app/components/ui/Tabs";
 import { PROJECT_TYPES } from "@/app/lib/constants";
@@ -59,6 +60,7 @@ export default function ProjectDetailView(props: Props) {
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"info" | "clients" | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
+  const [showBooklet, setShowBooklet] = useState(false);
   // null يعني أن أحد تبويبات الحلقة هو النشط بدل تبويبات "تفاصيل إضافية" — القائمتان
   // مدموجتان بصرياً في شريط جانبي واحد داخل EpisodeWorkspace. لا حاجة لقيمة افتراضية
   // خاصة بحالة "بلا حلقات" بعد اليوم — EpisodeWorkspace يعرض overviewExtra مباشرة
@@ -83,6 +85,7 @@ export default function ProjectDetailView(props: Props) {
         onNewEpisode={() => setShowEpisodeModal(true)}
         onOpenSettings={(t) => setSettingsTab(t)}
         onOpenPresentation={() => setShowPresentation(true)}
+        onOpenBooklet={() => setShowBooklet(true)}
         onProjectChanged={patchProject}
       />
 
@@ -138,6 +141,7 @@ export default function ProjectDetailView(props: Props) {
       )}
 
       {showPresentation && <PresentationBuilderModal projectId={project.id} onClose={() => setShowPresentation(false)} />}
+      {showBooklet && <BookletBuilderModal projectId={project.id} onClose={() => setShowBooklet(false)} />}
     </div>
   );
 }

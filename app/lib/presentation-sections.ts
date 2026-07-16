@@ -96,6 +96,7 @@ export interface PresentationData {
   clientLogoUrl: string | null;
   projectName: string;
   projectCoverUrl: string | null;
+  projectCreatedAt: string;
   projectDescription: string | null;
   projectLocation: string | null;
   shootingDate: string | null;
