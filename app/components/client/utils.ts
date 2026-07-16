@@ -1,8 +1,17 @@
 import { EPISODE_STATUSES, PROJECT_STATUSES } from "@/app/lib/constants";
-import type { EpisodeStatus, ProjectStatus } from "@/app/lib/types";
+import type { EpisodeStatus, NoteStatus, ProjectStatus } from "@/app/lib/types";
 
 export function episodeStatusMeta(status: EpisodeStatus) {
   return EPISODE_STATUSES.find((s) => s.value === status) ?? EPISODE_STATUSES[0];
+}
+
+// حالة الملاحظة/طلب التعديل مبسّطة لثلاث حالات فقط للعميل (بدل ست حالات داخلية
+// في NOTE_STATUSES) — العميل لا يحتاج التمييز بين "قيد المراجعة" و"قيد التنفيذ"
+// مثلاً، وكلا الحالتين تعنيان له عملياً "الفريق يعمل عليها الآن".
+export function clientNoteStatusMeta(status: NoteStatus): { label: string; color: string } {
+  if (status === "new") return { label: "جديدة", color: "#3B82F6" };
+  if (status === "in_review" || status === "in_progress") return { label: "قيد التنفيذ", color: "#F59E0B" };
+  return { label: "تم التنفيذ", color: "#1DB954" };
 }
 
 export function projectStatusMeta(status: ProjectStatus) {

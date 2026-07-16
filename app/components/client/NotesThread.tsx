@@ -5,10 +5,10 @@ import Icon from "@/app/components/ui/Icon";
 import EditRequestComposer from "@/app/components/client/EditRequestComposer";
 import { sanitizeRichText } from "@/app/components/client/RichTextEditor";
 import { createClient } from "@/app/lib/supabase/client";
-import { relativeTime, formatDateTime } from "@/app/components/client/utils";
+import { relativeTime, formatDateTime, clientNoteStatusMeta } from "@/app/components/client/utils";
 import { canClient } from "@/app/lib/permissions";
 import { useScrollHighlight } from "@/app/lib/use-scroll-highlight";
-import { NOTE_STATUSES, NOTE_REQUEST_TYPES, NOTE_PRIORITIES } from "@/app/lib/constants";
+import { NOTE_REQUEST_TYPES, NOTE_PRIORITIES } from "@/app/lib/constants";
 import type { ClientPermissions, Note, NoteTargetType } from "@/app/lib/types";
 
 interface NotesThreadProps {
@@ -113,7 +113,7 @@ export default function NotesThread({
   function RequestBubble({ note, isReply }: { note: Note; isReply?: boolean }) {
     const mine = note.author_id === currentUserId;
     const authorLabel = mine ? currentUserName || "أنت" : note.author_role === "client" ? "العميل" : "فريق الإنتاج";
-    const statusMeta = NOTE_STATUSES.find((s) => s.value === note.status);
+    const statusMeta = clientNoteStatusMeta(note.status);
     const typeMeta = note.request_type ? NOTE_REQUEST_TYPES.find((t) => t.value === note.request_type) : null;
     const priorityMeta = !isReply ? NOTE_PRIORITIES.find((p) => p.value === note.priority) : null;
 

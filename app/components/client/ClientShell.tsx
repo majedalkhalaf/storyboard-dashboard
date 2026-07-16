@@ -36,19 +36,25 @@ export interface ProjectManagerInfo {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/client", label: "الرئيسية", icon: "dashboard" },
+  { href: "/client", label: "نظرة عامة", icon: "dashboard" },
+  { href: "/client/episodes", label: "الحلقات", icon: "episodes" },
+  { href: "/client/files", label: "الملفات", icon: "files" },
+  { href: "/client/invoices", label: "المالية", icon: "finance" },
+  { href: "/client/notifications", label: "الإشعارات", icon: "bell" },
+  { href: "/client/settings", label: "الإعدادات", icon: "settings" },
+  // بقية الوجهات (مشاريعي/العمل الجاري/التقارير/طلبات التعديل/الاجتماعات/الدعم)
+  // تبقى فعّالة بالكامل بروابطها، لكنها خلف "المزيد" بدل الظهور المباشر — تبسيطاً
+  // للقائمة الرئيسية بحسب طلب صريح بعدم إظهار أكثر من 7 عناصر بارزة. لا توجد
+  // حالياً صفحة فعلية لـ"العقود والعروض" في بوابة العميل، فلم تُضَف كعنصر وهمي.
   { href: "/client/projects", label: "مشاريعي", icon: "projects" },
-  { href: "/client/files", label: "الملفات والمستندات", icon: "files" },
-  { href: "/client/episodes", label: "الحلقات والإنتاج", icon: "episodes" },
   { href: "/client/progress", label: "العمل الجاري", icon: "barChart" },
   { href: "/client/reports", label: "التقارير", icon: "barChart" },
-  { href: "/client/invoices", label: "الحسابات", icon: "finance" },
   { href: "/client/notes", label: "طلبات التعديل", icon: "edit" },
   { href: "/client/meetings", label: "الاجتماعات", icon: "calendar" },
-  { href: "/client/notifications", label: "التنبيهات", icon: "bell" },
   { href: "/client/support", label: "الدعم الفني", icon: "phone" },
-  { href: "/client/settings", label: "الإعدادات", icon: "settings" },
 ];
+
+const PRIMARY_NAV_HREFS = ["/client", "/client/episodes", "/client/files", "/client/invoices", "/client/notifications", "/client/settings"];
 
 function isActive(pathname: string, href: string) {
   if (href === "/client") return pathname === "/client";
@@ -59,7 +65,7 @@ function isActive(pathname: string, href: string) {
 // الأيقونات وتختفي أسماؤها — لذا يعرض أهم 4 وجهات مباشرة، وكل الباقي يظهر
 // خلف تبويب "المزيد" الذي يفتح قائمة كاملة، بنفس فكرة القائمة الجانبية
 // المنبثقة في لوحة الفريق الداخلي (MobileNavDrawer).
-const BOTTOM_NAV_PRIMARY_HREFS = ["/client", "/client/projects", "/client/episodes", "/client/files"];
+const BOTTOM_NAV_PRIMARY_HREFS = ["/client", "/client/episodes", "/client/files", "/client/invoices"];
 
 export default function ClientShell({
   children,
@@ -78,6 +84,7 @@ export default function ClientShell({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [desktopMoreOpen, setDesktopMoreOpen] = useState(false);
 
   // بدء تتبّع الجلسة مرة واحدة عند فتح بوابة العميل — ClientShell مُركَّب في
   // layout.tsx فلا يُعاد تركيبه بين تنقّلات الصفحات، فهذا الأثر يعمل مرة واحدة فقط.
@@ -92,6 +99,13 @@ export default function ClientShell({
   const primaryNavItems = BOTTOM_NAV_PRIMARY_HREFS.map((href) => NAV_ITEMS.find((item) => item.href === href)!);
   const moreNavItems = NAV_ITEMS.filter((item) => !BOTTOM_NAV_PRIMARY_HREFS.includes(item.href));
   const moreActive = moreNavItems.some((item) => isActive(pathname, item.href));
+
+  // القائمة الجانبية (سطح المكتب) تُظهر مباشرة فقط الوجهات السبع الأساسية
+  // المطلوبة، وتُخفي البقية خلف "المزيد من الخيارات" — نفس بيانات/روابط
+  // NAV_ITEMS الكاملة، بلا حذف أي صفحة فعلية، فقط ترتيب ظهورها.
+  const desktopPrimaryItems = NAV_ITEMS.filter((item) => PRIMARY_NAV_HREFS.includes(item.href));
+  const desktopSecondaryItems = NAV_ITEMS.filter((item) => !PRIMARY_NAV_HREFS.includes(item.href));
+  const desktopSecondaryActive = desktopSecondaryItems.some((item) => isActive(pathname, item.href));
 
   function openActivity(a: ActivityRailItem) {
     router.push(a.episodeId ? `/client/projects/${a.projectId}/episodes/${a.episodeId}` : `/client/projects/${a.projectId}`);
@@ -159,7 +173,7 @@ export default function ClientShell({
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, overflowY: "auto" }}>
-          {NAV_ITEMS.map((item) => {
+          {desktopPrimaryItems.map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <Link key={item.href} href={item.href} className={`sidebar-link${active ? " active" : ""}`}>
@@ -168,6 +182,31 @@ export default function ClientShell({
               </Link>
             );
           })}
+
+          {desktopSecondaryItems.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setDesktopMoreOpen((o) => !o)}
+                className={`sidebar-link${desktopSecondaryActive ? " active" : ""}`}
+                style={{ background: "transparent", border: "none", width: "100%", cursor: "pointer" }}
+              >
+                <Icon name="more" size={18} className="nav-icon" />
+                <span className="sidebar-text" style={{ flex: 1 }}>المزيد من الخيارات</span>
+                <Icon name="chevronDown" size={14} className={desktopMoreOpen ? "rotate-180" : ""} />
+              </button>
+              {desktopMoreOpen &&
+                desktopSecondaryItems.map((item) => {
+                  const active = isActive(pathname, item.href);
+                  return (
+                    <Link key={item.href} href={item.href} className={`sidebar-link${active ? " active" : ""}`} style={{ paddingInlineStart: 30 }}>
+                      <Icon name={item.icon} size={16} className="nav-icon" />
+                      <span className="sidebar-text">{item.label}</span>
+                    </Link>
+                  );
+                })}
+            </>
+          )}
         </nav>
 
         {/* بطاقتا مدير المشروع والدعم الفني — أسفل القائمة الجانبية ثابتتان */}
