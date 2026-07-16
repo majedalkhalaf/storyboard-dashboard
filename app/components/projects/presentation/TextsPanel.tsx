@@ -10,6 +10,7 @@ const SIMPLE_FIELDS: { key: keyof PresentationTexts; label: string; rows?: numbe
   { key: "company_bio", label: "نبذة عن الشركة", rows: 4 },
   { key: "company_values", label: "قيم الشركة", rows: 3 },
   { key: "company_vision", label: "رؤية الشركة", rows: 3 },
+  { key: "company_mission", label: "رسالة الشركة", rows: 3 },
   { key: "ceo_message", label: "كلمة المدير التنفيذي", rows: 3 },
   { key: "why_problem", label: "المشكلة", rows: 2 },
   { key: "why_opportunity", label: "الفرصة", rows: 2 },

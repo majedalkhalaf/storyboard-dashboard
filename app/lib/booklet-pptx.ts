@@ -65,10 +65,35 @@ function renderCompanyBio(pptx: Pptx, theme: PresentationTheme, data: BookletDat
   addTitle(slide, theme, "نبذة عن الشركة");
   const parts = [texts.company_bio || `${data.companyName} شركة إنتاج إعلامي متخصصة في تحويل الأفكار إلى محتوى احترافي.`];
   if (texts.company_vision) parts.push(`الرؤية: ${texts.company_vision}`);
+  if (texts.company_mission) parts.push(`الرسالة: ${texts.company_mission}`);
   if (texts.company_values) parts.push(`القيم: ${texts.company_values}`);
   if (texts.ceo_message) parts.push(`« ${texts.ceo_message} »`);
   addParagraph(slide, theme, parts.join("\n\n"));
   addContactLine(slide, theme, data, 5.2);
+}
+
+function renderToc(pptx: Pptx, theme: PresentationTheme, ordered: string[]) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الفهرس");
+  const entries = ordered
+    .filter((k) => k !== "toc")
+    .map((k, i) => `${i + 1}. ${BOOKLET_SECTIONS.find((d) => d.key === k)?.label ?? k}`);
+  addBulletList(slide, theme, entries);
+}
+
+function renderClientCard(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "بيانات العميل");
+  const c = data.client;
+  addTable(slide, theme, ["البيان", "القيمة"], [
+    ["اسم العميل", c.name || "—"],
+    ["الشركة", c.companyName || "—"],
+    ["البريد الإلكتروني", c.email || "—"],
+    ["الهاتف", c.phone || "—"],
+    ["المدينة", c.city || "—"],
+    ["بداية المشروع", formatDate(data.projectStartDate)],
+    ["تاريخ التسليم", data.projectDeliveredDate ? formatDate(data.projectDeliveredDate) : "قيد التسليم"],
+  ]);
 }
 
 function renderProjectOverview(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
@@ -128,6 +153,92 @@ function renderEpisodesDetailed(pptx: Pptx, theme: PresentationTheme, data: Book
   );
 }
 
+function renderExecutionPlan(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الخطة التنفيذية");
+  addTable(
+    slide,
+    theme,
+    ["المرحلة", "المسؤول", "البداية", "النهاية", "الإنجاز"],
+    data.executionPlan.map((s) => [
+      s.label,
+      s.responsibleNames.join("، ") || "—",
+      s.earliestStart ? formatDate(s.earliestStart) : "—",
+      s.latestEnd ? formatDate(s.latestEnd) : "—",
+      `${s.completed}/${s.episodesTotal}`,
+    ])
+  );
+}
+
+function renderStoryboard(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "Storyboard التفصيلي");
+  addTable(
+    slide,
+    theme,
+    ["المشهد", "الحلقة", "نوع اللقطة", "الموقع"],
+    data.storyboardDetailed.slice(0, 12).map((s) => [s.title, s.episodeTitle, s.shot_type ?? "—", s.location ?? "—"])
+  );
+}
+
+function renderApprovals(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الاعتمادات");
+  addTable(
+    slide,
+    theme,
+    ["الحلقة", "اعتمد بواسطة", "التاريخ", "الحالة"],
+    data.approvalsList.map((a) => [a.episodeTitle ?? "المشروع", a.approverName ?? "—", formatDate(a.approvedAt), a.revoked ? "مسحوب" : "معتمد"])
+  );
+}
+
+function renderNotes(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الملاحظات");
+  addBulletList(
+    slide,
+    theme,
+    data.notesList.slice(0, 14).map((n) => `${n.authorName ?? (n.authorRole === "client" ? "العميل" : "الفريق")}: ${n.body.slice(0, 90)}`)
+  );
+}
+
+function renderVideos(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الفيديوهات");
+  addTable(
+    slide,
+    theme,
+    ["الاسم", "الحلقة", "المدة"],
+    data.videosList.slice(0, 14).map((v) => [v.name, v.episodeTitle ?? "—", v.durationSeconds != null ? `${Math.round(v.durationSeconds / 60)} د` : "—"])
+  );
+}
+
+function renderEquipment(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "المعدات");
+  addBulletList(slide, theme, data.equipmentNames);
+}
+
+function renderFinance(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
+  const slide = newSlide(pptx, theme);
+  addTitle(slide, theme, "الملخص المالي");
+  const f = data.finance;
+  if (!f) {
+    addBulletList(slide, theme, ["لا توجد بيانات مالية متاحة."]);
+    return;
+  }
+  const money = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${data.companyCurrency}`;
+  addTable(slide, theme, ["البند", "القيمة"], [
+    ...(f.budget != null ? [["ميزانية المشروع", money(f.budget)]] : []),
+    ["فواتير مدفوعة", money(f.invoicesPaidTotal)],
+    ["فواتير غير مدفوعة", money(f.invoicesUnpaidTotal)],
+    ["دفعات مستلمة", money(f.paymentsReceivedTotal)],
+    ["إجمالي المصروفات", money(f.expensesTotal)],
+    ["عدد العقود", String(f.contractsCount)],
+    ["عدد العروض", String(f.proposalsCount)],
+  ]);
+}
+
 function renderTeam(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
   const slide = newSlide(pptx, theme);
   addTitle(slide, theme, "الفريق");
@@ -146,8 +257,8 @@ function renderLocations(pptx: Pptx, theme: PresentationTheme, data: BookletData
 
 function renderGallery(pptx: Pptx, theme: PresentationTheme, data: BookletData) {
   const slide = newSlide(pptx, theme);
-  addTitle(slide, theme, "خلف الكواليس");
-  const images = data.galleryImages.slice(0, 6).map((g) => g.url);
+  addTitle(slide, theme, "خلف الكواليس والمعرض");
+  const images = data.galleryImagesExtended.slice(0, 6).map((g) => g.url);
   if (images.length === 0) {
     addBulletList(slide, theme, ["لا توجد صور مضافة بعد."]);
     return;
@@ -208,32 +319,50 @@ function renderGenericFallback(pptx: Pptx, theme: PresentationTheme, key: string
   addBulletList(slide, theme, ["لا توجد بيانات إضافية متاحة لهذا القسم حالياً."]);
 }
 
-function renderSection(pptx: Pptx, key: string, data: BookletData, texts: BookletTexts, theme: PresentationTheme) {
+function renderSection(pptx: Pptx, key: string, data: BookletData, texts: BookletTexts, theme: PresentationTheme, ordered: string[]) {
   switch (key) {
     case "cover":
       return renderCover(pptx, theme, data);
+    case "toc":
+      return renderToc(pptx, theme, ordered);
     case "handover_message":
       return renderHandoverMessage(pptx, theme, data, texts);
     case "company_bio":
       return renderCompanyBio(pptx, theme, data, texts);
+    case "client_card":
+      return renderClientCard(pptx, theme, data);
     case "project_overview":
       return renderProjectOverview(pptx, theme, data);
     case "achievements":
       return renderAchievements(pptx, theme, data, texts);
     case "journey":
       return renderJourney(pptx, theme, data);
+    case "execution_plan":
+      return renderExecutionPlan(pptx, theme, data);
     case "activity_log":
       return renderActivityLog(pptx, theme, data);
+    case "approvals":
+      return renderApprovals(pptx, theme, data);
     case "episodes_detailed":
       return renderEpisodesDetailed(pptx, theme, data);
+    case "storyboard":
+      return renderStoryboard(pptx, theme, data);
+    case "videos":
+      return renderVideos(pptx, theme, data);
     case "team":
       return renderTeam(pptx, theme, data);
+    case "equipment":
+      return renderEquipment(pptx, theme, data);
     case "locations":
       return renderLocations(pptx, theme, data);
     case "gallery":
       return renderGallery(pptx, theme, data);
     case "files":
       return renderFiles(pptx, theme, data);
+    case "notes":
+      return renderNotes(pptx, theme, data);
+    case "finance":
+      return renderFinance(pptx, theme, data);
     case "closing":
       return renderClosing(pptx, theme, data, texts);
     default:
@@ -254,7 +383,7 @@ export async function buildBookletPptx(data: BookletData, booklet: ProjectBookle
     const ordered = booklet.sections.filter((s) => s.enabled && BOOKLET_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
 
     for (const key of ordered) {
-      renderSection(pptx, key, data, booklet.texts, theme);
+      renderSection(pptx, key, data, booklet.texts, theme, ordered);
     }
 
     const safeName = (data.projectName || "booklet").replace(/[\\/:*?"<>|]/g, "").trim() || "booklet";

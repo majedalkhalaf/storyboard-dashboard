@@ -57,6 +57,7 @@ export interface PresentationDefaultTexts {
   company_bio?: string;
   company_values?: string;
   company_vision?: string;
+  company_mission?: string;
   ceo_message?: string;
   faq?: { question: string; answer: string }[];
   terms?: string;
@@ -940,6 +941,7 @@ export interface BookletTexts {
   company_bio?: string;
   company_values?: string;
   company_vision?: string;
+  company_mission?: string;
   ceo_message?: string;
 }
 

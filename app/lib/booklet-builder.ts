@@ -34,6 +34,7 @@ export async function loadBookletBundle(companyId: string, userId: string, proje
     company_bio: companyDefaults.company_bio,
     company_values: companyDefaults.company_values,
     company_vision: companyDefaults.company_vision,
+    company_mission: companyDefaults.company_mission,
     ceo_message: companyDefaults.ceo_message,
     ...smartTexts,
   };

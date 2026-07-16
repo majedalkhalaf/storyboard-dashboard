@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
-import { BOOKLET_SECTIONS } from "@/app/lib/booklet-sections";
+import { BOOKLET_SECTIONS, buildTocEntries } from "@/app/lib/booklet-sections";
 import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { BookletBundle } from "@/app/lib/booklet-builder";
 import BookletSectionRenderer from "./BookletSectionRenderer";
@@ -19,6 +19,7 @@ export default function BookletPreview({ bundle }: { bundle: BookletBundle }) {
   const [index, setIndex] = useState(0);
   const theme = getPresentationTheme(bundle.booklet.template, bundle.data);
   const currentKey = ordered[Math.min(index, ordered.length - 1)];
+  const tocEntries = useMemo(() => buildTocEntries(ordered), [ordered]);
 
   if (ordered.length === 0) {
     return (
@@ -41,7 +42,7 @@ export default function BookletPreview({ bundle }: { bundle: BookletBundle }) {
           boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
         }}
       >
-        <BookletSectionRenderer sectionKey={currentKey} data={bundle.data} texts={bundle.booklet.texts} theme={theme} />
+        <BookletSectionRenderer sectionKey={currentKey} data={bundle.data} texts={bundle.booklet.texts} theme={theme} tocEntries={tocEntries} />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>

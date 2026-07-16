@@ -4,10 +4,11 @@ import type { Metadata } from "next";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import { fetchBookletData } from "@/app/lib/booklet-data-server";
-import { BOOKLET_SECTIONS } from "@/app/lib/booklet-sections";
+import { BOOKLET_SECTIONS, buildTocEntries } from "@/app/lib/booklet-sections";
 import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { ProjectBooklet } from "@/app/lib/types";
 import BookletSectionRenderer from "@/app/components/projects/booklet/BookletSectionRenderer";
+import BookletPageChrome from "@/app/components/projects/booklet/BookletPageChrome";
 import PrintButton from "@/app/components/finance/PrintButton";
 import Icon from "@/app/components/ui/Icon";
 
@@ -77,6 +78,7 @@ export default async function BookletPrintPage({ params }: { params: Promise<{ i
 
   const theme = getPresentationTheme(booklet.template, data);
   const ordered = booklet.sections.filter((s) => s.enabled && BOOKLET_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
+  const tocEntries = buildTocEntries(ordered);
 
   return (
     <>
@@ -107,11 +109,19 @@ export default async function BookletPrintPage({ params }: { params: Promise<{ i
             <p style={{ fontSize: 15 }}>لا توجد أقسام مفعّلة لهذا الكتيّب بعد.</p>
           </div>
         ) : (
-          ordered.map((key) => (
-            <div key={key} className="presentation-print-page">
-              <BookletSectionRenderer sectionKey={key} data={data} texts={booklet.texts} theme={theme} />
-            </div>
-          ))
+          ordered.map((key, i) =>
+            key === "cover" ? (
+              <div key={key} id={`section-${key}`} className="presentation-print-page">
+                <BookletSectionRenderer sectionKey={key} data={data} texts={booklet.texts} theme={theme} />
+              </div>
+            ) : (
+              <div key={key} id={`section-${key}`} className="presentation-print-page">
+                <BookletPageChrome data={data} theme={theme} pageNumber={i + 1} totalPages={ordered.length}>
+                  <BookletSectionRenderer sectionKey={key} data={data} texts={booklet.texts} theme={theme} tocEntries={tocEntries} />
+                </BookletPageChrome>
+              </div>
+            )
+          )
         )}
       </div>
     </>

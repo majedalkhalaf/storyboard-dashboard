@@ -4,10 +4,11 @@ import { renderToStaticMarkup } from "react-dom/server.edge";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentSession } from "@/app/lib/supabase/session";
 import { fetchBookletData } from "@/app/lib/booklet-data-server";
-import { BOOKLET_SECTIONS } from "@/app/lib/booklet-sections";
+import { BOOKLET_SECTIONS, buildTocEntries } from "@/app/lib/booklet-sections";
 import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import type { ProjectBooklet } from "@/app/lib/types";
 import BookletSectionRenderer from "@/app/components/projects/booklet/BookletSectionRenderer";
+import BookletPageChrome from "@/app/components/projects/booklet/BookletPageChrome";
 
 // نفس منطق api/presentation/[projectId]/html/route.ts تماماً (renderToStaticMarkup لنفس
 // مكوّن العرض المستخدَم في المعاينة/الطباعة) لكن لبيانات الكتيّب — مقيَّد بشركة الجلسة الحالية.
@@ -35,14 +36,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
 
   const theme = getPresentationTheme(booklet.template, data);
   const ordered = booklet.sections.filter((s) => s.enabled && BOOKLET_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
+  const tocEntries = buildTocEntries(ordered);
 
   const slidesMarkup = ordered
-    .map((key) =>
+    .map((key, i) =>
       renderToStaticMarkup(
         React.createElement(
           "div",
-          { className: "presentation-html-slide" },
-          React.createElement(BookletSectionRenderer, { sectionKey: key, data, texts: booklet.texts, theme })
+          { className: "presentation-html-slide", id: `section-${key}` },
+          key === "cover"
+            ? React.createElement(BookletSectionRenderer, { sectionKey: key, data, texts: booklet.texts, theme })
+            : React.createElement(
+                BookletPageChrome,
+                { data, theme, pageNumber: i + 1, totalPages: ordered.length },
+                React.createElement(BookletSectionRenderer, { sectionKey: key, data, texts: booklet.texts, theme, tocEntries })
+              )
         )
       )
     )

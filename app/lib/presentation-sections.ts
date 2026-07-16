@@ -92,6 +92,7 @@ export interface PresentationData {
   companyWebsite: string | null;
   companyWhatsapp: string | null;
   companyAddress: string | null;
+  companyCurrency: string;
   clientName: string | null;
   clientLogoUrl: string | null;
   projectName: string;

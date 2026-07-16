@@ -128,13 +128,21 @@ export function CompanyBioSection({ data, texts, theme }: SectionProps) {
       <p style={{ fontSize: 15, lineHeight: 1.9, color: theme.text, opacity: 0.9, whiteSpace: "pre-wrap", marginBottom: 20 }}>
         <HighlightedText theme={theme} text={texts.company_bio || `${data.companyName} شركة إنتاج إعلامي متخصصة في تحويل الأفكار إلى محتوى احترافي.`} />
       </p>
-      {(texts.company_vision || texts.company_values) && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 10 }}>
+      {(texts.company_vision || texts.company_mission || texts.company_values) && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginTop: 10 }}>
           {texts.company_vision && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: theme.accent, marginBottom: 6 }}>الرؤية</div>
               <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>
                 <HighlightedText theme={theme} text={texts.company_vision} />
+              </p>
+            </div>
+          )}
+          {texts.company_mission && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: theme.accent, marginBottom: 6 }}>الرسالة</div>
+              <p style={{ fontSize: 13, color: theme.muted, whiteSpace: "pre-wrap" }}>
+                <HighlightedText theme={theme} text={texts.company_mission} />
               </p>
             </div>
           )}

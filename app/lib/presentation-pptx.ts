@@ -4,7 +4,6 @@ import type { ProjectPresentation, PresentationTexts } from "@/app/lib/types";
 import { EPISODE_STATUSES } from "@/app/lib/constants";
 import {
   type Pptx,
-  type PptxSlide,
   hex,
   setPptxLogo,
   newSlide,
@@ -88,6 +87,7 @@ function renderCompanyBio(pptx: Pptx, theme: PresentationTheme, data: Presentati
   addTitle(slide, theme, "نبذة عن الشركة");
   const parts = [texts.company_bio || `${data.companyName} شركة إنتاج إعلامي متخصصة في تحويل الأفكار إلى محتوى احترافي.`];
   if (texts.company_vision) parts.push(`الرؤية: ${texts.company_vision}`);
+  if (texts.company_mission) parts.push(`الرسالة: ${texts.company_mission}`);
   if (texts.company_values) parts.push(`القيم: ${texts.company_values}`);
   if (texts.ceo_message) parts.push(`« ${texts.ceo_message} »`);
   addParagraph(slide, theme, parts.join("\n\n"));

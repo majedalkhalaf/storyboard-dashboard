@@ -10,6 +10,7 @@ const SIMPLE_FIELDS: { key: keyof BookletTexts; label: string; rows?: number }[]
   { key: "company_bio", label: "نبذة عن الشركة", rows: 4 },
   { key: "company_values", label: "قيم الشركة", rows: 3 },
   { key: "company_vision", label: "رؤية الشركة", rows: 3 },
+  { key: "company_mission", label: "رسالة الشركة", rows: 3 },
   { key: "ceo_message", label: "كلمة المدير التنفيذي", rows: 3 },
 ];
 

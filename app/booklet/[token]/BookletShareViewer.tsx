@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Icon from "@/app/components/ui/Icon";
+import { buildTocEntries } from "@/app/lib/booklet-sections";
 import type { BookletData } from "@/app/lib/booklet-sections";
 import type { PresentationTheme } from "@/app/lib/presentation-themes";
 import type { BookletTexts } from "@/app/lib/types";
@@ -23,6 +24,7 @@ export default function BookletShareViewer({
   qrDataUrl: string;
 }) {
   const [index, setIndex] = useState(0);
+  const tocEntries = useMemo(() => buildTocEntries(ordered), [ordered]);
 
   if (ordered.length === 0) {
     return (
@@ -44,7 +46,7 @@ export default function BookletShareViewer({
     <div style={{ minHeight: "100vh", background: theme.bg, display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div style={{ position: "absolute", inset: 0 }}>
-          <BookletSectionRenderer sectionKey={currentKey} data={data} texts={texts} theme={theme} />
+          <BookletSectionRenderer sectionKey={currentKey} data={data} texts={texts} theme={theme} tocEntries={tocEntries} />
         </div>
 
         <div

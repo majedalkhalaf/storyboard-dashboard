@@ -206,6 +206,7 @@ export async function fetchPresentationData(
     companyWebsite: company?.website ?? null,
     companyWhatsapp: company?.whatsapp_number ?? null,
     companyAddress: company?.address ?? null,
+    companyCurrency: company?.currency || "SAR",
     clientName,
     clientLogoUrl,
     projectName: project.name,
