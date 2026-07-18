@@ -50,21 +50,26 @@ export async function buildPresentationPdf(
   const ordered = presentation.sections.filter((s) => s.enabled && PRESENTATION_SECTIONS.some((def) => def.key === s.key)).map((s) => s.key);
   if (ordered.length === 0) throw new Error("لا توجد أقسام مفعّلة لهذا العرض");
 
-  // حاوية مخفيّة خلف باقي الصفحة (وليست display:none — العناصر المخفية تماماً
-  // لا تُرسَم فتُعطي صوراً فارغة، وليست بإزاحة هائلة خارج الشاشة أيضاً — تبيّن
-  // تجريبياً أن html-to-image يُصيّر صفحة سوداء فارغة تماماً عند وضع الحاوية
-  // على إحداثيات بعيدة جداً عن حدود الشاشة الفعلية). z-index سالب يبقيها ضمن
-  // حدود إحداثيات معقولة لكن خلف كل المحتوى الحقيقي وغير قابلة للتفاعل.
+  // حاوية بلا أي position مطلقاً (لا fixed ولا absolute) داخل غلاف بحجم صفر
+  // و overflow:hidden. تبيّن تجريبياً (اختبار حقيقي بعرض نافذة أضيق من 1280px)
+  // أن Chromium يحسب position:fixed داخل foreignObject — آلية html-to-image
+  // الداخلية — بالنسبة لحجم نافذة المتصفح الفعلية لا حجم العنصر المُعلَن،
+  // فتُقصّ الشريحة أو تنزاح كلما كانت نافذة المستخدم أضيق من عرض الشريحة
+  // الثابت؛ وهي بالضبط حالة معظم المستخدمين الفعليين. الحل: عنصر عادي بلا
+  // position، مخفي عن العين عبر غلاف بحجم صفر (لا يؤثر على اللقطة لأن
+  // html-to-image يستنسخ العنصر الهدف فقط لا أسلافه).
+  const wrapper = document.createElement("div");
+  wrapper.style.width = "0";
+  wrapper.style.height = "0";
+  wrapper.style.overflow = "hidden";
+  wrapper.style.pointerEvents = "none";
+  document.body.appendChild(wrapper);
+
   const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "0";
-  container.style.insetInlineStart = "0";
-  container.style.zIndex = "-1";
   container.style.width = `${SLIDE_WIDTH}px`;
   container.style.height = `${SLIDE_HEIGHT}px`;
   container.style.overflow = "hidden";
-  container.style.pointerEvents = "none";
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
   const root = createRoot(container);
 
   const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [SLIDE_WIDTH, SLIDE_HEIGHT], compress: true });
@@ -98,6 +103,6 @@ export async function buildPresentationPdf(
     pdf.save(`${safeName}.pdf`);
   } finally {
     root.unmount();
-    container.remove();
+    wrapper.remove();
   }
 }

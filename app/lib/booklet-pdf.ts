@@ -48,18 +48,20 @@ export async function buildBookletPdf(
   if (ordered.length === 0) throw new Error("لا توجد أقسام مفعّلة لهذا الكتيّب");
   const tocEntries = buildTocEntries(ordered);
 
-  // انظر presentation-pdf.ts لسبب استخدام z-index سالب بدل إزاحة هائلة خارج
-  // الشاشة — الإزاحة الهائلة كانت تُنتج صفحات فارغة تماماً مع html-to-image.
+  // انظر presentation-pdf.ts لسبب تجنّب أي position مطلقاً على الحاوية — عنصر
+  // عادي بلا position داخل غلاف بحجم صفر و overflow:hidden لإخفائه عن العين.
+  const wrapper = document.createElement("div");
+  wrapper.style.width = "0";
+  wrapper.style.height = "0";
+  wrapper.style.overflow = "hidden";
+  wrapper.style.pointerEvents = "none";
+  document.body.appendChild(wrapper);
+
   const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "0";
-  container.style.insetInlineStart = "0";
-  container.style.zIndex = "-1";
   container.style.width = `${SLIDE_WIDTH}px`;
   container.style.height = `${SLIDE_HEIGHT}px`;
   container.style.overflow = "hidden";
-  container.style.pointerEvents = "none";
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
   const root = createRoot(container);
 
   const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [SLIDE_WIDTH, SLIDE_HEIGHT], compress: true });
@@ -93,6 +95,6 @@ export async function buildBookletPdf(
     pdf.save(`${safeName}-كتيب.pdf`);
   } finally {
     root.unmount();
-    container.remove();
+    wrapper.remove();
   }
 }
