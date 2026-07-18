@@ -75,30 +75,226 @@ export function CompanyContactBlock({ data, theme }: { data: PresentationData; t
   );
 }
 
-export function CoverSection({ data, theme }: SectionProps) {
+// تاريخ مختصر بالأرقام (27/7/2026) لبطاقات الغلاف — أكثر إحكاماً من formatDate
+// المستخدم في بقية التقرير (الذي يكتب اسم الشهر كاملاً وهو طويل لمساحة البطاقة).
+function compactDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "numeric", day: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+function CoverStatCard({ theme, icon, label, value }: { theme: PresentationTheme; icon: "calendar" | "episodes"; label: string; value: string }) {
   return (
-    <Slide
-      theme={theme}
+    <div
       style={{
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        backgroundImage: data.projectCoverUrl ? `linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)), url(${data.projectCoverUrl})` : undefined,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        color: data.projectCoverUrl ? "#fff" : theme.text,
+        flex: 1,
+        minWidth: 0,
+        padding: "12px 14px",
+        borderRadius: 14,
+        background: theme.card,
+        border: `1px solid ${theme.border}`,
       }}
     >
-      {data.companyLogoUrl && (
-        // شعار كبير وواسع على الغلاف تحديداً — أول ما يراه العميل عند فتح العرض
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.companyLogoUrl} alt="" style={{ maxHeight: 110, maxWidth: "55%", marginBottom: 28, objectFit: "contain" }} />
-      )}
-      <div style={{ fontSize: 12, letterSpacing: 3, color: theme.accent, marginBottom: 10 }}>عرض مقترح إبداعي</div>
-      <h1 style={{ fontSize: 44, fontWeight: 900 }}>{data.projectName}</h1>
-      {data.clientName && <div style={{ fontSize: 16, marginTop: 16, opacity: 0.85 }}>مقدَّم إلى: {data.clientName}</div>}
-      <div style={{ fontSize: 12, marginTop: 28, opacity: 0.6 }}>{data.companyName}</div>
-    </Slide>
+      <div style={{ color: theme.accent, marginBottom: 8 }}>
+        <Icon name={icon} size={16} />
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: theme.muted, marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function CoverProgressCard({ theme, progress }: { theme: PresentationTheme; progress: number }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  const dash = c * (Math.min(100, Math.max(0, progress)) / 100);
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        padding: "12px 14px",
+        borderRadius: 14,
+        background: theme.card,
+        border: `1px solid ${theme.border}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      <svg width="52" height="52" viewBox="0 0 52 52" style={{ flexShrink: 0 }}>
+        <circle cx="26" cy="26" r={r} fill="none" stroke={theme.border} strokeWidth="3.5" />
+        <circle
+          cx="26"
+          cy="26"
+          r={r}
+          fill="none"
+          stroke={theme.accent}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c}`}
+          transform="rotate(-90 26 26)"
+        />
+        <text x="26" y="30" textAnchor="middle" fontSize="12" fontWeight={800} fill={theme.text}>
+          {Math.round(progress)}%
+        </text>
+      </svg>
+      <div style={{ fontSize: 10.5, color: theme.muted, lineHeight: 1.4 }}>نسبة الإنجاز</div>
+    </div>
+  );
+}
+
+// صفحة غلاف بقالب ثابت قابل لإعادة الاستخدام لأي مشروع: لوحة نصوص + لوحة صورة
+// غلاف بشكل هندسي مميز (بدل الغلاف المركزي البسيط السابق)، تُبنى بالكامل من
+// بيانات المشروع الفعلية (لا نص أو رقم ثابت هنا خارج ما يأتي من data).
+export function CoverSection({ data, theme }: SectionProps) {
+  const heroUrl = data.projectCoverUrl;
+  const dateIso = data.deliveryDate || data.shootingDate;
+  const hasEpisodes = data.episodes.length > 0;
+  const secondaryValue = hasEpisodes ? data.episodes.length : data.services.length;
+  const secondaryLabel = hasEpisodes ? "عدد الحلقات" : "عدد الخدمات";
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", background: theme.bg, overflow: "hidden", direction: "ltr" }}>
+      {/* لوحة النصوص */}
+      <div
+        style={{
+          flex: "0 0 44%",
+          minWidth: 0,
+          position: "relative",
+          zIndex: 2,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "34px 30px 26px 40px",
+          direction: "rtl",
+          textAlign: "right",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {data.companyLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.companyLogoUrl} alt="" style={{ height: 36, maxWidth: 100, objectFit: "contain" }} />
+          ) : (
+            <div
+              style={{
+                height: 36,
+                width: 36,
+                borderRadius: 8,
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: theme.accent,
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="company" size={17} />
+            </div>
+          )}
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: theme.text }}>{data.companyName}</span>
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <span style={{ width: 22, height: 1, background: theme.accent }} />
+            <span style={{ fontSize: 11, letterSpacing: 2, color: theme.accent, fontWeight: 700 }}>عرض فني مقترح</span>
+          </div>
+          <h1 style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.2, color: theme.text, margin: 0 }}>{data.projectName}</h1>
+          {data.projectDescription && (
+            <p
+              style={{
+                fontSize: 13,
+                lineHeight: 1.8,
+                color: theme.muted,
+                marginTop: 14,
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {data.projectDescription}
+            </p>
+          )}
+          {data.clientName && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 16,
+                padding: "6px 14px",
+                borderRadius: 999,
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+              }}
+            >
+              <span style={{ color: theme.accent, display: "flex" }}>
+                <Icon name="badgeCheck" size={13} />
+              </span>
+              <span style={{ fontSize: 11.5, color: theme.text }}>مقدَّم إلى {data.clientName}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <CoverStatCard theme={theme} icon="calendar" label="تاريخ التسليم" value={dateIso ? compactDate(dateIso) : "قيد التحديد"} />
+          {secondaryValue > 0 && <CoverStatCard theme={theme} icon="episodes" label={secondaryLabel} value={String(secondaryValue)} />}
+          <CoverProgressCard theme={theme} progress={data.progress} />
+        </div>
+      </div>
+
+      {/* لوحة الصورة — شكل هندسي مميز بدل المستطيل الاعتيادي */}
+      <div style={{ flex: "1 1 56%", minWidth: 0, position: "relative" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: "14px 0 14px 0",
+            borderRadius: "20px 20px 20px 120px",
+            overflow: "hidden",
+            background: heroUrl ? undefined : `linear-gradient(155deg, ${theme.card}, ${theme.bg})`,
+          }}
+        >
+          {heroUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={heroUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: heroUrl ? "linear-gradient(90deg, rgba(0,0,0,0.45), rgba(0,0,0,0) 42%)" : undefined,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: 20,
+              right: 20,
+              width: 46,
+              height: 34,
+              backgroundImage: `radial-gradient(${theme.accent} 1.3px, transparent 1.6px)`,
+              backgroundSize: "9px 9px",
+              opacity: 0.5,
+            }}
+          />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            bottom: 14,
+            left: 0,
+            width: 2,
+            background: `linear-gradient(180deg, transparent, ${theme.accent}, transparent)`,
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
