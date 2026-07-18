@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { setPresentationSharing, type PresentationBundle } from "@/app/lib/presentation-builder";
 import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import { buildPresentationPptx } from "@/app/lib/presentation-pptx";
+import { buildPresentationPdf, type PdfExportProgress } from "@/app/lib/presentation-pdf";
 
 export default function ShareExportPanel({
   bundle,
@@ -20,6 +21,9 @@ export default function ShareExportPanel({
   const [copied, setCopied] = useState(false);
   const [buildingPptx, setBuildingPptx] = useState(false);
   const [pptxError, setPptxError] = useState<string | null>(null);
+  const [buildingPdf, setBuildingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<PdfExportProgress | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const { presentation } = bundle;
 
   const shareUrl = presentation.share_token ? `${window.location.origin}/present/${presentation.share_token}` : null;
@@ -52,6 +56,21 @@ export default function ShareExportPanel({
     }
   }
 
+  async function downloadPdf() {
+    setBuildingPdf(true);
+    setPdfError(null);
+    setPdfProgress(null);
+    try {
+      const theme = getPresentationTheme(bundle.presentation.template, bundle.data);
+      await buildPresentationPdf(bundle.data, bundle.presentation, theme, setPdfProgress);
+    } catch {
+      setPdfError("تعذّر إنشاء ملف PDF. حاول مجدداً.");
+    } finally {
+      setBuildingPdf(false);
+      setPdfProgress(null);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="card" style={{ padding: 18 }}>
@@ -81,14 +100,11 @@ export default function ShareExportPanel({
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>احصل على نسخة قابلة للتنزيل أو الطباعة من نفس محتوى العرض الحالي.</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <Link
-            href={`/projects/${projectId}/presentation/print`}
-            target="_blank"
-            className="btn btn-outline"
-            style={{ justifyContent: "flex-start", gap: 10 }}
-          >
-            <Icon name="export" size={16} /> فتح نسخة الطباعة / تصدير PDF
-          </Link>
+          <button className="btn btn-gold" style={{ justifyContent: "flex-start", gap: 10 }} onClick={downloadPdf} disabled={buildingPdf}>
+            <Icon name="export" size={16} />
+            {buildingPdf ? `جارٍ الإنشاء... (${pdfProgress ? `${pdfProgress.index}/${pdfProgress.total}` : "..."})` : "تنزيل PDF"}
+          </button>
+          {pdfError && <p style={{ fontSize: 12, color: "var(--danger, #EF4444)" }}>{pdfError}</p>}
 
           <button className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }} onClick={downloadPptx} disabled={buildingPptx}>
             <Icon name="proposals" size={16} /> {buildingPptx ? "جارٍ الإنشاء..." : "تنزيل PowerPoint"}
@@ -98,6 +114,15 @@ export default function ShareExportPanel({
           <a href={`/api/presentation/${projectId}/html`} className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }}>
             <Icon name="fileUp" size={16} /> تنزيل HTML
           </a>
+
+          <Link
+            href={`/projects/${projectId}/presentation/print`}
+            target="_blank"
+            className="btn btn-ghost"
+            style={{ justifyContent: "flex-start", gap: 10, fontSize: 12.5 }}
+          >
+            <Icon name="export" size={14} /> فتح نسخة الطباعة يدوياً (لضبط الهوامش أو الطباعة الورقية)
+          </Link>
         </div>
       </div>
     </div>

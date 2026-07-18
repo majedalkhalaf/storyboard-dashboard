@@ -6,6 +6,7 @@ import Icon from "@/app/components/ui/Icon";
 import { setBookletSharing, type BookletBundle } from "@/app/lib/booklet-builder";
 import { getPresentationTheme } from "@/app/lib/presentation-themes";
 import { buildBookletPptx } from "@/app/lib/booklet-pptx";
+import { buildBookletPdf, type PdfExportProgress } from "@/app/lib/booklet-pdf";
 
 export default function BookletShareExportPanel({
   bundle,
@@ -20,6 +21,9 @@ export default function BookletShareExportPanel({
   const [copied, setCopied] = useState(false);
   const [buildingPptx, setBuildingPptx] = useState(false);
   const [pptxError, setPptxError] = useState<string | null>(null);
+  const [buildingPdf, setBuildingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<PdfExportProgress | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const { booklet } = bundle;
 
   const shareUrl = booklet.share_token ? `${window.location.origin}/booklet/${booklet.share_token}` : null;
@@ -52,6 +56,21 @@ export default function BookletShareExportPanel({
     }
   }
 
+  async function downloadPdf() {
+    setBuildingPdf(true);
+    setPdfError(null);
+    setPdfProgress(null);
+    try {
+      const theme = getPresentationTheme(bundle.booklet.template, bundle.data);
+      await buildBookletPdf(bundle.data, bundle.booklet, theme, setPdfProgress);
+    } catch {
+      setPdfError("تعذّر إنشاء ملف PDF. حاول مجدداً.");
+    } finally {
+      setBuildingPdf(false);
+      setPdfProgress(null);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="card" style={{ padding: 18 }}>
@@ -81,14 +100,11 @@ export default function BookletShareExportPanel({
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>احصل على نسخة قابلة للتنزيل أو الطباعة من نفس محتوى الكتيّب الحالي.</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <Link
-            href={`/projects/${projectId}/booklet/print`}
-            target="_blank"
-            className="btn btn-outline"
-            style={{ justifyContent: "flex-start", gap: 10 }}
-          >
-            <Icon name="export" size={16} /> فتح نسخة الطباعة / تصدير PDF
-          </Link>
+          <button className="btn btn-gold" style={{ justifyContent: "flex-start", gap: 10 }} onClick={downloadPdf} disabled={buildingPdf}>
+            <Icon name="export" size={16} />
+            {buildingPdf ? `جارٍ الإنشاء... (${pdfProgress ? `${pdfProgress.index}/${pdfProgress.total}` : "..."})` : "تنزيل PDF"}
+          </button>
+          {pdfError && <p style={{ fontSize: 12, color: "var(--danger, #EF4444)" }}>{pdfError}</p>}
 
           <button className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }} onClick={downloadPptx} disabled={buildingPptx}>
             <Icon name="fileCheck" size={16} /> {buildingPptx ? "جارٍ الإنشاء..." : "تنزيل PowerPoint"}
@@ -98,6 +114,15 @@ export default function BookletShareExportPanel({
           <a href={`/api/booklet/${projectId}/html`} className="btn btn-outline" style={{ justifyContent: "flex-start", gap: 10 }}>
             <Icon name="fileUp" size={16} /> تنزيل HTML
           </a>
+
+          <Link
+            href={`/projects/${projectId}/booklet/print`}
+            target="_blank"
+            className="btn btn-ghost"
+            style={{ justifyContent: "flex-start", gap: 10, fontSize: 12.5 }}
+          >
+            <Icon name="export" size={14} /> فتح نسخة الطباعة يدوياً (لضبط الهوامش أو الطباعة الورقية)
+          </Link>
         </div>
       </div>
     </div>
