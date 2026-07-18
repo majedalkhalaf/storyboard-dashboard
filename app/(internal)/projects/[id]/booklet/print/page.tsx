@@ -25,15 +25,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: project?.name ? `${project.name} — كتيّب المشروع` : "كتيّب المشروع" };
 }
 
-// نفس CSS الطباعة المعتمد في presentation/print/page.tsx بالضبط (صفحة كاملة 16:9
-// لكل قسم + print-color-adjust: exact) — مُكرَّر هنا محلياً بدل استيراده لإبقاء كل
-// ميزة (عرض فني/كتيّب) مستقلة بمساراتها الخاصة، تماماً كما فُصلت باقي طبقات الكتيّب.
+// نفس CSS الطباعة المعتمد في presentation/print/page.tsx بالضبط — بما في ذلك
+// إصلاح جوهري: الحاوية الأب كتلة عادية (display: block) وليست Flexbox، لأن
+// محرّكات طباعة كثيرة (خصوصاً على الجوال) لا تُطبِّق page-break-after على عناصر
+// داخل حاوية Flex فتُطبَع صفحة واحدة فقط بدل كل صفحات الكتيّب. مُكرَّر هنا محلياً
+// بدل استيراده لإبقاء كل ميزة (عرض فني/كتيّب) مستقلة بمساراتها الخاصة.
 const bookletPrintCss = `
-.presentation-print-wrap { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px; background: #0a0a0a; }
+.presentation-print-wrap { display: block; padding: 28px; background: #0a0a0a; }
 .presentation-print-page {
   width: 1280px;
   max-width: 100%;
   height: 720px;
+  margin: 0 auto 28px;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0,0,0,0.45);
@@ -41,6 +44,7 @@ const bookletPrintCss = `
   print-color-adjust: exact;
   color-adjust: exact;
 }
+.presentation-print-page:last-child { margin-bottom: 0; }
 .presentation-print-page * {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -48,7 +52,7 @@ const bookletPrintCss = `
 }
 @media print {
   body, .main-content { background: #000 !important; }
-  .presentation-print-wrap { padding: 0; gap: 0; background: transparent; }
+  .presentation-print-wrap { padding: 0; background: transparent; }
   .presentation-print-page {
     box-shadow: none;
     border-radius: 0;
@@ -56,6 +60,7 @@ const bookletPrintCss = `
     break-after: page;
     width: 100%;
     height: 100vh;
+    margin: 0;
   }
   .presentation-print-page:last-child { page-break-after: auto; break-after: auto; }
   @page { size: landscape; margin: 0; }

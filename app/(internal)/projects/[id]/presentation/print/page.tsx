@@ -27,12 +27,19 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 // CSS خاص بطباعة العرض التقديمي: كل قسم صفحة كاملة 16:9 مستقلة، وفاصل صفحة بينها،
 // مع print-color-adjust: exact حتى تُطبَع خلفيات القوالب الملوّنة فعلياً (المتصفحات
 // تتجاهل الخلفيات الملوّنة افتراضياً عند الطباعة ما لم تُفرض صراحةً).
+//
+// ملاحظة جوهرية: الحاوية الأب (.presentation-print-wrap) هنا كتلة عادية
+// (display: block) وليست Flexbox عمداً — محرّكات طباعة كثيرة (خصوصاً على
+// الجوال) لا تُطبِّق page-break-after/break-after على عناصر داخل حاوية Flex،
+// فتُطبَع صفحة واحدة فقط (الأولى) بدل كل الصفحات. التوسيط هنا عبر
+// margin: 0 auto بدل align-items، وهو يعمل بنفس الشكل بلا Flexbox إطلاقاً.
 const presentationPrintCss = `
-.presentation-print-wrap { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px; background: #0a0a0a; }
+.presentation-print-wrap { display: block; padding: 28px; background: #0a0a0a; }
 .presentation-print-page {
   width: 1280px;
   max-width: 100%;
   height: 720px;
+  margin: 0 auto 28px;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0,0,0,0.45);
@@ -40,6 +47,7 @@ const presentationPrintCss = `
   print-color-adjust: exact;
   color-adjust: exact;
 }
+.presentation-print-page:last-child { margin-bottom: 0; }
 .presentation-print-page * {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -47,7 +55,7 @@ const presentationPrintCss = `
 }
 @media print {
   body, .main-content { background: #000 !important; }
-  .presentation-print-wrap { padding: 0; gap: 0; background: transparent; }
+  .presentation-print-wrap { padding: 0; background: transparent; }
   .presentation-print-page {
     box-shadow: none;
     border-radius: 0;
@@ -55,6 +63,7 @@ const presentationPrintCss = `
     break-after: page;
     width: 100%;
     height: 100vh;
+    margin: 0;
   }
   .presentation-print-page:last-child { page-break-after: auto; break-after: auto; }
   @page { size: landscape; margin: 0; }
