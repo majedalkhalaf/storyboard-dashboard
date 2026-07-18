@@ -5,8 +5,10 @@ export default function EquipmentSection({ data, theme }: SectionProps) {
   const equipment = data.equipmentNames;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>المعدات</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="الإمكانات">
+        المعدات
+      </SlideTitle>
       {equipment.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد معدات مسجَّلة بعد.</p>
       ) : (

@@ -22,8 +22,10 @@ export default function FilesSection({ data, theme }: SectionProps) {
   const tiles = FILE_CATEGORY_KEYS.map((cat) => ({ cat, count: data.fileCounts[cat] })).filter((t) => t.count > 0);
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>الملفات والمرفقات</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="التسليمات">
+        الملفات والمرفقات
+      </SlideTitle>
       {tiles.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد ملفات مرفوعة بعد.</p>
       ) : (

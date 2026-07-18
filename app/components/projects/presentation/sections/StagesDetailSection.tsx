@@ -11,8 +11,10 @@ export default function StagesDetailSection({ data, theme }: SectionProps) {
   const episodes = data.episodes.filter((e) => e.stagesTotal > 0);
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>مراحل التنفيذ التفصيلية</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="التنفيذ">
+        مراحل التنفيذ التفصيلية
+      </SlideTitle>
       {episodes.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد مراحل مسجَّلة بعد.</p>
       ) : (

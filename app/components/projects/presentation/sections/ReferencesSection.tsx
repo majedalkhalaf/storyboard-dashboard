@@ -5,8 +5,10 @@ export default function ReferencesSection({ data, theme }: SectionProps) {
   const links = data.referenceLinks;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>المراجع</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="مصادر إضافية">
+        المراجع
+      </SlideTitle>
       {links.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد مراجع مضافة بعد.</p>
       ) : (

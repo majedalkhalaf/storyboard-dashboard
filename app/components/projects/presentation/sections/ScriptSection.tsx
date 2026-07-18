@@ -12,8 +12,10 @@ export default function ScriptSection({ data, theme }: SectionProps) {
   const episodes = data.episodes.filter((e) => Boolean(e.script?.trim()) || Boolean(e.scenario?.trim()));
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>السكربت</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="المحتوى المكتوب">
+        السكربت
+      </SlideTitle>
       {episodes.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا يوجد سكربت أو سيناريو مضاف بعد.</p>
       ) : (

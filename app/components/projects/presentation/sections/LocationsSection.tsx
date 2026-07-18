@@ -5,8 +5,10 @@ export default function LocationsSection({ data, theme }: SectionProps) {
   const locations = data.locations;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>المواقع</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="أين نصوّر">
+        المواقع
+      </SlideTitle>
       {locations.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد مواقع مسجَّلة بعد.</p>
       ) : (

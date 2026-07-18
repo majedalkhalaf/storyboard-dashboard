@@ -5,8 +5,10 @@ export default function StoryboardSection({ data, theme }: SectionProps) {
   const scenes = data.storyboardScenes;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>Storyboard</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="التصوّر البصري">
+        Storyboard
+      </SlideTitle>
       {scenes.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد مشاهد Storyboard بعد.</p>
       ) : (

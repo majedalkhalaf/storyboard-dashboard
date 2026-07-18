@@ -4,8 +4,10 @@ export default function GallerySection({ data, theme }: SectionProps) {
   const images = data.galleryImages;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>معرض الصور</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="لقطات من العمل">
+        معرض الصور
+      </SlideTitle>
       {images.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد صور بعد.</p>
       ) : (

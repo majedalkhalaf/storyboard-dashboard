@@ -7,8 +7,10 @@ export default function EpisodeDetailsSection({ data, theme }: SectionProps) {
   const episodes = data.episodes;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>تفاصيل كل حلقة</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="المحتوى">
+        تفاصيل كل حلقة
+      </SlideTitle>
       {episodes.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد حلقات بعد.</p>
       ) : (

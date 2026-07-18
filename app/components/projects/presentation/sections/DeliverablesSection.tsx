@@ -10,8 +10,10 @@ export default function DeliverablesSection({ data, theme }: SectionProps) {
   }
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>المخرجات النهائية</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="ما ستحصلون عليه">
+        المخرجات النهائية
+      </SlideTitle>
       {groups.size === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا توجد خدمات مضافة لهذا المشروع بعد.</p>
       ) : (

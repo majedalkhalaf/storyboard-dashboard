@@ -10,8 +10,10 @@ export default function TeamSection({ data, theme }: SectionProps) {
   const team = data.team;
 
   return (
-    <Slide theme={theme}>
-      <SlideTitle theme={theme}>الفريق</SlideTitle>
+    <Slide theme={theme} data={data}>
+      <SlideTitle theme={theme} eyebrow="من ينفّذ المشروع">
+        الفريق
+      </SlideTitle>
       {team.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.muted }}>لا يوجد أعضاء فريق مسندون بعد.</p>
       ) : (
