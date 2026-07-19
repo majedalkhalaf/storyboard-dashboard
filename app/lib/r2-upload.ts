@@ -55,7 +55,7 @@ export async function startR2Upload(
   const parts: { PartNumber: number; ETag: string }[] = [];
   const totalParts = Math.max(1, Math.ceil(params.file.size / PART_SIZE));
 
-  async function uploadPart(partNumber: number): Promise<void> {
+  async function uploadPartOnce(partNumber: number): Promise<{ etag: string; size: number }> {
     const start = (partNumber - 1) * PART_SIZE;
     const end = Math.min(start + PART_SIZE, params.file.size);
     const blob = params.file.slice(start, end);
@@ -66,16 +66,56 @@ export async function startR2Upload(
       body: JSON.stringify({ key, uploadId, partNumber }),
     });
     const urlJson = (await urlRes.json()) as { url?: string; error?: string };
-    if (!urlRes.ok || !urlJson.url) throw new Error(urlJson.error || "تعذّر إصدار رابط رفع الجزء");
+    if (!urlRes.ok || !urlJson.url) {
+      const err = new Error(urlJson.error || "تعذّر إصدار رابط رفع الجزء") as Error & { retryable?: boolean };
+      err.retryable = urlRes.status >= 500;
+      throw err;
+    }
 
     const putRes = await fetch(urlJson.url, { method: "PUT", body: blob });
-    if (!putRes.ok) throw new Error(`فشل رفع أحد الأجزاء (خطأ ${putRes.status})`);
+    if (!putRes.ok) {
+      const err = new Error(`فشل رفع أحد الأجزاء (خطأ ${putRes.status})`) as Error & { retryable?: boolean };
+      err.retryable = putRes.status >= 500;
+      throw err;
+    }
     const etag = putRes.headers.get("ETag") || putRes.headers.get("etag");
-    if (!etag) throw new Error("لم يُعِد الخادم رمز ETag للجزء المرفوع — تحقق من إعداد CORS (ExposeHeaders: ETag) على الـ bucket");
+    if (!etag) {
+      // خلل تهيئة دائم (CORS/ExposeHeaders) لا تُصلحه إعادة المحاولة إطلاقاً.
+      const err = new Error("لم يُعِد الخادم رمز ETag للجزء المرفوع — تحقق من إعداد CORS (ExposeHeaders: ETag) على الـ bucket") as Error & {
+        retryable?: boolean;
+      };
+      err.retryable = false;
+      throw err;
+    }
 
-    parts.push({ PartNumber: partNumber, ETag: etag });
-    uploadedBytes += blob.size;
-    handlers.onProgress?.(uploadedBytes, params.file.size);
+    return { etag, size: blob.size };
+  }
+
+  // أخطاء 5xx والانقطاعات الشبكية العابرة (مثل 502 من طبقة R2/Cloudflare)
+  // شائعة وطبيعية في الرفع المجزّأ للملفات الكبيرة — إعادة محاولة الجزء نفسه
+  // تلقائياً بدل إفشال الرفع بالكامل من أول عطل مؤقّت هي الممارسة القياسية
+  // (نفس ما تفعله SDKs الرفع الاحترافية). أخطاء العميل (4xx) لا تُعاد محاولتها
+  // لأن إعادة المحاولة لن تُصلحها.
+  const MAX_PART_RETRIES = 4;
+  async function uploadPart(partNumber: number): Promise<void> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= MAX_PART_RETRIES; attempt++) {
+      if (cancelled) throw new Error("أُلغي الرفع");
+      try {
+        const { etag, size } = await uploadPartOnce(partNumber);
+        parts.push({ PartNumber: partNumber, ETag: etag });
+        uploadedBytes += size;
+        handlers.onProgress?.(uploadedBytes, params.file.size);
+        return;
+      } catch (err) {
+        lastErr = err;
+        const retryable = (err as { retryable?: boolean })?.retryable !== false;
+        if (!retryable || attempt === MAX_PART_RETRIES) break;
+        const delayMs = Math.min(1000 * 2 ** attempt, 8000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("تعذّر رفع الجزء");
   }
 
   async function finalize() {
