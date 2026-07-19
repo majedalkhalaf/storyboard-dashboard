@@ -50,8 +50,6 @@ export default function EquipmentSection() {
     setShowForm(true);
   };
 
-  const getCategoryLabel = (cat: string) => EQUIPMENT_CATEGORIES.find(c => c.value === cat)?.labelAr || cat;
-
   const STATUS_COLORS: Record<string, string> = {
     available: '#22c55e', 'in-use': '#f97316', maintenance: '#ef4444'
   };

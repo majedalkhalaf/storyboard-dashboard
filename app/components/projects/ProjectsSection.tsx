@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { Project, ProjectType, ProjectStatus } from '../../lib/types';
+import { Project, ProjectType, ProjectStatus, Storyboard } from '../../lib/types';
 import { PROJECT_TYPES, PROJECT_STATUSES } from '../../lib/constants';
 import { ActiveSection } from '../AppShell';
 
@@ -18,7 +18,7 @@ const STATUS_COLORS: Record<string, string> = {
   archived: '#6b7280', 'on-hold': '#f43f5e'
 };
 
-function getProgress(projectId: string, storyboards: any[], manualProgress?: number) {
+function getProgress(projectId: string, storyboards: Storyboard[], manualProgress?: number) {
   if (manualProgress !== undefined && manualProgress >= 0) return { pct: manualProgress, total: 0, done: 0, manual: true };
   const sbs = storyboards.filter(sb => sb.projectId === projectId);
   let total = 0, done = 0;
@@ -82,7 +82,6 @@ export default function ProjectsSection({ activeProjectId, setActiveProjectId, o
   };
 
   const getTypeLabelAr = (type: string) => PROJECT_TYPES.find(t => t.value === type)?.labelAr || type;
-  const getStatusLabelAr = (status: string) => PROJECT_STATUSES.find(s => s.value === status)?.labelAr || status;
   const getProjectStoryboards = (pid: string) => storyboards.filter(sb => sb.projectId === pid).length;
 
   const activeTemplates = templates.filter(t => t.isActive !== false);

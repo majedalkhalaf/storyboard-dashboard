@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Shot, ShotStatus, TimeOfDay, Mood, VoiceNote } from '../../lib/types';
 import { useAppStore } from '../../store/useAppStore';
 import {
@@ -28,12 +28,13 @@ function SelectWithOther({
   const isOther = value !== '' && !options.includes(value);
   const [showCustom, setShowCustom] = useState(isOther);
   const [customVal, setCustomVal] = useState(isOther ? value : '');
+  const [prevValue, setPrevValue] = useState(value);
 
-  useEffect(() => {
-    const other = value !== '' && !options.includes(value);
-    setShowCustom(other);
-    if (other) setCustomVal(value);
-  }, [value, options]);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setShowCustom(isOther);
+    if (isOther) setCustomVal(value);
+  }
 
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
@@ -201,7 +202,7 @@ export default function ShotEditor({ shot, partId, storyboardId, onClose }: Shot
     { value: 'completed', label: 'مكتمل' },
   ];
 
-  const TABS = [
+  const TABS: { id: typeof activeTab; label: string }[] = [
     { id: 'basic', label: '📝 أساسي' },
     { id: 'camera', label: '📷 الكاميرا' },
     { id: 'production', label: '🎬 الإنتاج' },
@@ -268,7 +269,7 @@ export default function ShotEditor({ shot, partId, storyboardId, onClose }: Shot
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--border)', marginBottom: '20px', overflowX: 'auto' }}>
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} style={{
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
               padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '12px', fontWeight: activeTab === tab.id ? '700' : '500',
               color: activeTab === tab.id ? 'var(--gold)' : 'var(--text-secondary)',
@@ -514,14 +515,14 @@ export default function ShotEditor({ shot, partId, storyboardId, onClose }: Shot
                         }}>
                           ⏱ {formatTime(recordingTime)}
                         </div>
-                        <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '28px' }}>
                           {[...Array(5)].map((_, i) => (
                             <div key={i} style={{
                               width: '4px',
-                              height: `${8 + Math.random() * 20}px`,
+                              height: '20px',
                               background: '#ef4444',
                               borderRadius: '2px',
-                              animation: 'pulse 0.5s infinite alternate'
+                              animation: `waveBar 0.6s ease-in-out ${i * 0.1}s infinite alternate`
                             }} />
                           ))}
                         </div>

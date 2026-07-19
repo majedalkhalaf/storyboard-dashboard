@@ -73,7 +73,7 @@ export const useSettingsStore = create<SettingsStore>()(
             ...s[cat],
             { id: genId(), value: value.trim(), isActive: true, isCustom: true }
           ]
-        } as any));
+        } as Partial<SettingsState>));
       },
 
       updateItem: (cat, id, value) => {
@@ -81,7 +81,7 @@ export const useSettingsStore = create<SettingsStore>()(
           [cat]: (s[cat] as SettingItem[]).map(item =>
             item.id === id ? { ...item, value } : item
           )
-        } as any));
+        } as Partial<SettingsState>));
       },
 
       toggleItem: (cat, id) => {
@@ -89,13 +89,13 @@ export const useSettingsStore = create<SettingsStore>()(
           [cat]: (s[cat] as SettingItem[]).map(item =>
             item.id === id ? { ...item, isActive: !item.isActive } : item
           )
-        } as any));
+        } as Partial<SettingsState>));
       },
 
       deleteItem: (cat, id) => {
         set(s => ({
           [cat]: (s[cat] as SettingItem[]).filter(item => item.id !== id)
-        } as any));
+        } as Partial<SettingsState>));
       },
 
       resetCategory: (cat) => {
@@ -110,7 +110,7 @@ export const useSettingsStore = create<SettingsStore>()(
           moods: MOODS,
           audioTypes: DEFAULT_AUDIO,
         };
-        set({ [cat]: toItems(defaults[cat]) } as any);
+        set({ [cat]: toItems(defaults[cat]) } as Partial<SettingsState>);
       },
 
       getActive: (cat) => {

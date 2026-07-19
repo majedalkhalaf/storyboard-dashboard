@@ -40,7 +40,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           shotType: 'Drone Shot', lighting: 'Golden Hour',
           equipment: ['DJI Drone', 'Monitor'], location: 'Drone Area',
           timeOfDay: 'golden-hour', mood: 'luxury',
-          directorNotes: 'ارتفاع 100 متر، حركة سلسة جداً', status: 'ready'
+          directorNotes: 'ارتفاع 100 متر، حركة سلسة جداً', status: 'ready', isCompleted: false
         },
         {
           id: 'shot2', number: 2, title: 'واجهة الفيلا الخارجية',
@@ -50,7 +50,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           shotType: 'Establishing Shot', lighting: 'Golden Hour',
           equipment: ['Sony FX3', 'Slider', 'Gimbal'], location: 'Villa Exterior',
           timeOfDay: 'golden-hour', mood: 'luxury',
-          status: 'draft'
+          status: 'draft', isCompleted: false
         },
       ]
     },
@@ -67,7 +67,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           cameraAngle: 'Eye Level', cameraMovement: 'Dolly In',
           shotType: 'Tracking Shot', lighting: 'Soft Light',
           equipment: ['Sony A7SIII', 'Gimbal', 'LED Panel'], location: 'Interior',
-          timeOfDay: 'afternoon', mood: 'elegant', status: 'draft'
+          timeOfDay: 'afternoon', mood: 'elegant', status: 'draft', isCompleted: false
         },
         {
           id: 'shot4', number: 4, title: 'تفاصيل الثريا والسقف',
@@ -76,7 +76,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           cameraAngle: 'Overhead', cameraMovement: 'Static',
           shotType: 'Detail Shot', lighting: 'Practical Light',
           equipment: ['Sony FX3', 'Tripod'], location: 'Interior',
-          timeOfDay: 'afternoon', mood: 'luxury', status: 'draft'
+          timeOfDay: 'afternoon', mood: 'luxury', status: 'draft', isCompleted: false
         },
       ]
     },
@@ -93,7 +93,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           cameraAngle: 'Eye Level', cameraMovement: 'Slider Move',
           shotType: 'Wide Shot', lighting: 'Natural Light',
           equipment: ['Sony A7IV', 'Slider'], location: 'Majlis',
-          timeOfDay: 'morning', mood: 'premium-real-estate', status: 'draft'
+          timeOfDay: 'morning', mood: 'premium-real-estate', status: 'draft', isCompleted: false
         },
       ]
     },
@@ -110,7 +110,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           cameraAngle: '45 Degree Angle', cameraMovement: 'Push In',
           shotType: 'Detail Shot', lighting: 'Key Light',
           equipment: ['Sony A7IV', 'Tripod', 'Softbox'], location: 'Interior',
-          timeOfDay: 'noon', mood: 'luxury', status: 'draft'
+          timeOfDay: 'noon', mood: 'luxury', status: 'draft', isCompleted: false
         },
       ]
     },
@@ -128,7 +128,7 @@ export const DEMO_STORYBOARD: Storyboard = {
           shotType: 'Drone Shot', lighting: 'Sunset',
           equipment: ['DJI Drone'], location: 'Drone Area',
           timeOfDay: 'sunset', mood: 'cinematic',
-          directorNotes: 'نهاية سينمائية مع غروب الشمس', status: 'draft'
+          directorNotes: 'نهاية سينمائية مع غروب الشمس', status: 'draft', isCompleted: false
         },
       ]
     },

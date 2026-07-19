@@ -20,7 +20,7 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   completed: { bg: '#22c55e20', color: '#22c55e', label: 'مكتمل' },
 };
 
-export default function ShotCard({ shot, index, storyboardId, partId, onEdit, onDelete }: ShotCardProps) {
+export default function ShotCard({ shot, storyboardId, partId, onEdit, onDelete }: ShotCardProps) {
   const { updateShot } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const status = STATUS_STYLES[shot.status] || STATUS_STYLES.draft;

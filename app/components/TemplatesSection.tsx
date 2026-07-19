@@ -2,8 +2,19 @@
 
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Template, Part, Shot, ProjectType } from '../lib/types';
+import { Template, ProjectType } from '../lib/types';
 import { PROJECT_TYPES, CAMERAS, ALL_LENSES, SHOT_TYPES, CAMERA_MOVEMENTS, CAMERA_ANGLES, LIGHTING_OPTIONS } from '../lib/constants';
+
+type ShotBuilderField = 'camera' | 'lens' | 'shotType' | 'cameraAngle' | 'cameraMovement' | 'lighting';
+
+const SHOT_FIELD_SELECTS: { key: ShotBuilderField; label: string; opts: string[] }[] = [
+  { key: 'camera', label: 'الكاميرا', opts: CAMERAS },
+  { key: 'lens', label: 'العدسة', opts: ALL_LENSES },
+  { key: 'shotType', label: 'نوع اللقطة', opts: SHOT_TYPES },
+  { key: 'cameraAngle', label: 'الزاوية', opts: CAMERA_ANGLES },
+  { key: 'cameraMovement', label: 'الحركة', opts: CAMERA_MOVEMENTS },
+  { key: 'lighting', label: 'الإضاءة', opts: LIGHTING_OPTIONS },
+];
 
 // Preset templates to seed
 const PRESET_TEMPLATES: Omit<Template, 'id' | 'createdAt'>[] = [
@@ -98,7 +109,6 @@ interface PartFormItem {
 }
 
 export default function TemplatesSection() {
-  const { templates, addTemplate, deleteTemplate, updateProject } = useAppStore() as any;
   const [tab, setTab] = useState<TabType>('list');
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [search, setSearch] = useState('');
@@ -111,8 +121,6 @@ export default function TemplatesSection() {
   const [parts, setParts] = useState<PartFormItem[]>([{ title: '', description: '', shots: [] }]);
 
   const { templates: tList, addTemplate: add, deleteTemplate: del } = useAppStore();
-  // We'll use a local updater approach since updateTemplate may not exist
-  const store = useAppStore();
 
   const filtered = tList.filter(t => {
     const ms = t.name.toLowerCase().includes(search.toLowerCase());
@@ -124,7 +132,7 @@ export default function TemplatesSection() {
     const tmpl = tList.find(t => t.id === id);
     if (!tmpl) return;
     del(id);
-    add({ ...tmpl, isActive: !tmpl.isActive } as any);
+    add({ ...tmpl, isActive: !tmpl.isActive });
   };
 
   const duplicateTemplate = (tmpl: Template) => {
@@ -133,7 +141,7 @@ export default function TemplatesSection() {
 
   const seedPresets = () => {
     if (!confirm('هذا سيضيف 5 قوالب جاهزة. هل تريد المتابعة؟')) return;
-    PRESET_TEMPLATES.forEach(t => add(t as any));
+    PRESET_TEMPLATES.forEach(t => add(t));
   };
 
   const resetForm = () => {
@@ -304,17 +312,10 @@ export default function TemplatesSection() {
                             <button onClick={() => removeShotFromPart(pi, si)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px' }}>✕</button>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '6px', paddingRight: '28px' }}>
-                            {[
-                              { key: 'camera', label: 'الكاميرا', opts: CAMERAS },
-                              { key: 'lens', label: 'العدسة', opts: ALL_LENSES },
-                              { key: 'shotType', label: 'نوع اللقطة', opts: SHOT_TYPES },
-                              { key: 'cameraAngle', label: 'الزاوية', opts: CAMERA_ANGLES },
-                              { key: 'cameraMovement', label: 'الحركة', opts: CAMERA_MOVEMENTS },
-                              { key: 'lighting', label: 'الإضاءة', opts: LIGHTING_OPTIONS },
-                            ].map(f => (
+                            {(SHOT_FIELD_SELECTS).map(f => (
                               <div key={f.key}>
                                 <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px', fontWeight: '600' }}>{f.label}</label>
-                                <select className="input-field" style={{ fontSize: '11px', padding: '5px 8px' }} value={(shot as any)[f.key]} onChange={e => updateShot(pi, si, f.key, e.target.value)}>
+                                <select className="input-field" style={{ fontSize: '11px', padding: '5px 8px' }} value={shot[f.key]} onChange={e => updateShot(pi, si, f.key, e.target.value)}>
                                   <option value="">—</option>
                                   {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
                                 </select>

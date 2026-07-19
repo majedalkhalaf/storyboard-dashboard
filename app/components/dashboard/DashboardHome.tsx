@@ -3,12 +3,13 @@
 import { useAppStore } from '../../store/useAppStore';
 import { ActiveSection } from '../AppShell';
 import { PROJECT_STATUSES } from '../../lib/constants';
+import { Storyboard, ProjectStatus } from '../../lib/types';
 
 interface DashboardProps {
   onNavigate: (section: ActiveSection, projectId?: string, storyboardId?: string) => void;
 }
 
-function getProjectProgress(projectId: string, storyboards: any[], manualProgress?: number) {
+function getProjectProgress(projectId: string, storyboards: Storyboard[], manualProgress?: number) {
   if (manualProgress !== undefined && manualProgress >= 0) return { pct: manualProgress, total: 0, done: 0, manual: true };
   const sbs = storyboards.filter(sb => sb.projectId === projectId);
   let total = 0, done = 0;
@@ -42,11 +43,6 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
   const recentProjects = [...projects]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5);
-
-  const getStatusLabel = (status: string) => {
-    const s = PROJECT_STATUSES.find(s => s.value === status);
-    return s ? s.labelAr : status;
-  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -243,7 +239,7 @@ export default function DashboardHome({ onNavigate }: DashboardProps) {
                         onClick={e => e.stopPropagation()}
                         onChange={e => {
                           e.stopPropagation();
-                          updateProject(project.id, { status: e.target.value as any });
+                          updateProject(project.id, { status: e.target.value as ProjectStatus });
                         }}
                         style={{
                           fontSize: '10px', padding: '2px 8px', borderRadius: '12px',

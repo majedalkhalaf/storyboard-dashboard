@@ -1,30 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import {
-  CAMERAS, ALL_LENSES, SHOT_TYPES, CAMERA_MOVEMENTS,
-  CAMERA_ANGLES, LIGHTING_OPTIONS, LOCATIONS, MOODS
-} from '../../lib/constants';
+import { useSettingsStore, SettingItem, SettingsState } from '../../store/useSettingsStore';
 
-// ── Inline store ──
-interface SettingItem { id: string; value: string; isActive: boolean; isCustom: boolean; }
-type Category = 'cameras'|'lenses'|'shotTypes'|'cameraMovements'|'cameraAngles'|'lightingOptions'|'locations'|'moods'|'audioTypes';
-interface SettingsState { cameras:SettingItem[];lenses:SettingItem[];shotTypes:SettingItem[];cameraMovements:SettingItem[];cameraAngles:SettingItem[];lightingOptions:SettingItem[];locations:SettingItem[];moods:SettingItem[];audioTypes:SettingItem[]; }
-interface SettingsStore extends SettingsState { addItem:(cat:Category,value:string)=>void;updateItem:(cat:Category,id:string,value:string)=>void;toggleItem:(cat:Category,id:string)=>void;deleteItem:(cat:Category,id:string)=>void;resetCategory:(cat:Category)=>void;getActive:(cat:Category)=>string[]; }
-const DEFAULT_AUDIO = ['Voiceover','Dialogue','Ambient Sound','Music','Sound Effects','Silent','Mixed Audio'];
-function toItems(arr:string[]):SettingItem[]{return arr.map(v=>({id:Math.random().toString(36).substr(2,9),value:v,isActive:true,isCustom:false}));}
-function genId(){return Math.random().toString(36).substr(2,9)+Date.now().toString(36);}
-const useSettingsStore = create<SettingsStore>()(persist((set,get)=>({
-  cameras:toItems(CAMERAS),lenses:toItems(ALL_LENSES),shotTypes:toItems(SHOT_TYPES),cameraMovements:toItems(CAMERA_MOVEMENTS),cameraAngles:toItems(CAMERA_ANGLES),lightingOptions:toItems(LIGHTING_OPTIONS),locations:toItems(LOCATIONS),moods:toItems(MOODS),audioTypes:toItems(DEFAULT_AUDIO),
-  addItem:(cat,value)=>{if(!value.trim())return;set(s=>({[cat]:[...s[cat],{id:genId(),value:value.trim(),isActive:true,isCustom:true}]}as any));},
-  updateItem:(cat,id,value)=>{set(s=>({[cat]:(s[cat] as SettingItem[]).map(i=>i.id===id?{...i,value}:i)}as any));},
-  toggleItem:(cat,id)=>{set(s=>({[cat]:(s[cat] as SettingItem[]).map(i=>i.id===id?{...i,isActive:!i.isActive}:i)}as any));},
-  deleteItem:(cat,id)=>{set(s=>({[cat]:(s[cat] as SettingItem[]).filter(i=>i.id!==id)}as any));},
-  resetCategory:(cat)=>{const d:Record<Category,string[]>={cameras:CAMERAS,lenses:ALL_LENSES,shotTypes:SHOT_TYPES,cameraMovements:CAMERA_MOVEMENTS,cameraAngles:CAMERA_ANGLES,lightingOptions:LIGHTING_OPTIONS,locations:LOCATIONS,moods:MOODS,audioTypes:DEFAULT_AUDIO};set({[cat]:toItems(d[cat])}as any);},
-  getActive:(cat)=>(get()[cat] as SettingItem[]).filter(i=>i.isActive).map(i=>i.value),
-}),{name:'storyboard-settings-v1'}));
+type Category = keyof SettingsState;
 
 // ── UI ──
 const CATEGORIES:{key:Category;label:string;icon:string;desc:string}[]=[

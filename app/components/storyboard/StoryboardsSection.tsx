@@ -13,7 +13,7 @@ interface StoryboardsSectionProps {
 }
 
 export default function StoryboardsSection({ activeStoryboardId, setActiveStoryboardId, projectId }: StoryboardsSectionProps) {
-  const { projects, storyboards, addStoryboard, updateStoryboard, deleteStoryboard, addPart, updatePart, deletePart } = useAppStore();
+  const { projects, storyboards, addStoryboard, updateStoryboard, deleteStoryboard, addPart } = useAppStore();
   const [showNewSb, setShowNewSb] = useState(false);
   const [editingSb, setEditingSb] = useState<Storyboard | null>(null);
   const [editingShot, setEditingShot] = useState<{ shot: Shot; partId: string; storyboardId: string } | null>(null);
@@ -188,7 +188,6 @@ export default function StoryboardsSection({ activeStoryboardId, setActiveStoryb
         {editingSb && (
           <EditStoryboardModal
             sb={editingSb}
-            projects={projects}
             onSave={(updates) => { updateStoryboard(editingSb.id, updates); setEditingSb(null); }}
             onClose={() => setEditingSb(null)}
           />
@@ -339,7 +338,6 @@ function PartSection({ part, partIndex, storyboardId, onEditShot }: {
   onEditShot: (shot: Shot) => void;
 }) {
   const { addShot, deleteShot, deletePart, updatePart } = useAppStore();
-  const [showAddShot, setShowAddShot] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(part.title);
@@ -406,7 +404,7 @@ function PartSection({ part, partIndex, storyboardId, onEditShot }: {
           {part.shots.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>▣</div>
-              <div style={{ fontSize: '13px' }}>لا توجد لقطات • انقر "+ لقطة" للبدء</div>
+              <div style={{ fontSize: '13px' }}>لا توجد لقطات • انقر &quot;+ لقطة&quot; للبدء</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
@@ -430,8 +428,8 @@ function PartSection({ part, partIndex, storyboardId, onEditShot }: {
 }
 
 // Edit Storyboard Modal
-function EditStoryboardModal({ sb, projects, onSave, onClose }: {
-  sb: Storyboard; projects: any[]; onSave: (u: any) => void; onClose: () => void;
+function EditStoryboardModal({ sb, onSave, onClose }: {
+  sb: Storyboard; onSave: (u: Partial<Storyboard>) => void; onClose: () => void;
 }) {
   const [form, setForm] = useState({
     title: sb.title, projectId: sb.projectId, videoNumber: sb.videoNumber,
