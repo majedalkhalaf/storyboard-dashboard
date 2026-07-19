@@ -89,9 +89,15 @@ export default async function ClientInvoicesPage() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1200, margin: "0 auto" }}>
       <FinanceRealtimeRefresh />
-      <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>
-        الحسابات
-      </h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+        <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800 }}>
+          الحسابات
+        </h1>
+        <Link href="/client/reports" className="btn btn-outline" style={{ fontSize: 12.5 }}>
+          <Icon name="fileUp" size={14} />
+          تنزيل التقارير والمستندات
+        </Link>
+      </div>
 
       <div style={{ marginBottom: 24 }}>
         <ResponsiveStatRow

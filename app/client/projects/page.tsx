@@ -11,8 +11,9 @@ interface ProjectClientRow {
   project: Project | null;
 }
 
-// صفحة "مشاريعي" — كل المشاريع النشطة المرتبطة بحساب العميل، وليس المشروع
-// الأساسي فقط كما في الصفحة الرئيسية.
+// صفحة "المشروع" — كل المشاريع النشطة المرتبطة بحساب العميل (وليس المشروع
+// الأساسي فقط)، تُفتح منها تفاصيل أي مشروع (الحالة، التقدّم، المراحل،
+// الحلقات، المخرجات) عبر /client/projects/[id].
 export default async function ClientProjectsPage() {
   const session = await requireClient();
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export default async function ClientProjectsPage() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: 1200, margin: "0 auto" }}>
       <h1 className="page-title-size" style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>
-        مشاريعي
+        المشروع
       </h1>
 
       {rows.length === 0 ? (

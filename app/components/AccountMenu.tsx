@@ -82,10 +82,19 @@ export default function AccountMenu({
               <div style={{ fontWeight: 700, fontSize: 13 }}>{profile.full_name || "بدون اسم"}</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{USER_ROLE_LABELS[profile.role]}</div>
             </div>
-            <Link href="/account" className="sidebar-link" onClick={() => setOpen(false)} style={{ textAlign: "right" }}>
-              <Icon name="user" size={16} />
-              <span>حسابي</span>
-            </Link>
+            {profile.role === "client" ? (
+              // بوابة العميل لا تُبقي "الإعدادات" في القائمة الجانبية — تنتقل هنا
+              // إلى قائمة الحساب العلوية، بدل رابط "/account" الداخلي غير المتاح للعميل.
+              <Link href="/client/settings" className="sidebar-link" onClick={() => setOpen(false)} style={{ textAlign: "right" }}>
+                <Icon name="settings" size={16} />
+                <span>الإعدادات</span>
+              </Link>
+            ) : (
+              <Link href="/account" className="sidebar-link" onClick={() => setOpen(false)} style={{ textAlign: "right" }}>
+                <Icon name="user" size={16} />
+                <span>حسابي</span>
+              </Link>
+            )}
             <button className="sidebar-link" onClick={toggleTheme} style={{ textAlign: "right" }}>
               <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
               <span>{theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}</span>

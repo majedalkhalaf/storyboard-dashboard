@@ -116,6 +116,34 @@ body {
 }
 .sidebar-link.active .nav-icon { color: var(--gold); }
 
+/* ── بوابة العميل: قائمة تنقّل بهوية أفخم (زوايا أكثر استدارة، تباعد أكبر،
+   حالة نشطة بإطار ذهبي رفيع بدل الشريط الجانبي الحاد) — مقصورة على
+   ClientShell فقط، بلا مساس بـ .sidebar-link المستخدمة في لوحة الفريق. */
+.client-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  width: 100%;
+  text-align: right;
+  background: transparent;
+  border: 1px solid transparent;
+}
+.client-nav-link:hover { background: var(--bg-hover); color: var(--text-primary); }
+.client-nav-link.active {
+  background: rgba(var(--gold-rgb), 0.1);
+  color: var(--gold);
+  border-color: rgba(var(--gold-rgb), 0.3);
+}
+.client-nav-link.active .nav-icon { color: var(--gold); }
+
 .sidebar-collapse-btn {
   display: flex;
   align-items: center;
@@ -438,6 +466,7 @@ body {
      that must keep their labels at this width; only the real collapsible
      sidebar should turn into an icon rail here. */
   .desktop-sidebar .sidebar-link span:last-child,
+  .desktop-sidebar .client-nav-link span:last-child,
   .desktop-sidebar .sidebar-text,
   .desktop-sidebar .sidebar-stats,
   .desktop-sidebar .sidebar-progress,
@@ -446,13 +475,16 @@ body {
   .desktop-sidebar .logo-sub,
   .desktop-sidebar .sidebar-collapse-btn { display: none !important; }
 
-  .desktop-sidebar .sidebar-link {
+  .desktop-sidebar .sidebar-link,
+  .desktop-sidebar .client-nav-link {
     justify-content: center;
     padding: 12px 8px;
     border-right: none !important;
   }
-  .desktop-sidebar .sidebar-link.active { border-right: none !important; border-bottom: 2px solid var(--gold); }
-  .desktop-sidebar .sidebar-link .nav-icon { font-size: 20px; width: auto; }
+  .desktop-sidebar .sidebar-link.active,
+  .desktop-sidebar .client-nav-link.active { border-right: none !important; border-bottom: 2px solid var(--gold); }
+  .desktop-sidebar .sidebar-link .nav-icon,
+  .desktop-sidebar .client-nav-link .nav-icon { font-size: 20px; width: auto; }
 
   /* Logo shrinks to just "S" circle */
   .desktop-sidebar .logo-wrap { justify-content: center !important; }
