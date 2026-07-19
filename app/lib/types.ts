@@ -243,6 +243,7 @@ export interface Episode {
   pipeline_stage: string;
   kind: string;
   kind_label: string | null;
+  meta: Record<string, unknown>;
 }
 
 // مرحلة "تغيير المرحلة" السريعة — منفصلة تماماً عن نظام episode_stages التفصيلي،

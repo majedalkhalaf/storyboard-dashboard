@@ -23,7 +23,7 @@ export default async function ClientEpisodePage({
 
   const [{ data: pc }, { data: project }] = await Promise.all([
     supabase.from("project_clients").select("id, permissions, status").eq("project_id", id).eq("client_user_id", session.userId).eq("status", "active").maybeSingle(),
-    supabase.from("projects").select("id, company_id, name, client_id").eq("id", id).maybeSingle(),
+    supabase.from("projects").select("id, company_id, name, client_id, type").eq("id", id).maybeSingle(),
   ]);
 
   if (!pc) return <Unauthorized />;
@@ -32,7 +32,7 @@ export default async function ClientEpisodePage({
   const projectClient = pc as Pick<ProjectClient, "id" | "permissions" | "status">;
   const permissions = projectClient.permissions;
   if (!canClient(permissions, "episodes")) return <Unauthorized />;
-  const proj = project as Pick<Project, "id" | "company_id" | "name" | "client_id">;
+  const proj = project as Pick<Project, "id" | "company_id" | "name" | "client_id" | "type">;
 
   const showFiles = canClient(permissions, "files");
   const showStages = canClient(permissions, "execution_phases");
@@ -53,7 +53,7 @@ export default async function ClientEpisodePage({
     proj.client_id ? supabase.from("clients").select("name").eq("id", proj.client_id).maybeSingle() : Promise.resolve({ data: null }),
     supabase
       .from("episodes")
-      .select("id, number, title, description, cover_image_url, status, progress, duration_seconds, kind, script, scenario, created_at, updated_at")
+      .select("id, number, title, description, cover_image_url, status, progress, duration_seconds, kind, script, scenario, meta, created_at, updated_at")
       .eq("id", episodeId)
       .eq("project_id", id)
       .maybeSingle(),
@@ -93,7 +93,20 @@ export default async function ClientEpisodePage({
   if (!episodeRow) return <Unauthorized />;
   const episode = episodeRow as Pick<
     Episode,
-    "id" | "number" | "title" | "description" | "cover_image_url" | "status" | "progress" | "duration_seconds" | "kind" | "script" | "scenario" | "created_at" | "updated_at"
+    | "id"
+    | "number"
+    | "title"
+    | "description"
+    | "cover_image_url"
+    | "status"
+    | "progress"
+    | "duration_seconds"
+    | "kind"
+    | "script"
+    | "scenario"
+    | "meta"
+    | "created_at"
+    | "updated_at"
   >;
   const clientName = clientRow?.name ?? null;
   const stages = (stageRows ?? []) as EpisodeStage[];

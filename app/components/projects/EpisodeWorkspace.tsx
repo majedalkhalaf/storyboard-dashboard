@@ -28,6 +28,8 @@ import ActivityTab from "./episode-tabs/ActivityTab";
 import StoryboardTab from "./storyboard/StoryboardTab";
 import EpisodeBehindScenesTab from "./episode-tabs/EpisodeBehindScenesTab";
 import EpisodeProgressTab from "./episode-tabs/EpisodeProgressTab";
+import MetaFieldsTab from "./episode-tabs/MetaFieldsTab";
+import { resolveTemplate } from "@/app/lib/project-templates";
 
 // دُمج تبويبا "الفيديو" و"الأصول" السابقان داخل "الملفات": الفيديو أصبح قسماً أعلى قائمة
 // الملفات في FilesTab.tsx (نفس مشغّل الفيديو والتعليقات الموقوتة، بلا تبويب مستقل)،
@@ -37,7 +39,7 @@ import EpisodeProgressTab from "./episode-tabs/EpisodeProgressTab";
 // DETAILS_TABS (ProjectDetailView.tsx) رغم تشابه التسمية الظاهرة — القائمة المدموجة في
 // mergedTabs تفرّق بين نوعي التبويبات بمطابقة المفتاح فقط، فتصادم المفاتيح كان سيُخرِج
 // أحدهما عن العمل.
-export type EpisodeTabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity" | "episode_bts" | "episode_progress";
+export type EpisodeTabKey = "overview" | "script" | "storyboard" | "files" | "notes" | "stages" | "activity" | "episode_bts" | "episode_progress" | "meta";
 
 // مرتّبة حسب الأولوية الفعلية أثناء تنفيذ الحلقة: نظرة عامة أولاً كنقطة انطلاق،
 // ثم مراحل التنفيذ والملفات والملاحظات (الأكثر استخداماً يومياً)، فمواد ما قبل
@@ -50,15 +52,19 @@ export const EPISODE_TABS: TabDef<EpisodeTabKey>[] = [
   { key: "notes", label: "الملاحظات", icon: "message" },
   { key: "storyboard", label: "ستوري بورد", icon: "palette" },
   { key: "script", label: "السكربت", icon: "fileCheck" },
+  { key: "meta", label: "الفكرة والتفاصيل", icon: "sparkles" },
   { key: "episode_bts", label: "كواليس الحلقة", icon: "sparkles" },
   { key: "episode_progress", label: "عمل جارٍ للحلقة", icon: "timeline" },
   { key: "activity", label: "سجل النشاط", icon: "clock" },
 ];
 
+export const ALL_EPISODE_TAB_KEYS: EpisodeTabKey[] = EPISODE_TABS.map((t) => t.key);
+
 export default function EpisodeWorkspace({
   clientName,
   clientPhone,
   projectName,
+  projectType,
   itemNoun,
   gallery,
   initialEpisodeId,
@@ -73,6 +79,8 @@ export default function EpisodeWorkspace({
   clientPhone: string | null;
   /** اسم المشروع — يُستخدم في رسالة "تم رفع الفيديو" الجاهزة للعميل. */
   projectName: string;
+  /** نوع المشروع — يُمرَّر لبطاقة الحلقة (EpisodeGalleryCard) لتحديد قالبها عبر resolveTemplate(). */
+  projectType: string | null;
   /** تسمية عناصر المشروع (حلقة/فيديو إعلاني/عنصر/تسمية مخصّصة) لعرضها بدل "حلقة/الحلقات" الثابتة. */
   itemNoun: ItemNoun;
   gallery: EpisodeGalleryItem[];
@@ -200,6 +208,7 @@ export default function EpisodeWorkspace({
     await updateEpisodePipelineStage(supabase, { companyId, projectId: detail.project_id, episodeId: detail.id, stageKey: key, stageLabel: label });
   }
 
+  const template = resolveTemplate(projectType);
   const activeGalleryItem = galleryItems.find((e) => e.id === selectedId);
   const showingExtra = Boolean(extraActiveKey);
   const activeKey = extraActiveKey ?? tab;
@@ -236,6 +245,7 @@ export default function EpisodeWorkspace({
   const visibleTabs = mergedTabs.filter((t) => {
     if (t.key === "notes") return false;
     const isEpisodeTab = EPISODE_TABS.some((et) => et.key === t.key);
+    if (isEpisodeTab && !template.tabs.includes(t.key as EpisodeTabKey)) return false;
     if (!isEpisodeTab && selectedId) return false;
     return true;
   });
@@ -259,7 +269,7 @@ export default function EpisodeWorkspace({
           )}
         </div>
         {galleryExpanded || galleryItems.length === 0 ? (
-          <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} itemNoun={itemNoun} />
+          <EpisodeGallery episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} itemNoun={itemNoun} projectType={projectType} />
         ) : (
           <EpisodeMiniGrid episodes={galleryItems} selectedId={selectedId} onSelect={selectEpisode} />
         )}
@@ -364,6 +374,7 @@ export default function EpisodeWorkspace({
                       </>
                     )}
                     {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
+                    {tab === "meta" && <MetaFieldsTab episode={detail!} fields={template.metaFields} onChanged={applyPatch} />}
                     {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                     {tab === "notes" && (
                       <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />
@@ -409,6 +420,7 @@ export default function EpisodeWorkspace({
                         </>
                       )}
                       {tab === "script" && <ScriptTab episode={detail!} onChanged={applyPatch} />}
+                      {tab === "meta" && <MetaFieldsTab episode={detail!} fields={template.metaFields} onChanged={applyPatch} />}
                       {tab === "files" && <FilesTab episode={detail!} projectName={projectName} clientName={clientName} clientPhone={clientPhone} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} />}
                       {tab === "notes" && (
                         <NotesTab episode={detail!} onChanged={() => fetchEpisodeDetail(detail!.id, companyId).then(setDetail)} highlightNoteId={highlightNoteId} />

@@ -16,12 +16,15 @@ export default function EpisodeGallery({
   selectedId,
   onSelect,
   itemNoun,
+  projectType,
   onReorder,
 }: {
   episodes: EpisodeGalleryItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   itemNoun: ItemNoun;
+  /** نوع المشروع — يُحدَّد به قالب البطاقة (standard/vertical/deliverable) عبر resolveTemplate(). */
+  projectType: string | null;
   /** اختياري — الأب (EpisodeWorkspace.tsx) لا يستهلكه حالياً؛ التعديل مملوك لعمل آخر جارٍ
    * على هذا الفرع فلم نُلزمه به. عند تمريره مستقبلاً يُستدعى بعد نجاح إعادة الترتيب. */
   onReorder?: (orderedIds: string[]) => void;
@@ -93,6 +96,7 @@ export default function EpisodeGallery({
         onSelect={() => onSelect(ep.id)}
         pipelineStages={pipelineStages}
         itemNoun={itemNoun}
+        projectType={projectType}
         onChanged={(patch) => patchItem(ep.id, patch)}
         onDeleted={() => removeItem(ep.id)}
         dimmed={dragId !== null && dragId !== ep.id}

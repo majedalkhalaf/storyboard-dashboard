@@ -14,6 +14,7 @@ export default function EpisodeFormModal({
   nextNumber,
   nextSortOrder,
   itemNoun,
+  defaultStages = DEFAULT_EPISODE_STAGES,
   onClose,
   onCreated,
 }: {
@@ -23,6 +24,9 @@ export default function EpisodeFormModal({
   /** تسمية عناصر المشروع (حلقة/فيديو إعلاني/عنصر/تسمية مخصّصة) — اختيارية، تُستخدم
    * فقط لتخصيص نصوص الواجهة؛ تُهمَل بالكامل حين لا تتوفر (سياق عبر عدّة مشاريع). */
   itemNoun?: ItemNoun;
+  /** مراحل التنفيذ الافتراضية التي تُبذر لهذا العنصر — من resolveTemplate(project.type).defaultStages.
+   * اختيارية: تفترض المصفوفة القياسية DEFAULT_EPISODE_STAGES حين لا تتوفر. */
+  defaultStages?: { key: string; label: string }[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -88,7 +92,7 @@ export default function EpisodeFormModal({
         .single();
       if (eErr) throw eErr;
 
-      const stageRows = DEFAULT_EPISODE_STAGES.map((s, i) => ({
+      const stageRows = defaultStages.map((s, i) => ({
         episode_id: episode.id,
         company_id: companyId,
         key: s.key,
@@ -201,7 +205,7 @@ export default function EpisodeFormModal({
         </div>
 
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 14 }}>
-          سيتم إنشاء {DEFAULT_EPISODE_STAGES.length} مراحل تنفيذ افتراضية.
+          سيتم إنشاء {defaultStages.length} مراحل تنفيذ افتراضية.
         </p>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>

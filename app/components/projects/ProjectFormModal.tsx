@@ -6,7 +6,8 @@ import Icon, { type IconName } from "@/app/components/ui/Icon";
 import { createClient } from "@/app/lib/supabase/client";
 import { useSession } from "@/app/providers/SessionProvider";
 import { logActivity } from "@/app/lib/activity";
-import { PROJECT_TYPES, DEFAULT_EPISODE_STAGES, ITEM_NOUN_OPTIONS, type ItemNounKey } from "@/app/lib/constants";
+import { PROJECT_TYPES, ITEM_NOUN_OPTIONS, type ItemNounKey } from "@/app/lib/constants";
+import { resolveTemplate } from "@/app/lib/project-templates";
 import { inferCategory, humanFileSize } from "@/app/components/projects/utils";
 import { safeStorageKey } from "@/app/lib/storage-path";
 import type { ClientRecord } from "@/app/lib/types";
@@ -70,6 +71,9 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
   const [itemNounKey, setItemNounKey] = useState<ItemNounKey>("episodes");
   const [customSingular, setCustomSingular] = useState("");
   const [customPlural, setCustomPlural] = useState("");
+  // يبقى false حتى يتدخّل المستخدم يدوياً في اختيار/تخصيص تسمية العناصر — بعدها
+  // لا يُعاد ضبطها تلقائياً حتى لو غيّر نوع المشروع مجدداً (حرية تخصيص كاملة).
+  const [itemNounTouched, setItemNounTouched] = useState(false);
   const [contentCount, setContentCount] = useState(0);
 
   // step 3
@@ -83,6 +87,23 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
     setError(null);
     setCoverFile(file);
     setCoverPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  // اختيار نوع المشروع في الخطوة 1 يعبّئ تسمية العناصر الافتراضية (خطوة 2) من
+  // قالب النوع (resolveTemplate) — فقط إن لم يخصّص المستخدم التسمية بنفسه بعد،
+  // فتبقى حرية التخصيص الكاملة قائمة (لا يُفرَض شيء، هذا مجرد افتراضي أذكى).
+  function selectType(value: string) {
+    setType(value);
+    if (itemNounTouched) return;
+    const tpl = resolveTemplate(value);
+    setItemNounKey(tpl.defaultItemNounKey);
+    if (tpl.defaultItemNounKey === "custom" && tpl.defaultItemNounCustom) {
+      setCustomSingular(tpl.defaultItemNounCustom.singular);
+      setCustomPlural(tpl.defaultItemNounCustom.plural);
+    } else {
+      setCustomSingular("");
+      setCustomPlural("");
+    }
   }
 
   function addInitialFiles(fileList: FileList | null) {
@@ -222,7 +243,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
           .select("id")
           .single();
         if (eErr || !episode) continue;
-        const stageRows = DEFAULT_EPISODE_STAGES.map((s, si) => ({
+        const stageRows = resolveTemplate(type).defaultStages.map((s, si) => ({
           episode_id: episode.id,
           company_id: companyId,
           key: s.key,
@@ -340,7 +361,7 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
                     key={t.value}
                     type="button"
                     className="card"
-                    onClick={() => setType(t.value)}
+                    onClick={() => selectType(t.value)}
                     style={{
                       padding: 16,
                       cursor: "pointer",
@@ -451,7 +472,10 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
                     <button
                       key={c.value}
                       type="button"
-                      onClick={() => setItemNounKey(c.value)}
+                      onClick={() => {
+                        setItemNounTouched(true);
+                        setItemNounKey(c.value);
+                      }}
                       className="chip"
                       style={{
                         cursor: "pointer",
@@ -469,8 +493,24 @@ export default function ProjectFormModal({ clients, onClose }: Props) {
               </div>
               {itemNounKey === "custom" && (
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                  <input className="input-field" placeholder="المفرد (مثال: بودكاست)" value={customSingular} onChange={(e) => setCustomSingular(e.target.value)} />
-                  <input className="input-field" placeholder="الجمع (مثال: حلقات البودكاست)" value={customPlural} onChange={(e) => setCustomPlural(e.target.value)} />
+                  <input
+                    className="input-field"
+                    placeholder="المفرد (مثال: بودكاست)"
+                    value={customSingular}
+                    onChange={(e) => {
+                      setItemNounTouched(true);
+                      setCustomSingular(e.target.value);
+                    }}
+                  />
+                  <input
+                    className="input-field"
+                    placeholder="الجمع (مثال: حلقات البودكاست)"
+                    value={customPlural}
+                    onChange={(e) => {
+                      setItemNounTouched(true);
+                      setCustomPlural(e.target.value);
+                    }}
+                  />
                 </div>
               )}
               {touched && itemNounKey === "custom" && (customSingular.trim() === "" || customPlural.trim() === "") && (

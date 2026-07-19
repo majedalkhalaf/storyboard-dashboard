@@ -16,6 +16,7 @@ import { EPISODE_KIND_OPTIONS, type EpisodeKind } from "@/app/lib/constants";
 import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/lib/item-noun";
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { CompanyPipelineStage } from "@/app/lib/types";
+import { resolveTemplate } from "@/app/lib/project-templates";
 import { formatDuration, relativeTime } from "./utils";
 
 const iconBtnStyle: React.CSSProperties = { padding: "5px 6px", borderRadius: 7 };
@@ -32,6 +33,7 @@ export default function EpisodeGalleryCard({
   onSelect,
   pipelineStages,
   itemNoun,
+  projectType,
   onChanged,
   onDeleted,
   onDragStartHandle,
@@ -45,6 +47,10 @@ export default function EpisodeGalleryCard({
   onSelect: () => void;
   pipelineStages: CompanyPipelineStage[];
   itemNoun: ItemNoun;
+  /** نوع المشروع — يُحدَّد به قالب البطاقة عبر resolveTemplate(). حالياً كل الأنواع
+   * غير المفعَّلة صراحة (بما فيها reels/brand_identity قبل مرحلتيهما) تُحل لقالب
+   * podcast القياسي، فلا يوجد أي فرق بصري بعد لأي مشروع قائم. */
+  projectType: string | null;
   onChanged: (patch: Partial<EpisodeGalleryItem>) => void;
   onDeleted: () => void;
   onDragStartHandle: () => void;
@@ -57,6 +63,8 @@ export default function EpisodeGalleryCard({
   const router = useRouter();
   const { company } = useSession();
   const companyId = company!.id;
+
+  const template = resolveTemplate(projectType);
 
   const [uploadingCover, setUploadingCover] = useState(false);
   const [editingNumber, setEditingNumber] = useState(false);
@@ -454,7 +462,7 @@ export default function EpisodeGalleryCard({
         >
           {episode.stageBadge.label}
         </span>
-        {episode.duration_seconds != null && (
+        {template.showDurationBadge && episode.duration_seconds != null && (
           <span
             style={{
               position: "absolute",

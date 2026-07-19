@@ -94,6 +94,7 @@ export default function ProjectQuickActions({
       duration_seconds: e.duration_seconds,
       assigned_to_name: null,
       updated_at: e.updated_at,
+      meta: {},
       stageBadge: NEUTRAL_STAGE_BADGE,
       filesCount: 0,
       notesCount: 0,

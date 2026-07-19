@@ -19,6 +19,7 @@ import { projectStatusMeta, relativeTime, formatCurrency, formatDate } from "@/a
 import { exportClientProjectZip, downloadClientQuickReport, type ExportProgress } from "@/app/lib/client-zip-export";
 import { runTrackedDownload } from "@/app/lib/download-queue-store";
 import { getItemNoun, isSpecialEpisodeKind } from "@/app/lib/item-noun";
+import { resolveTemplate } from "@/app/lib/project-templates";
 import type { ClientPermissions, Company, CompanyPipelineStage, Contract, Episode, Invoice, Note, Payment, Project, ProjectFile } from "@/app/lib/types";
 
 interface FinanceSummary {
@@ -95,6 +96,7 @@ export default function ProjectView({
   const isMobile = useIsMobile();
   const approvedSet = new Set(approvedEpisodeIds);
   const itemNoun = getItemNoun(project);
+  const template = resolveTemplate(project.type);
   const status = projectStatusMeta(project.status);
   const showFinance = canClient(permissions, "finance");
   const showPayments = canClient(permissions, "payments");
@@ -124,10 +126,6 @@ export default function ProjectView({
           ? "episodes"
           : "overview";
   const [active, setActive] = useState<TabKey>(initialTab);
-
-  const episodesCompleted = episodes.filter((e) => e.status === "delivered" || e.status === "approved").length;
-  const episodesInProgress = episodes.filter((e) => e.status === "in_progress" || e.status === "in_review" || e.status === "ready_for_approval").length;
-  const episodesRemaining = episodes.length - episodesCompleted;
 
   const openNotes = notes.filter((n) => n.status !== "done" && n.status !== "closed" && n.status !== "rejected");
   const closedNotes = notes.filter((n) => n.status === "done" || n.status === "closed");
@@ -291,10 +289,16 @@ export default function ProjectView({
           >
             {showEpisodes && (
               <>
-                <StatCard compact={isMobile} label={`إجمالي ${itemNoun.plural}`} value={episodes.length} icon="episodes" color="var(--gold)" />
-                <StatCard compact={isMobile} label="حلقات مكتملة" value={episodesCompleted} icon="checkCircle" color="var(--success)" />
-                <StatCard compact={isMobile} label="قيد التنفيذ" value={episodesInProgress} icon="clock" color="#F59E0B" />
-                <StatCard compact={isMobile} label="متبقية" value={episodesRemaining} icon="circle" color="#6B7280" />
+                {template.clientStatCards.map((s) => (
+                  <StatCard
+                    key={s.key}
+                    compact={isMobile}
+                    label={typeof s.label === "function" ? s.label(itemNoun.plural) : s.label}
+                    value={s.compute(episodes)}
+                    icon={s.icon}
+                    color={s.color}
+                  />
+                ))}
               </>
             )}
             {showFiles && <StatCard compact={isMobile} label="الملفات" value={files.length} icon="files" color="#3987e5" />}

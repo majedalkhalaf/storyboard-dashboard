@@ -94,6 +94,10 @@ import {
   FolderUp,
   Volume2,
   VolumeX,
+  Hash,
+  Music,
+  Layers,
+  PenTool,
   type LucideIcon,
 } from "lucide-react";
 
@@ -191,6 +195,10 @@ export const ICONS = {
   folderUp: FolderUp,
   volume: Volume2,
   volumeOff: VolumeX,
+  hash: Hash,
+  music: Music,
+  layers: Layers,
+  vector: PenTool,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

@@ -15,6 +15,7 @@ import Icon from "@/app/components/ui/Icon";
 import { type TabDef } from "@/app/components/ui/Tabs";
 import { PROJECT_TYPES } from "@/app/lib/constants";
 import { getItemNoun } from "@/app/lib/item-noun";
+import { resolveTemplate } from "@/app/lib/project-templates";
 import { formatDate } from "./utils";
 import ProjectFinanceSection from "./sections/ProjectFinanceSection";
 import ProjectContractsSection from "./sections/ProjectContractsSection";
@@ -74,6 +75,7 @@ export default function ProjectDetailView(props: Props) {
   }
 
   const itemNoun = getItemNoun(project);
+  const template = resolveTemplate(project.type);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -93,6 +95,7 @@ export default function ProjectDetailView(props: Props) {
         clientName={clientName}
         clientPhone={companyClients.find((c) => c.id === project.client_id)?.phone ?? null}
         projectName={project.name}
+        projectType={project.type}
         itemNoun={itemNoun}
         gallery={gallery}
         initialEpisodeId={initialEpisodeId}
@@ -110,7 +113,7 @@ export default function ProjectDetailView(props: Props) {
         overviewExtra={
           <div className="card animate-fade-in" style={{ padding: 18, marginTop: 14, display: "flex", flexDirection: "column", gap: 16 }}>
             <ProjectInfoBlock project={project} clientName={clientName} />
-            <ProjectStatsBlock gallery={gallery} itemNounPlural={itemNoun.plural} />
+            <ProjectStatsBlock gallery={gallery} itemNounPlural={itemNoun.plural} template={template} />
           </div>
         }
       />
@@ -121,6 +124,7 @@ export default function ProjectDetailView(props: Props) {
           nextNumber={gallery.length + 1}
           nextSortOrder={gallery.length}
           itemNoun={itemNoun}
+          defaultStages={template.defaultStages}
           onClose={() => setShowEpisodeModal(false)}
           onCreated={() => router.refresh()}
         />
@@ -170,20 +174,20 @@ function ProjectInfoBlock({ project, clientName }: { project: Project; clientNam
   );
 }
 
-function ProjectStatsBlock({ gallery, itemNounPlural }: { gallery: EpisodeGalleryItem[]; itemNounPlural: string }) {
-  const episodeCount = gallery.length;
-  const avgProgress = episodeCount ? Math.round(gallery.reduce((s, e) => s + e.progress, 0) / episodeCount) : 0;
-  const approvedCount = gallery.filter((e) => e.hasActiveApproval).length;
-  const filesCount = gallery.reduce((s, e) => s + e.filesCount, 0);
-  const notesCount = gallery.reduce((s, e) => s + e.notesCount + e.commentsCount, 0);
-
-  const stats = [
-    { label: itemNounPlural, value: episodeCount, icon: "video" as const },
-    { label: "متوسط الإنجاز", value: `${avgProgress}%`, icon: "barChart" as const },
-    { label: "حلقات معتمدة", value: approvedCount, icon: "badgeCheck" as const },
-    { label: "الملفات", value: filesCount, icon: "attachment" as const },
-    { label: "الملاحظات", value: notesCount, icon: "message" as const },
-  ];
+function ProjectStatsBlock({
+  gallery,
+  itemNounPlural,
+  template,
+}: {
+  gallery: EpisodeGalleryItem[];
+  itemNounPlural: string;
+  template: ReturnType<typeof resolveTemplate>;
+}) {
+  const stats = template.statCards.map((s) => ({
+    label: typeof s.label === "function" ? s.label(itemNounPlural) : s.label,
+    value: s.compute(gallery),
+    icon: s.icon,
+  }));
 
   return (
     <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>

@@ -19,7 +19,20 @@ import type { ClientPermissions, Episode, EpisodeStage, StoryboardScene } from "
 
 type MinimalEpisode = Pick<
   Episode,
-  "id" | "number" | "title" | "description" | "cover_image_url" | "status" | "progress" | "duration_seconds" | "kind" | "script" | "scenario" | "created_at" | "updated_at"
+  | "id"
+  | "number"
+  | "title"
+  | "description"
+  | "cover_image_url"
+  | "status"
+  | "progress"
+  | "duration_seconds"
+  | "kind"
+  | "script"
+  | "scenario"
+  | "meta"
+  | "created_at"
+  | "updated_at"
 >;
 
 // صفحة الحلقة صفحة "مراجعة وتسليم" للعميل — يستمع هذا الاشتراك فقط لجدولي

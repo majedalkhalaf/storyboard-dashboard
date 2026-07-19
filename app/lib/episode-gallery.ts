@@ -26,6 +26,7 @@ export interface EpisodeGalleryItem {
   duration_seconds: number | null;
   assigned_to_name: string | null;
   updated_at: string;
+  meta: Record<string, unknown>;
   stageBadge: StageBadge;
   filesCount: number;
   notesCount: number;
@@ -153,6 +154,7 @@ export async function getEpisodeGallery(companyId: string, projectId: string, us
       duration_seconds: e.duration_seconds,
       assigned_to_name: assignee?.full_name ?? null,
       updated_at: e.updated_at,
+      meta: e.meta ?? {},
       stageBadge: computeStageBadge(e.status, stagesByEpisode[e.id] ?? []),
       filesCount: filesCountByEpisode[e.id] ?? 0,
       notesCount: notesCountByEpisode[e.id] ?? 0,
