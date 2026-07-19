@@ -27,6 +27,9 @@ export interface EpisodeGalleryItem {
   assigned_to_name: string | null;
   updated_at: string;
   meta: Record<string, unknown>;
+  /** عدد الملفات لكل امتداد (ext بحروف صغيرة بلا نقطة) — يُستخدم في بطاقة القوالب
+   * ذات fileTypeChips (مثال: هوية بصرية) لعرض عدّاد حقيقي لكل نوع ملف. */
+  fileTypeCounts: Record<string, number>;
   stageBadge: StageBadge;
   filesCount: number;
   notesCount: number;
@@ -92,7 +95,7 @@ export async function getEpisodeGallery(companyId: string, projectId: string, us
       .eq("project_id", projectId)
       .order("sort_order"),
     supabase.from("episode_stages").select("episode_id, key, status, sort_order").eq("company_id", companyId),
-    supabase.from("files").select("episode_id").eq("project_id", projectId).not("episode_id", "is", null),
+    supabase.from("files").select("episode_id, file_extension").eq("project_id", projectId).not("episode_id", "is", null),
     supabase.from("notes").select("episode_id, video_timestamp_seconds").eq("project_id", projectId).not("episode_id", "is", null),
     supabase.from("approvals").select("episode_id, revoked_at").eq("project_id", projectId),
     supabase.from("episode_script_versions").select("episode_id").eq("company_id", companyId),
@@ -107,9 +110,15 @@ export async function getEpisodeGallery(companyId: string, projectId: string, us
   }
 
   const filesCountByEpisode: Record<string, number> = {};
+  const fileTypeCountsByEpisode: Record<string, Record<string, number>> = {};
   for (const f of files ?? []) {
     if (!f.episode_id) continue;
     filesCountByEpisode[f.episode_id] = (filesCountByEpisode[f.episode_id] ?? 0) + 1;
+    const ext = f.file_extension?.toLowerCase().replace(/^\./, "");
+    if (ext) {
+      const bucket = (fileTypeCountsByEpisode[f.episode_id] ??= {});
+      bucket[ext] = (bucket[ext] ?? 0) + 1;
+    }
   }
 
   const notesCountByEpisode: Record<string, number> = {};
@@ -155,6 +164,7 @@ export async function getEpisodeGallery(companyId: string, projectId: string, us
       assigned_to_name: assignee?.full_name ?? null,
       updated_at: e.updated_at,
       meta: e.meta ?? {},
+      fileTypeCounts: fileTypeCountsByEpisode[e.id] ?? {},
       stageBadge: computeStageBadge(e.status, stagesByEpisode[e.id] ?? []),
       filesCount: filesCountByEpisode[e.id] ?? 0,
       notesCount: notesCountByEpisode[e.id] ?? 0,

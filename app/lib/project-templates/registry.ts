@@ -1,12 +1,13 @@
 import { PODCAST_TEMPLATE } from "./podcast";
+import { BRAND_IDENTITY_TEMPLATE } from "./brand-identity";
 import type { ProjectTemplateDefinition, TemplateKey } from "./types";
 
-// سجل القوالب المُفعَّلة فعلياً — "reels"/"brand_identity" مبنيان بالكامل
-// (reels.ts/brand-identity.ts) لكنهما يُضافان هنا فقط عند بدء مرحلتيهما
-// (المرحلة 2/3) بعد بناء بطاقاتهما (VerticalCard/DeliverableCard)، حتى لا يرث
-// أي مشروع بذلك النوع سلوكاً جزئياً غير مكتمل الاختبار في المرحلة الأولى.
+// سجل القوالب المُفعَّلة فعلياً — "reels" مبني بالكامل (reels.ts) لكنه يُضاف هنا
+// فقط عند بدء مرحلته (المرحلة 2) بعد بناء بطاقته (VerticalCard)، حتى لا يرث أي
+// مشروع بهذا النوع سلوكاً جزئياً غير مكتمل الاختبار.
 export const TEMPLATE_REGISTRY: Partial<Record<TemplateKey, ProjectTemplateDefinition>> = {
   podcast: PODCAST_TEMPLATE,
+  brand_identity: BRAND_IDENTITY_TEMPLATE,
 };
 
 // أي project.type غير مسجَّل صراحة (null، قيمة قديمة، "other"، أو أحد الأنواع

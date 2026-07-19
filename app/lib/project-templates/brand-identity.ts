@@ -10,7 +10,7 @@ export const BRAND_IDENTITY_TEMPLATE: ProjectTemplateDefinition = {
   defaultItemNounKey: "custom",
   defaultItemNounCustom: { singular: "تسليمة", plural: "تسليمات" },
   cardVariant: "deliverable",
-  tabs: ["overview", "stages", "files", "notes", "activity"],
+  tabs: ["overview", "stages", "meta", "files", "notes", "activity"],
   defaultStages: [
     { key: "research", label: "البحث" },
     { key: "moodboard", label: "Moodboard" },

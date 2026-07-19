@@ -35,14 +35,22 @@ export default async function ClientEpisodesPage() {
         supabase.from("episodes").select("*").eq("project_id", project.id).order("sort_order", { ascending: true }),
         supabase.from("approvals").select("episode_id").eq("project_id", project.id).is("revoked_at", null),
         canClient(r.permissions, "files")
-          ? supabase.from("files").select("episode_id").eq("project_id", project.id).eq("client_visible", true).not("episode_id", "is", null)
-          : Promise.resolve({ data: [] as { episode_id: string }[] }),
+          ? supabase.from("files").select("episode_id, file_extension").eq("project_id", project.id).eq("client_visible", true).not("episode_id", "is", null)
+          : Promise.resolve({ data: [] as { episode_id: string; file_extension: string | null }[] }),
         supabase.from("notes").select("episode_id").eq("project_id", project.id).not("episode_id", "is", null),
         supabase.from("notifications").select("episode_id").eq("project_id", project.id).eq("user_id", session.userId).eq("is_read", false).not("episode_id", "is", null),
       ]);
 
       const episodeFileCounts: Record<string, number> = {};
-      for (const row of (fileRows ?? []) as { episode_id: string }[]) episodeFileCounts[row.episode_id] = (episodeFileCounts[row.episode_id] ?? 0) + 1;
+      const episodeFileTypeCounts: Record<string, Record<string, number>> = {};
+      for (const row of (fileRows ?? []) as { episode_id: string; file_extension: string | null }[]) {
+        episodeFileCounts[row.episode_id] = (episodeFileCounts[row.episode_id] ?? 0) + 1;
+        const ext = row.file_extension?.toLowerCase().replace(/^\./, "");
+        if (ext) {
+          const bucket = (episodeFileTypeCounts[row.episode_id] ??= {});
+          bucket[ext] = (bucket[ext] ?? 0) + 1;
+        }
+      }
       const episodeNoteCounts: Record<string, number> = {};
       for (const row of (noteRows ?? []) as { episode_id: string }[]) episodeNoteCounts[row.episode_id] = (episodeNoteCounts[row.episode_id] ?? 0) + 1;
       const episodeUnreadCounts: Record<string, number> = {};
@@ -54,6 +62,7 @@ export default async function ClientEpisodesPage() {
         permissions: r.permissions,
         episodes: (episodeRows ?? []) as Episode[],
         episodeFileCounts,
+        episodeFileTypeCounts,
         episodeNoteCounts,
         episodeUnreadCounts,
         approvedIds,
@@ -93,8 +102,10 @@ export default async function ClientEpisodesPage() {
                   permissions={p.permissions}
                   isApproved={p.approvedIds.has(ep.id) || ep.status === "approved" || ep.status === "delivered"}
                   fileCount={p.episodeFileCounts[ep.id] ?? 0}
+                  fileTypeCounts={p.episodeFileTypeCounts[ep.id] ?? {}}
                   noteCount={p.episodeNoteCounts[ep.id] ?? 0}
                   itemNoun={itemNoun}
+                  projectType={p.project.type}
                   unreadCount={p.episodeUnreadCounts[ep.id] ?? 0}
                 />
               );

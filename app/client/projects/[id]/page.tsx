@@ -62,8 +62,8 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       ? supabase.from("files").select("*").eq("project_id", id).is("episode_id", null).eq("client_visible", true).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as ProjectFile[] }),
     showFiles
-      ? supabase.from("files").select("episode_id").eq("project_id", id).eq("client_visible", true).not("episode_id", "is", null)
-      : Promise.resolve({ data: [] as { episode_id: string }[] }),
+      ? supabase.from("files").select("episode_id, file_extension").eq("project_id", id).eq("client_visible", true).not("episode_id", "is", null)
+      : Promise.resolve({ data: [] as { episode_id: string; file_extension: string | null }[] }),
     supabase.from("notes").select("*").eq("project_id", id).is("episode_id", null).order("created_at", { ascending: true }),
     supabase.from("notes").select("episode_id, status, request_type").eq("project_id", id),
     showFinance ? supabase.from("invoices").select("amount, tax, status").eq("project_id", id) : Promise.resolve({ data: [] as Pick<Invoice, "amount" | "tax" | "status">[] }),
@@ -91,9 +91,15 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   // (يشمل ملفات الحلقات نفسها، وليس فقط ملفات مستوى المشروع) لبطاقات قسم الحلقات.
   const files = (fileRows ?? []) as ProjectFile[];
   const episodeFileCounts: Record<string, number> = {};
+  const episodeFileTypeCounts: Record<string, Record<string, number>> = {};
   for (const row of allFileRows ?? []) {
-    const epId = (row as { episode_id: string }).episode_id;
-    episodeFileCounts[epId] = (episodeFileCounts[epId] ?? 0) + 1;
+    const r = row as { episode_id: string; file_extension: string | null };
+    episodeFileCounts[r.episode_id] = (episodeFileCounts[r.episode_id] ?? 0) + 1;
+    const ext = r.file_extension?.toLowerCase().replace(/^\./, "");
+    if (ext) {
+      const bucket = (episodeFileTypeCounts[r.episode_id] ??= {});
+      bucket[ext] = (bucket[ext] ?? 0) + 1;
+    }
   }
 
   // ملاحظات مستوى المشروع (تبويب "الملاحظات") + عدّاد إجمالي يشمل ملاحظات الحلقات
@@ -169,6 +175,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         episodes={episodes}
         approvedEpisodeIds={approvedEpisodeIds}
         episodeFileCounts={episodeFileCounts}
+        episodeFileTypeCounts={episodeFileTypeCounts}
         episodeNoteCounts={episodeNoteCounts}
         episodeUnreadCounts={episodeUnreadCounts}
         pipelineStages={pipelineStages}

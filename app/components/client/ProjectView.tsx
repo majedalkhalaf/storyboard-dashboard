@@ -59,6 +59,7 @@ export default function ProjectView({
   episodes,
   approvedEpisodeIds,
   episodeFileCounts,
+  episodeFileTypeCounts,
   episodeNoteCounts,
   episodeUnreadCounts,
   pipelineStages,
@@ -79,6 +80,8 @@ export default function ProjectView({
   episodes: Episode[];
   approvedEpisodeIds: string[];
   episodeFileCounts: Record<string, number>;
+  /** عدد الملفات لكل امتداد لكل حلقة — يُستخدم في بطاقة "التسليمة" (قالب هوية بصرية) لعرض رقائق أنواع ملفات حقيقية. */
+  episodeFileTypeCounts: Record<string, Record<string, number>>;
   episodeNoteCounts: Record<string, number>;
   episodeUnreadCounts: Record<string, number>;
   pipelineStages: CompanyPipelineStage[];
@@ -349,6 +352,7 @@ export default function ProjectView({
               episodes={episodes}
               approvedSet={approvedSet}
               episodeFileCounts={episodeFileCounts}
+              episodeFileTypeCounts={episodeFileTypeCounts}
               episodeNoteCounts={episodeNoteCounts}
               episodeUnreadCounts={episodeUnreadCounts}
               itemNoun={itemNoun}
@@ -491,6 +495,7 @@ function EpisodesTab({
   episodes,
   approvedSet,
   episodeFileCounts,
+  episodeFileTypeCounts,
   episodeNoteCounts,
   episodeUnreadCounts,
   itemNoun,
@@ -502,6 +507,7 @@ function EpisodesTab({
   episodes: Episode[];
   approvedSet: Set<string>;
   episodeFileCounts: Record<string, number>;
+  episodeFileTypeCounts: Record<string, Record<string, number>>;
   episodeNoteCounts: Record<string, number>;
   episodeUnreadCounts: Record<string, number>;
   itemNoun: ReturnType<typeof getItemNoun>;
@@ -544,8 +550,10 @@ function EpisodesTab({
         permissions={permissions}
         isApproved={isApproved}
         fileCount={episodeFileCounts[ep.id] ?? 0}
+        fileTypeCounts={episodeFileTypeCounts[ep.id] ?? {}}
         noteCount={episodeNoteCounts[ep.id] ?? 0}
         itemNoun={itemNoun}
+        projectType={project.type}
         unreadCount={episodeUnreadCounts[ep.id] ?? 0}
       />
     );

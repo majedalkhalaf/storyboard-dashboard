@@ -17,6 +17,7 @@ import { getEpisodeKindLabel, isSpecialEpisodeKind, type ItemNoun } from "@/app/
 import type { EpisodeGalleryItem } from "@/app/lib/episode-gallery";
 import type { CompanyPipelineStage } from "@/app/lib/types";
 import { resolveTemplate } from "@/app/lib/project-templates";
+import { getMetaValue } from "@/app/lib/episode-meta";
 import { formatDuration, relativeTime } from "./utils";
 
 const iconBtnStyle: React.CSSProperties = { padding: "5px 6px", borderRadius: 7 };
@@ -292,6 +293,266 @@ export default function EpisodeGalleryCard({
             >
               <Icon name="trash" size={13} />
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // بطاقة "التسليمة" — قالب هوية بصرية وما شابهه من قوالب تسليمات (بلا حلقات
+  // فيديو): بلا شارة مدة/تصنيف مقدمة-انترو، شارة نوع التسليمة بدل ذلك، وشبكة
+  // رقائق أنواع ملفات حقيقية (AI/PSD/PDF...) بدل عدّادات ملفات/ملاحظات/تعليقات/نسخ.
+  if (template.cardVariant === "deliverable") {
+    const deliverableTypeValue = getMetaValue(episode.meta, "deliverable_type");
+    const deliverableTypeLabel = template.metaFields.find((f) => f.key === "deliverable_type")?.options?.find((o) => o.value === deliverableTypeValue)?.label;
+    const fileTypeChips = template.fileTypeChips ?? [];
+
+    return (
+      <div style={{ position: "relative" }}>
+        {episode.unreadCount > 0 && (
+          <span
+            title={`${episode.unreadCount} إشعار غير مقروء`}
+            style={{
+              position: "absolute",
+              top: -8,
+              insetInlineEnd: -8,
+              zIndex: 3,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              minWidth: 22,
+              height: 22,
+              borderRadius: 11,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 5px",
+              border: "2px solid var(--bg-primary)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.45)",
+            }}
+          >
+            {episode.unreadCount > 9 ? "9+" : episode.unreadCount}
+          </span>
+        )}
+        <div
+          className="card animate-fade-in"
+          role="button"
+          tabIndex={0}
+          onClick={onSelect}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect();
+            }
+          }}
+          onDragOver={onCardDragOver}
+          onDrop={onCardDrop}
+          style={{
+            display: "block",
+            position: "relative",
+            textAlign: "right",
+            overflow: "hidden",
+            cursor: "pointer",
+            padding: 0,
+            borderColor: active ? "var(--gold)" : "var(--border)",
+            boxShadow: active ? "0 0 0 1px var(--gold)" : "none",
+            opacity: dimmed ? 0.5 : 1,
+            transition: "border-color .15s, box-shadow .15s, opacity .15s",
+          }}
+        >
+          <div
+            style={{
+              aspectRatio: "1 / 1",
+              position: "relative",
+              background: episode.cover_image_url
+                ? `center/cover no-repeat url(${episode.cover_image_url})`
+                : "linear-gradient(135deg, var(--bg-hover), var(--bg-secondary))",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {!episode.cover_image_url && (
+              <label
+                className="btn btn-outline"
+                style={{ cursor: uploadingCover ? "wait" : "pointer", fontSize: 11, padding: "6px 10px" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Icon name="layers" size={13} /> {uploadingCover ? "جارٍ الرفع..." : "إضافة صورة"}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={uploadingCover}
+                  onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            )}
+
+            <span
+              draggable
+              title="اسحب لإعادة الترتيب"
+              onClick={(e) => e.stopPropagation()}
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.effectAllowed = "move";
+                onDragStartHandle();
+              }}
+              onDragEnd={(e) => {
+                e.stopPropagation();
+                onDragEndHandle();
+              }}
+              style={{
+                position: "absolute",
+                top: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "rgba(0,0,0,0.5)",
+                color: "#fff",
+                cursor: "grab",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Icon name="grip" size={13} />
+            </span>
+
+            <span
+              className="chip chip-gold"
+              title="تعديل الرقم"
+              onClick={(e) => {
+                e.stopPropagation();
+                setNumberDraft(String(episode.number ?? ""));
+                setEditingNumber(true);
+              }}
+              style={{ position: "absolute", top: 8, right: 8, fontSize: 11, cursor: "pointer" }}
+            >
+              {episode.number != null ? `${itemNoun.singular} ${episode.number}` : "بدون رقم"}
+            </span>
+            {editingNumber && (
+              <span onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 8, right: 8 }}>
+                <input
+                  type="number"
+                  autoFocus
+                  className="input-field"
+                  value={numberDraft}
+                  onChange={(e) => setNumberDraft(e.target.value)}
+                  onBlur={saveNumber}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveNumber();
+                    if (e.key === "Escape") setEditingNumber(false);
+                  }}
+                  style={{ width: 62, fontSize: 11, padding: "2px 6px" }}
+                />
+              </span>
+            )}
+
+            <span
+              className="chip"
+              style={{
+                position: "absolute",
+                top: 8,
+                left: 8,
+                fontSize: 11,
+                color: episode.stageBadge.color,
+                borderColor: episode.stageBadge.color,
+                background: "rgba(0,0,0,0.5)",
+              }}
+            >
+              {episode.stageBadge.label}
+            </span>
+            {episode.hasActiveApproval && (
+              <span style={{ position: "absolute", bottom: 8, right: 8, color: "#1DB954" }} title="معتمدة">
+                <Icon name="badgeCheck" size={20} filled />
+              </span>
+            )}
+          </div>
+
+          <div style={{ padding: 14 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ marginBottom: 2 }}>
+              <EditableTitle value={episode.title} onSave={saveTitle} fontSize={14} maxWidth={220} />
+            </div>
+
+            {deliverableTypeLabel && (
+              <span
+                className="chip"
+                style={{ fontSize: 10.5, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.1)", marginBottom: 8, display: "inline-flex" }}
+              >
+                {deliverableTypeLabel}
+              </span>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 8, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+              <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>المرحلة:</span>
+              <StageQuickSelect stages={pipelineStages} currentKey={episode.pipeline_stage} onChange={saveStage} size="sm" />
+            </div>
+
+            <div className="progress-bar" style={{ height: 5 }}>
+              <div className="progress-fill" style={{ width: `${episode.progress}%` }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, marginBottom: 10, fontSize: 11, color: "var(--text-muted)" }}>
+              <span>{Math.round(episode.progress)}% مكتمل</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Icon name="user" size={11} /> {episode.assigned_to_name || "غير مسند"}
+              </span>
+            </div>
+
+            {fileTypeChips.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                {fileTypeChips.map((c) => (
+                  <span
+                    key={c.ext}
+                    className="chip"
+                    style={{
+                      fontSize: 10.5,
+                      color: (episode.fileTypeCounts[c.ext] ?? 0) > 0 ? "var(--text-primary)" : "var(--text-muted)",
+                      opacity: (episode.fileTypeCounts[c.ext] ?? 0) > 0 ? 1 : 0.5,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                    title={`${c.label}: ${episode.fileTypeCounts[c.ext] ?? 0}`}
+                  >
+                    <Icon name={c.icon} size={11} /> {c.label} ({episode.fileTypeCounts[c.ext] ?? 0})
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+              <button className="btn-ghost" title="رفع ملف" onClick={onSelect} style={iconBtnStyle}>
+                <Icon name="upload" size={13} />
+              </button>
+              <button className="btn-ghost" title="الملاحظات" onClick={onSelect} style={iconBtnStyle}>
+                <Icon name="message" size={13} />
+              </button>
+              <button className="btn-ghost" title="الاعتماد" onClick={onSelect} style={iconBtnStyle}>
+                <Icon name="badgeCheck" size={13} />
+              </button>
+              <ZipExportButton
+                label="تصدير التسليمة ZIP"
+                icon="archive"
+                size="sm"
+                run={(onProgress) => exportEpisodeZip(supabase, companyId, episode.id, onProgress)}
+              />
+              <button className="btn-ghost" title="تكرار" disabled={duplicating} onClick={duplicateEpisode} style={{ ...iconBtnStyle, cursor: duplicating ? "wait" : "pointer" }}>
+                <Icon name="copy" size={13} />
+              </button>
+              <button
+                className="btn-ghost"
+                title="حذف"
+                disabled={deleting}
+                onClick={deleteEpisode}
+                style={{ ...iconBtnStyle, color: "#ef4444", marginInlineStart: "auto", cursor: deleting ? "wait" : "pointer" }}
+              >
+                <Icon name="trash" size={13} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -15,6 +15,8 @@ import { createClient } from "@/app/lib/supabase/client";
 import { canClient } from "@/app/lib/permissions";
 import { episodeStatusMeta, relativeTime, formatDate } from "@/app/components/client/utils";
 import { getEpisodeKindLabel, isSpecialEpisodeKind } from "@/app/lib/item-noun";
+import { resolveTemplate } from "@/app/lib/project-templates";
+import { getMetaValue } from "@/app/lib/episode-meta";
 import type { ClientPermissions, Episode, EpisodeStage, StoryboardScene } from "@/app/lib/types";
 
 type MinimalEpisode = Pick<
@@ -57,6 +59,7 @@ function useEpisodeStatusRealtime(episodeId: string) {
 export default function EpisodeDetailView({
   episode,
   projectName,
+  projectType = null,
   clientName,
   projectId,
   companyId,
@@ -75,6 +78,8 @@ export default function EpisodeDetailView({
 }: {
   episode: MinimalEpisode;
   projectName: string;
+  /** نوع المشروع — يُحدَّد به قالب العنصر عبر resolveTemplate() (مثال: شارة نوع التسليمة لهوية بصرية). */
+  projectType?: string | null;
   clientName: string | null;
   projectId: string;
   companyId: string;
@@ -93,6 +98,11 @@ export default function EpisodeDetailView({
 }) {
   useEpisodeStatusRealtime(episode.id);
   const es = episodeStatusMeta(episode.status);
+  const template = resolveTemplate(projectType);
+  const deliverableTypeLabel =
+    template.cardVariant === "deliverable"
+      ? template.metaFields.find((f) => f.key === "deliverable_type")?.options?.find((o) => o.value === getMetaValue(episode.meta, "deliverable_type"))?.label
+      : undefined;
 
   const showStages = canClient(permissions, "execution_phases") && stages.length > 0;
   const showScript = canClient(permissions, "script") && Boolean(episode.script);
@@ -122,6 +132,11 @@ export default function EpisodeDetailView({
           <h1 className="page-title-size" style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>{episode.title}</h1>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
             <StatusChip label={es.label} color={es.color} />
+            {deliverableTypeLabel && (
+              <span className="chip" style={{ fontSize: 11, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.12)" }}>
+                {deliverableTypeLabel}
+              </span>
+            )}
             {isSpecialEpisodeKind(episode.kind) && (
               <span className="chip" style={{ fontSize: 11, color: "var(--gold)", borderColor: "var(--gold)", background: "rgba(var(--gold-rgb),0.12)", fontWeight: 700 }}>
                 <Icon name="sparkles" size={12} /> {getEpisodeKindLabel(episode, "")}

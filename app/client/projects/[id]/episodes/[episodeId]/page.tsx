@@ -127,6 +127,7 @@ export default async function ClientEpisodePage({
       <EpisodeDetailView
         episode={episode}
         projectName={proj.name}
+        projectType={proj.type}
         clientName={clientName}
         projectId={id}
         companyId={proj.company_id}
