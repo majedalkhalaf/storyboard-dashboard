@@ -10,8 +10,13 @@ import EquipmentSection from './equipment/EquipmentSection';
 import TemplatesSection from './TemplatesSection';
 import ExportCenter from './export/ExportCenter';
 import SettingsSection from './settings/SettingsSection';
+import { Profile } from '../lib/types';
 
 export type ActiveSection = 'dashboard' | 'projects' | 'storyboards' | 'equipment' | 'templates' | 'export' | 'settings';
+
+interface AppShellProps {
+  profile: Profile | null;
+}
 
 const BOTTOM_NAV: { id: ActiveSection; icon: string; label: string }[] = [
   { id: 'dashboard',   icon: '⬡', label: 'الرئيسية' },
@@ -21,7 +26,7 @@ const BOTTOM_NAV: { id: ActiveSection; icon: string; label: string }[] = [
   { id: 'settings',    icon: '⚙️', label: 'إعدادات' },
 ];
 
-export default function AppShell() {
+export default function AppShell({ profile }: AppShellProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeStoryboardId, setActiveStoryboardId] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export default function AppShell() {
       style={{ background: 'var(--bg-primary)' }}>
 
       {/* Desktop sidebar — hidden on mobile via CSS */}
-      <Sidebar activeSection={activeSection} onNavigate={handleNavigate} />
+      <Sidebar activeSection={activeSection} onNavigate={handleNavigate} profile={profile} />
 
       {/* Main content */}
       <main className="main-content flex-1 overflow-y-auto" style={{ background: 'var(--bg-primary)' }}>

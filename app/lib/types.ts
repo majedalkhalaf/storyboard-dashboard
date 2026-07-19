@@ -102,6 +102,19 @@ export interface Template {
   createdAt: string;
 }
 
+export type UserRole = 'client' | 'company';
+
+export interface Profile {
+  id: string;
+  role: UserRole;
+  full_name: string | null;
+  company_name: string | null;
+  cr_number: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+}
+
 export interface AppState {
   projects: Project[];
   storyboards: Storyboard[];

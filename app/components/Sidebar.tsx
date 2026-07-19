@@ -2,10 +2,13 @@
 
 import { useAppStore } from '../store/useAppStore';
 import { ActiveSection } from './AppShell';
+import LogoutButton from './auth/LogoutButton';
+import { Profile } from '../lib/types';
 
 interface SidebarProps {
   activeSection: ActiveSection;
   onNavigate: (section: ActiveSection) => void;
+  profile: Profile | null;
 }
 
 const NAV_ITEMS = [
@@ -20,7 +23,7 @@ const BOTTOM_ITEMS = [
   { id: 'settings', icon: '⚙️', label: 'الإعدادات', labelEn: 'Settings' },
 ];
 
-export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
+export default function Sidebar({ activeSection, onNavigate, profile }: SidebarProps) {
   const { theme, setTheme, language, setLanguage, projects, storyboards } = useAppStore();
 
   const activeProjects = projects.filter(p => p.status === 'production').length;
@@ -127,6 +130,15 @@ export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
 
       {/* Bottom controls */}
       <div className="sidebar-text" style={{ padding: '14px', borderTop: '1px solid var(--border)' }}>
+        {profile && (
+          <div style={{ marginBottom: '10px', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {profile.company_name || profile.full_name || profile.email}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: '600' }}>حساب شركة</div>
+          </div>
+        )}
+        <LogoutButton style={{ width: '100%', marginBottom: '8px' }} />
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
